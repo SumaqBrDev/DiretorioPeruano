@@ -1,26 +1,10 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App';
-import './index.css';
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.tsx'
 
-// Inicializar tema
-const initializeTheme = () => {
-  const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const theme = savedTheme || (prefersDark ? 'dark' : 'light');
-  
-  if (theme === 'dark') {
-    document.documentElement.classList.add('dark');
-  } else {
-    document.documentElement.classList.remove('dark');
-  }
-  localStorage.setItem('theme', theme);
-};
-
-initializeTheme();
-
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
     <App />
-  </React.StrictMode>,
-);
+  </StrictMode>,
+)
