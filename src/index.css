@@ -1,0 +1,39 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: 'Inter', sans-serif;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+/* Micro-interacciones */
+button, .btn, [type="button"], [type="submit"] {
+  transition: all 0.2s ease-in-out;
+}
+
+button:hover, .btn:hover, [type="button"]:hover, [type="submit"]:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+button:active, .btn:active, [type="button"]:active, [type="submit"]:active {
+  transform: translateY(0);
+}
+
+/* Animación para cards */
+.card, .feature {
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.card:hover, .feature:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* Scroll suave */
+html {
+  scroll-behavior: smooth;
+}
