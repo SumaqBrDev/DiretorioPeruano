@@ -1,0 +1,87 @@
+{
+  "brand": {
+    "name": "ConectaPerú",
+    "subtitle": "Conectando peruanos en Brasil",
+    "tagline": "El directorio más grande de negocios peruanos en Brasil"
+  },
+  "nav": {
+    "home": "Inicio",
+    "search": "Buscar",
+    "inbox": "Bandeja",
+    "login": "Entrar",
+    "signup": "Registrarse",
+    "my_business": "Mi Negocio",
+    "admin": "Admin",
+    "logout": "Salir",
+    "hello": "Hola"
+  },
+  "hero": {
+    "badge": "Conectando Negocios Peruanos en Brasil",
+    "headline": "Descubre el <highlight>Perú</highlight> en Brasil",
+    "subtitle": "Encuentra restaurantes, mercados, salones y servicios profesionales de la comunidad peruana cerca de ti",
+    "search_placeholder": "Buscar ceviche, lomo saltado, chicha morada...",
+    "search_button": "Buscar",
+    "explore_link": "o explora todas las categorías"
+  },
+  "categories": {
+    "title": "Categorías",
+    "subtitle": "Explora los negocios peruanos organizados por categoría",
+    "restaurantes": "Restaurantes",
+    "mercados": "Mercados",
+    "salon": "Salones de Belleza",
+    "servicios": "Servicios Profesionales",
+    "salud": "Salud",
+    "juridico": "Jurídico",
+    "financiero": "Financiero",
+    "inmuebles": "Inmuebles",
+    "coming_soon": "Pronto"
+  },
+  "featured": {
+    "title": "Negocios Destacados",
+    "subtitle": "Los mejor calificados por la comunidad peruana",
+    "view_all": "Ver todos",
+    "no_results": "Ningún negocio encontrado",
+    "no_results_cta": "Sé el primero en registrar tu negocio",
+    "register": "Registrar mi negocio"
+  },
+  "stats": {
+    "businesses": "Negocios",
+    "cities": "Ciudades",
+    "reviews": "Evaluaciones",
+    "categories": "Categorías"
+  },
+  "testimonials": {
+    "title": "Lo que dice la comunidad",
+    "subtitle": "Evaluaciones reales de peruanos y brasileños que conectan a través de ConectaPerú"
+  },
+  "cta": {
+    "title": "¿Tienes un negocio peruano en Brasil?",
+    "subtitle": "Regístrate gratuitamente en ConectaPerú y conéctate con la comunidad peruana en Brasil. Aumenta tu visibilidad y alcanza más clientes.",
+    "button": "Registrar mi negocio gratis"
+  },
+  "search": {
+    "title": "Buscar Negocios",
+    "subtitle": "Encuentra restaurantes peruanos, mercados y servicios de la comunidad peruana en Brasil",
+    "search_placeholder": "Buscar por nombre, plato o servicio...",
+    "filters": "Filtros",
+    "category": "Categoría",
+    "all_categories": "Todas las categorías",
+    "city": "Ciudad",
+    "all_cities": "Todas las ciudades",
+    "rating": "Calificación mínima",
+    "any_rating": "Cualquier calificación",
+    "results": "resultados encontrados",
+    "no_results": "Ningún negocio encontrado para esta búsqueda",
+    "try_adjusting": "Intenta ajustar los filtros o buscar con otro término"
+  },
+  "footer": {
+    "copyright": "Conectando peruanos en Brasil."
+  },
+  "common": {
+    "loading": "Cargando...",
+    "error": "Algo salió mal",
+    "retry": "Intentar de nuevo",
+    "reviews": "evaluaciones",
+    "rating": "estrellas"
+  }
+}

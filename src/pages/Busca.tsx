@@ -1,90 +1,368 @@
-// src/pages/Busca.tsx
-import { Link } from 'react-router-dom'
-import { RestaurantCard } from '@/components/RestaurantCard'
+import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { MagnifyingGlass, Star, Funnel } from '@phosphor-icons/react';
+import axios from 'axios';
+import { SkeletonCard } from '../components/SkeletonCard';
+import { fallbackFeatured } from '../data/fallbackData';
+
+interface SearchResult {
+  id: string;
+  name: string;
+  category: string;
+  city: string;
+  state: string;
+  rating: number;
+  reviewsCount: number;
+  tags: string[];
+  coverImage: string;
+  description: string;
+}
+
+const API_BASE = import.meta.env.VITE_API_URL || '';
+
+const CATEGORIES = [
+  { value: '', labelKey: 'search.all_categories' },
+  { value: 'restaurante', label: 'Restaurantes' },
+  { value: 'mercado', label: 'Mercados' },
+  { value: 'salon', label: 'Salões de Beleza' },
+  { value: 'servicios', label: 'Serviços Profissionais' },
+  { value: 'salud', label: 'Saúde' },
+  { value: 'juridico', label: 'Jurídico' },
+  { value: 'financiero', label: 'Financeiro' },
+  { value: 'inmuebles', label: 'Imóveis' },
+];
+
+const CITIES = [
+  { value: '', label: 'Todas as cidades' },
+  { value: 'sao paulo', label: 'São Paulo - SP' },
+  { value: 'rio de janeiro', label: 'Rio de Janeiro - RJ' },
+  { value: 'brasilia', label: 'Brasília - DF' },
+  { value: 'curitiba', label: 'Curitiba - PR' },
+  { value: 'belo horizonte', label: 'Belo Horizonte - MG' },
+  { value: 'porto alegre', label: 'Porto Alegre - RS' },
+  { value: 'salvador', label: 'Salvador - BA' },
+];
+
+const RATINGS = [
+  { value: '', label: 'Qualquer avaliação' },
+  { value: '4.5', label: '4.5+ estrelas' },
+  { value: '4.0', label: '4.0+ estrelas' },
+  { value: '3.5', label: '3.5+ estrelas' },
+];
 
 export const Busca = () => {
+  const { t } = useTranslation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [results, setResults] = useState<SearchResult[]>(fallbackFeatured);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+
+  const query = searchParams.get('q') || '';
+  const category = searchParams.get('categoria') || '';
+  const city = searchParams.get('cidade') || '';
+  const minRating = searchParams.get('rating') || '';
+
+  const [searchInput, setSearchInput] = useState(query);
+
+  const fetchResults = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      if (query) params.set('q', query);
+      if (category) params.set('category', category);
+      if (city) params.set('city', city);
+      if (minRating) params.set('minRating', minRating);
+
+      const { data } = await axios.get(`${API_BASE}/api/businesses?${params.toString()}`);
+      setResults(data);
+    } catch (err: any) {
+      if (err?.message?.includes('No API base URL') || err?.code === 'ERR_NETWORK') {
+        setResults(fallbackFeatured);
+      } else {
+        setError(err?.message || 'Erro ao buscar resultados');
+        setResults([]);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [query, category, city, minRating]);
+
+  useEffect(() => {
+    if (!API_BASE) return;
+    fetchResults();
+  }, [fetchResults]);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const params = new URLSearchParams();
+    if (searchInput.trim()) params.set('q', searchInput.trim());
+    if (category) params.set('categoria', category);
+    if (city) params.set('cidade', city);
+    if (minRating) params.set('rating', minRating);
+    setSearchParams(params);
+  };
+
+  const updateFilter = (key: string, value: string) => {
+    const params = new URLSearchParams(searchParams);
+    if (value) {
+      params.set(key, value);
+    } else {
+      params.delete(key);
+    }
+    setSearchParams(params);
+  };
+
+  const getCategoryBadge = (cat: string) => {
+    const c = cat.toLowerCase();
+    if (c === 'restaurante') return 'bg-aji-rojo/10 text-aji-rojo';
+    if (c === 'mercado') return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+    if (c === 'salon') return 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400';
+    if (c === 'servicios') return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+    if (c === 'salud') return 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400';
+    return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
+  };
+
+  const hasFilters = !!(query || category || city || minRating);
+
   return (
     <div className="container mx-auto px-4 py-8">
-      <header className="mb-12">
-        <h1 className="font-playfair text-3xl md:text-4xl font-bold text-noche-lima dark:text-white mb-4">
-          Buscar Negócios
+      {/* Header */}
+      <header className="mb-8">
+        <h1 className="text-3xl md:text-4xl font-bold text-noche-lima dark:text-white mb-2 tracking-tighter">
+          {t('search.title')}
         </h1>
         <p className="text-gray-600 dark:text-gray-400 max-w-2xl">
-          Encontre restaurantes peruanos, mercados e serviços da comunidade peruana no Brasil
+          {t('search.subtitle')}
         </p>
       </header>
 
+      {/* Search Bar */}
+      <form onSubmit={handleSearch} className="mb-8">
+        <div className="flex items-center gap-2 bg-white dark:bg-zinc-800 rounded-2xl shadow-lg p-2 border border-oro-inca/20 focus-within:border-aji-rojo/50 focus-within:ring-2 focus-within:ring-aji-rojo/20 transition-all">
+          <MagnifyingGlass size={22} className="ml-3 text-gray-400 shrink-0" />
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder={t('search.search_placeholder')}
+            className="flex-1 bg-transparent placeholder-gray-400 dark:placeholder-gray-500 text-base focus:outline-none text-noche-lima dark:text-white"
+          />
+          <button
+            type="submit"
+            className="px-5 py-2.5 bg-aji-rojo text-white rounded-xl font-semibold text-sm hover:bg-aji-rojo/90 active:scale-[0.98] transition-all shrink-0"
+          >
+            {t('hero.search_button')}
+          </button>
+          {/* Mobile filter toggle */}
+          <button
+            type="button"
+            onClick={() => setMobileFiltersOpen(!mobileFiltersOpen)}
+            className="md:hidden p-2.5 text-gray-500 hover:text-aji-rojo rounded-xl hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors"
+            aria-label={t('search.filters')}
+          >
+            <Funnel size={20} />
+          </button>
+        </div>
+      </form>
+
+      {/* API not configured notice */}
+      {!API_BASE && (
+        <div className="mb-6 p-4 bg-oro-inca/10 border border-oro-inca/30 rounded-xl text-center">
+          <p className="text-oro-inca text-sm font-medium">
+            Modo de desenvolvimento — exibindo dados de exemplo
+          </p>
+        </div>
+      )}
+
       <div className="grid lg:grid-cols-4 gap-8">
-        <aside className="lg:col-span-1">
-          <div className="bg-white dark:bg-noche-lima rounded-2xl shadow-lg p-6 border border-oro-inca/20 sticky top-24 space-y-6">
-            <h3 className="font-playfair text-xl font-bold text-noche-lima dark:text-white mb-4">Filtros</h3>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Categoria</label>
-                <select className="w-full p-3 rounded-lg border border-oro-inca/30 bg-white dark:bg-noche-lima text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-aji-rojo">
-                  <option value="">Todas as categorias</option>
-                  <option value="restaurante">Restaurantes</option>
-                  <option value="mercado">Mercados</option>
-                  <option value="cafe">Cafés</option>
-                  <option value="servicos">Serviços</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Cidade</label>
-                <select className="w-full p-3 rounded-lg border border-oro-inca/30 bg-white dark:bg-noche-lima text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-aji-rojo">
-                  <option value="">Todas as cidades</option>
-                  <option value="sao-paulo">São Paulo - SP</option>
-                  <option value="rio-de-janeiro">Rio de Janeiro - RJ</option>
-                  <option value="brasilia">Brasília - DF</option>
-                  <option value="curitiba">Curitiba - PR</option>
-                  <option value="belo-horizonte">Belo Horizonte - MG</option>
-                  <option value="porto-alegre">Porto Alegre - RS</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Avaliação mínima</label>
-                <select className="w-full p-3 rounded-lg border border-oro-inca/30 bg-white dark:bg-noche-lima text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-aji-rojo">
-                  <option value="">Qualquer avaliação</option>
-                  <option value="4.5">4.5+ estrelas</option>
-                  <option value="4.0">4.0+ estrelas</option>
-                  <option value="3.5">3.5+ estrelas</option>
-                </select>
-              </div>
+        {/* Filters Sidebar */}
+        <aside className={`lg:col-span-1 ${mobileFiltersOpen ? 'block' : 'hidden md:block'}`}>
+          <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg p-6 border border-oro-inca/20 sticky top-24 space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-noche-lima dark:text-white">
+                {t('search.filters')}
+              </h3>
+              <button
+                onClick={() => setMobileFiltersOpen(false)}
+                className="md:hidden text-gray-400 hover:text-aji-rojo"
+                aria-label="Fechar filtros"
+              >
+                &times;
+              </button>
             </div>
+
+            {/* Category Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                {t('search.category')}
+              </label>
+              <select
+                value={category}
+                onChange={(e) => updateFilter('categoria', e.target.value)}
+                className="w-full p-3 rounded-xl border border-oro-inca/30 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-aji-rojo/30 focus:border-aji-rojo/50 transition-all text-sm"
+              >
+                {CATEGORIES.map((cat) => (
+                  <option key={cat.value} value={cat.value}>
+                    {cat.label || t(cat.labelKey || '')}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* City Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                {t('search.city')}
+              </label>
+              <select
+                value={city}
+                onChange={(e) => updateFilter('cidade', e.target.value)}
+                className="w-full p-3 rounded-xl border border-oro-inca/30 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-aji-rojo/30 focus:border-aji-rojo/50 transition-all text-sm"
+              >
+                {CITIES.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Rating Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                {t('search.rating')}
+              </label>
+              <select
+                value={minRating}
+                onChange={(e) => updateFilter('rating', e.target.value)}
+                className="w-full p-3 rounded-xl border border-oro-inca/30 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-aji-rojo/30 focus:border-aji-rojo/50 transition-all text-sm"
+              >
+                {RATINGS.map((r) => (
+                  <option key={r.value} value={r.value}>
+                    {r.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Active Filters Summary */}
+            {hasFilters && (
+              <div className="pt-4 border-t border-oro-inca/20">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                  {results.length} {t('search.results')}
+                </p>
+                <button
+                  onClick={() => setSearchParams({})}
+                  className="text-xs text-aji-rojo font-medium hover:underline"
+                >
+                  Limpar filtros
+                </button>
+              </div>
+            )}
           </div>
         </aside>
 
+        {/* Results */}
         <main className="lg:col-span-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[
-              { id: 1, name: 'El Ceviche de Lima', city: 'São Paulo - SP', rating: 4.9, reviews: 234, tags: ['Ceviche Clássico', 'Leche de Tigre'], image: '🐟', category: 'Restaurante' },
-              { id: 2, name: 'Sabor Andino', city: 'Rio de Janeiro - RJ', rating: 4.8, reviews: 189, tags: ['Lomo Saltado', 'Aji de Gallina'], image: '🍲', category: 'Restaurante' },
-              { id: 3, name: 'Pachamama', city: 'Brasília - DF', rating: 4.9, reviews: 156, tags: ['Causa Limeña', 'Anticuchos'], image: '🥔', category: 'Restaurante' },
-              { id: 4, name: 'El Pescador', city: 'Curitiba - PR', rating: 4.7, reviews: 134, tags: ['Ceviche Mixto', 'Arroz con Mariscos'], image: '🦐', category: 'Restaurante' },
-              { id: 5, name: 'Machu Picchu Restô', city: 'Belo Horizonte - MG', rating: 4.8, reviews: 201, tags: ['Lomo Saltado', 'Papa a la Huancaína'], image: '🏔️', category: 'Restaurante' },
-              { id: 6, name: 'Inti Raymi', city: 'Porto Alegre - RS', rating: 4.6, reviews: 98, tags: ['Ceviche Nikkei', 'Tiradito'], image: '🎭', category: 'Restaurante' },
-              { id: 7, name: 'Mercado Inca', city: 'São Paulo - SP', rating: 4.8, reviews: 89, tags: ['Aji Amarillo', 'Rocoto', 'Choclo'], image: '🛒', category: 'Mercado' },
-              { id: 8, name: 'Café Peruano', city: 'Rio de Janeiro - RJ', rating: 4.5, reviews: 67, tags: ['Café Peruano', 'Alfajores'], image: '☕', category: 'Café' },
-              { id: 9, name: 'Salón de Belleza Inca', city: 'São Paulo - SP', rating: 4.6, reviews: 45, tags: ['Tratamientos Naturales', 'Henna'], image: '💆', category: 'Serviços' },
-            ].map((item) => (
-              <Link key={item.id} to={`/negocio/${item.id}`}>
-                <RestaurantCard
-                  name={item.name}
-                  city={item.city}
-                  rating={item.rating}
-                  reviews={item.reviews}
-                  tags={item.tags}
-                  image={item.image}
-                  category={item.category}
-                />
+          {error && (
+            <div className="mb-6 p-4 bg-aji-rojo/10 border border-aji-rojo/30 rounded-xl text-center">
+              <p className="text-aji-rojo text-sm">{t('common.error')}: {error}</p>
+              <button
+                onClick={fetchResults}
+                className="mt-2 text-sm text-aji-rojo font-medium hover:underline"
+              >
+                {t('common.retry')}
+              </button>
+            </div>
+          )}
+
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <SkeletonCard key={i} variant="card" />
+              ))}
+            </div>
+          ) : results.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              {results.map((item) => (
+                <Link
+                  key={item.id}
+                  to={`/negocio/${item.id}`}
+                  className="block group"
+                >
+                  <article className="bg-white dark:bg-zinc-800 rounded-2xl shadow-lg overflow-hidden border border-oro-inca/20 hover:shadow-xl hover:border-aji-rojo/50 hover:-translate-y-1 transition-all duration-300">
+                    <div className="relative aspect-video bg-gradient-to-br from-aji-rojo/20 to-oro-inca/20 flex items-center justify-center overflow-hidden">
+                      {item.coverImage ? (
+                        <img
+                          src={item.coverImage}
+                          alt={item.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <span className="text-5xl opacity-40">
+                          {item.category === 'Restaurante' || item.category === 'restaurante' ? '🍽️' : item.category === 'Mercado' ? '🛒' : '🏪'}
+                        </span>
+                      )}
+                      <div className="absolute top-3 right-3">
+                        <span className="bg-aji-rojo text-white px-3 py-1 rounded-full text-sm font-bold flex items-center gap-1 shadow-lg">
+                          <Star size={14} weight="fill" />
+                          {item.rating || '-'}
+                        </span>
+                      </div>
+                      <div className="absolute top-3 left-3">
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium shadow-sm ${getCategoryBadge(item.category)}`}>
+                          {item.category}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="p-5">
+                      <h3 className="text-lg font-bold text-noche-lima dark:text-white mb-1 group-hover:text-aji-rojo transition-colors">
+                        {item.name}
+                      </h3>
+                      <p className="text-gray-500 dark:text-gray-400 text-sm mb-3 flex items-center gap-1">
+                        <span className="text-base">📍</span>
+                        {item.city}{item.state ? ` - ${item.state}` : ''}
+                      </p>
+                      {item.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {item.tags.slice(0, 3).map((tag, i) => (
+                            <span
+                              key={i}
+                              className="bg-oro-inca/20 text-oro-inca dark:text-oro-inca/80 px-3 py-1 rounded-full text-xs font-medium"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </article>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-16 bg-white dark:bg-zinc-800 rounded-2xl border border-oro-inca/20">
+              <p className="text-gray-500 dark:text-gray-400 text-lg mb-2">
+                {t('search.no_results')}
+              </p>
+              <p className="text-gray-400 dark:text-gray-500 text-sm mb-6">
+                {t('search.try_adjusting')}
+              </p>
+              <Link
+                to="/onboarding"
+                className="inline-flex items-center gap-2 bg-aji-rojo text-white px-6 py-3 rounded-xl font-semibold hover:bg-aji-rojo/90 transition-all"
+              >
+                {t('featured.register')}
+                <span>&rarr;</span>
               </Link>
-            ))}
-          </div>
+            </div>
+          )}
         </main>
       </div>
     </div>
-  )
-}
+  );
+};

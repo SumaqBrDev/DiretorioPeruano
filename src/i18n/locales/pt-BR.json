@@ -1,0 +1,87 @@
+{
+  "brand": {
+    "name": "ConectaPeru",
+    "subtitle": "Conectando peruanos no Brasil",
+    "tagline": "O maior diretório de negócios peruanos no Brasil"
+  },
+  "nav": {
+    "home": "Início",
+    "search": "Buscar",
+    "inbox": "Inbox",
+    "login": "Entrar",
+    "signup": "Cadastrar",
+    "my_business": "Meu Negócio",
+    "admin": "Admin",
+    "logout": "Sair",
+    "hello": "Olá"
+  },
+  "hero": {
+    "badge": "Conectando Negócios Peruanos no Brasil",
+    "headline": "Descubra o <highlight>Peru</highlight> no Brasil",
+    "subtitle": "Encontre restaurantes, mercados, salões e serviços profissionais da comunidade peruana perto de você",
+    "search_placeholder": "Buscar ceviche, lomo saltado, chicha morada...",
+    "search_button": "Buscar",
+    "explore_link": "ou explore todas as categorias"
+  },
+  "categories": {
+    "title": "Categorias",
+    "subtitle": "Explore os negócios peruanos organizados por categoria",
+    "restaurantes": "Restaurantes",
+    "mercados": "Mercados",
+    "salon": "Salões de Beleza",
+    "servicios": "Serviços Profissionais",
+    "salud": "Saúde",
+    "juridico": "Jurídico",
+    "financiero": "Financeiro",
+    "inmuebles": "Imóveis",
+    "coming_soon": "Em breve"
+  },
+  "featured": {
+    "title": "Negócios em Destaque",
+    "subtitle": "Os mais bem avaliados pela comunidade peruana",
+    "view_all": "Ver todos",
+    "no_results": "Nenhum negócio encontrado",
+    "no_results_cta": "Seja o primeiro a cadastrar seu negócio",
+    "register": "Cadastrar meu negócio"
+  },
+  "stats": {
+    "businesses": "Negócios",
+    "cities": "Cidades",
+    "reviews": "Avaliações",
+    "categories": "Categorias"
+  },
+  "testimonials": {
+    "title": "O que a comunidade diz",
+    "subtitle": "Avaliações reais de peruanos e brasileiros que conectam através do ConectaPeru"
+  },
+  "cta": {
+    "title": "Tem um negócio peruano no Brasil?",
+    "subtitle": "Cadastre-se gratuitamente no ConectaPeru e conecte-se com a comunidade peruana no Brasil. Aumente sua visibilidade e alcance mais clientes.",
+    "button": "Cadastrar meu negócio grátis"
+  },
+  "search": {
+    "title": "Buscar Negócios",
+    "subtitle": "Encontre restaurantes peruanos, mercados e serviços da comunidade peruana no Brasil",
+    "search_placeholder": "Buscar por nome, prato ou serviço...",
+    "filters": "Filtros",
+    "category": "Categoria",
+    "all_categories": "Todas as categorias",
+    "city": "Cidade",
+    "all_cities": "Todas as cidades",
+    "rating": "Avaliação mínima",
+    "any_rating": "Qualquer avaliação",
+    "results": "resultados encontrados",
+    "no_results": "Nenhum negócio encontrado para esta busca",
+    "try_adjusting": "Tente ajustar os filtros ou buscar por outro termo"
+  },
+  "footer": {
+    "copyright": "Conectando peruanos no Brasil."
+  },
+  "common": {
+    "loading": "Carregando...",
+    "error": "Algo deu errado",
+    "retry": "Tentar novamente",
+    "reviews": "avaliações",
+    "rating": "estrelas"
+  }
+}

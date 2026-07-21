@@ -2,7 +2,6 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { auth } from "@clerk/nextjs/server";
 
 export async function approveReview(reviewId: string) {
   const review = await prisma.review.update({

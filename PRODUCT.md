@@ -4,18 +4,18 @@
 
 | Campo      | Valor                                                                                   |
 |------------|-----------------------------------------------------------------------------------------|
-| **Nome**   | SaborPeruano                                                                            |
-| **Tagline**| *El sabor del Perú en tierra brasileña / O sabor do Peru em terra brasileira*          |
-| **Tipo**   | Diretório de negócios peruanos no Brasil — iniciando por restaurantes                  |
-| **Propósito** | Conectar peruanos que vivem no Brasil com negócios da sua comunidade, especialmente restaurantes e comida típica peruana |
+| **Nome**   | ConectaPeru                                                                            |
+| **Tagline**| *O Hub do Empreendedor Peruano no Brasil / El Hub del Emprendedor Peruano en Brasil*          |
+| **Tipo**   | Diretório Multi-Setorial de negócios peruanos no Brasil (Gastronomia, Serviços, Saúde, etc.) |
+| **Propósito** | Conectar a comunidade peruana no Brasil e dar visibilidade aos negócios e empreendedores de todos os setores |
 
 ---
 
 ## Visão do Produto
 
-Peruanos que vivem no Brasil carregam consigo saudade da culinária, cultura e serviços do seu país. O **SaborPeruano** é o ponto de encontro digital dessa comunidade: um diretório moderno e bonito onde negócios peruanos no Brasil podem se registrar, exibir seus produtos e serviços, e ser encontrados facilmente por compatriotas ou por brasileiros curiosos sobre a cultura peruana.
+Peruanos que vivem no Brasil carregam consigo a força do trabalho, cultura e serviços do seu país. O **ConectaPeru** é o hub digital dessa comunidade: um diretório moderno e escalável onde negócios peruanos de qualquer setor (gastronomia, estética, consultoria, mercados, tecnologia) podem se registrar, exibir seus produtos e serviços, e construir uma rede forte.
 
-A plataforma começa pelo segmento de **restaurantes**, mas é arquitetada para escalar para outros tipos de negócio (mercadinhos, salões de beleza, serviços jurídicos, etc.).
+A plataforma começa com um destaque para a **gastronomia**, mas nasce arquitetada como um ecossistema multi-setorial desde o dia um.
 
 ---
 
@@ -136,7 +136,7 @@ A plataforma começa pelo segmento de **restaurantes**, mas é arquitetada para 
 ### Conceito
 **"Peru no coração, Brasil em volta."**
 
-O design deve transmitir calor, cor e pertencimento. Usar referências visuais que unem as duas culturas: os padrões têxteis andinos (qeros, mantas), as cores vibrantes da culinária peruana (vermelho ají, amarelo pisco, verde huacatay), com toques do verde e amarelo brasileiro e a exuberância tropical.
+O design deve transmitir uma estética de "Startup Hub" e modernidade, mantendo a herança cultural de forma sofisticada e sutil. Evitar a sobrecarga de símbolos gastronômicos (panelas, garfos) como identidade principal, pois o diretório atende diversos setores.
 
 ### Paleta de Cores (base)
 
@@ -150,8 +150,8 @@ O design deve transmitir calor, cor e pertencimento. Usar referências visuais q
 | Branco Pisco | `#FFFFFF` | Backgrounds, espaço negativo                     |
 
 ### Tipografia (sugestão)
-- **Títulos**: Fonte serifada expressiva (ex.: *Playfair Display*, *Cormorant Garamond*) — traz nobreza e identidade cultural.
-- **Corpo / UI**: Fonte sans-serif moderna (ex.: *Inter*, *DM Sans*) — legibilidade e limpeza.
+- **Títulos**: Fonte sans-serif moderna e geométrica (ex.: *Satoshi*, *Outfit*, *Geist*) — traz um ar de plataforma tecnológica e hub de negócios.
+- **Corpo / UI**: Fonte sans-serif limpa (ex.: *Geist*, *Inter*) — legibilidade máxima.
 
 ### Animações e Interações
 - Hero section com animação de entrada (fade + slide) e fundo com padrão têxtil andino animado (SVG ou CSS).

@@ -1,35 +1,47 @@
-import { Link, useLocation } from 'react-router-dom'
-import { useUser, useClerk } from '@clerk/clerk-react'
-import { useState } from 'react'
+import { Link, useLocation } from 'react-router-dom';
+import { useUser, useClerk } from '@clerk/clerk-react';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { List, X, SignOut } from '@phosphor-icons/react';
+import { LanguageToggle } from './LanguageToggle';
 
 export const Navbar = () => {
-  const { user, isLoaded } = useUser()
-  const { openSignIn, openSignUp, signOut } = useClerk()
-  const location = useLocation()
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [language, setLanguage] = useState<'pt-BR' | 'es-PE'>('pt-BR')
+  const { t } = useTranslation();
+  const { user, isLoaded } = useUser();
+  const { openSignIn, openSignUp, signOut } = useClerk();
+  const location = useLocation();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
-  if (!isLoaded) return null
+  if (!isLoaded) return null;
 
   const navLinks = [
-    { path: '/', label: { 'pt-BR': 'Início', 'es-PE': 'Inicio' } },
-    { path: '/busca', label: { 'pt-BR': 'Buscar', 'es-PE': 'Buscar' } },
-    { path: '/inbox', label: { 'pt-BR': 'Inbox', 'es-PE': 'Bandeja' } },
-  ]
+    { path: '/', label: t('nav.home') },
+    { path: '/busca', label: t('nav.search') },
+  ];
+
+  const isActive = (path: string) => location.pathname === path;
 
   return (
-    <header className="bg-white dark:bg-noche-lima shadow-sm border-b border-oro-inca/20 sticky top-0 z-50">
+    <header className="bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md border-b border-oro-inca/20 sticky top-0 z-50">
       <nav className="container mx-auto px-4" aria-label="Navegação principal">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2" aria-label="ConectaPerú - Início">
-            <svg className="w-8 h-8 text-aji-rojo" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-              <circle cx="16" cy="16" r="14" stroke="#C0392B" strokeWidth="2"/>
-              <path d="M16 8 L16 24" stroke="#C0392B" strokeWidth="2" strokeLinecap="round"/>
-              <path d="M8 16 L24 16" stroke="#C0392B" strokeWidth="2" strokeLinecap="round"/>
-              <circle cx="16" cy="16" r="4" fill="#F39C12"/>
+          <Link
+            to="/"
+            className="flex items-center gap-2.5"
+            aria-label={`${t('brand.name')} - ${t('nav.home')}`}
+          >
+            {/* CP Logo Mark */}
+            <svg className="w-8 h-8 shrink-0" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+              <circle cx="16" cy="16" r="14" stroke="#C0392B" strokeWidth="2" />
+              <path d="M12 10 L20 10 L20 16 L12 16 Z" fill="#C0392B" />
+              <path d="M12 16 L20 22 L12 22 Z" fill="#F39C12" />
+              <text x="16" y="20" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" fontFamily="Geist, sans-serif">CP</text>
             </svg>
-            <span className="font-playfair text-xl font-bold text-aji-rojo hidden sm:block">ConectaPerú</span>
+            <span className="font-bold text-lg text-aji-rojo hidden sm:block">
+              {t('brand.name')}
+            </span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -38,66 +50,86 @@ export const Navbar = () => {
               <Link
                 key={path}
                 to={path}
-                className={`font-medium transition-colors ${
-                  location.pathname === path
+                className={`text-sm font-medium transition-colors ${
+                  isActive(path)
                     ? 'text-aji-rojo'
-                    : 'text-gray-700 dark:text-gray-300 hover:text-aji-rojo'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-aji-rojo'
                 }`}
               >
-                {label['pt-BR']}
+                {label}
               </Link>
             ))}
 
-            {/* Language Selector */}
-            <div className="relative">
-              <select
-                value={language}
-                onChange={(e) => setLanguage(e.target.value as 'pt-BR' | 'es-PE')}
-                className="bg-transparent border border-oro-inca/30 rounded-lg px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-aji-rojo"
-                aria-label="Selecionar idioma"
-              >
-                <option value="pt-BR">🇧🇷 Português</option>
-                <option value="es-PE">🇵🇪 Español</option>
-              </select>
-            </div>
+            {/* Language Toggle */}
+            <LanguageToggle />
 
-            {/* Auth Buttons */}
+            {/* Auth Section */}
             <div className="flex items-center gap-3">
               {user ? (
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-gray-700 dark:text-gray-300 hidden sm:block">
-                    Olá, {user.firstName || user.username || 'Usuário'}
-                  </span>
-                  {user.publicMetadata?.role === 'business' && (
-                    <Link to="/onboarding" className="bg-aji-rojo text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-aji-rojo/90 transition-colors">
-                      Meu Negócio
-                    </Link>
-                  )}
-                  {user.publicMetadata?.role === 'admin' && (
-                    <Link to="/admin" className="bg-oro-inca text-noche-lima px-4 py-2 rounded-lg text-sm font-medium hover:bg-oro-inca/90 transition-colors">
-                      Admin
-                    </Link>
-                  )}
+                <div className="relative">
                   <button
-                    onClick={() => signOut()}
-                    className="text-gray-600 dark:text-gray-400 hover:text-aji-rojo text-sm font-medium"
+                    onClick={() => setUserMenuOpen(!userMenuOpen)}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-aji-rojo/10 transition-colors"
                   >
-                    Sair
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-aji-rojo to-oro-inca flex items-center justify-center text-white text-xs font-bold">
+                      {(user.firstName || user.username || 'U')?.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="text-sm text-gray-700 dark:text-gray-300 hidden lg:block">
+                      {user.firstName || user.username || ''}
+                    </span>
                   </button>
+
+                  {userMenuOpen && (
+                    <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-zinc-800 rounded-xl shadow-xl border border-oro-inca/20 py-2 z-50">
+                      {user.publicMetadata?.role === 'business' && (
+                        <Link
+                          to="/onboarding"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-aji-rojo/10 hover:text-aji-rojo"
+                        >
+                          {t('nav.my_business')}
+                        </Link>
+                      )}
+                      {user.publicMetadata?.role === 'admin' && (
+                        <Link
+                          to="/admin"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-aji-rojo/10 hover:text-aji-rojo"
+                        >
+                          {t('nav.admin')}
+                        </Link>
+                      )}
+                      <Link
+                        to="/inbox"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-aji-rojo/10 hover:text-aji-rojo"
+                      >
+                        {t('nav.inbox')}
+                      </Link>
+                      <hr className="my-1 border-oro-inca/20" />
+                      <button
+                        onClick={() => { signOut(); setUserMenuOpen(false); }}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-aji-rojo/10 hover:text-aji-rojo flex items-center gap-2"
+                      >
+                        <SignOut size={16} />
+                        {t('nav.logout')}
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => openSignIn({ redirectUrl: '/' })}
-                    className="text-gray-700 dark:text-gray-300 hover:text-aji-rojo text-sm font-medium"
+                    className="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-aji-rojo transition-colors px-3 py-1.5"
                   >
-                    Entrar
+                    {t('nav.login')}
                   </button>
                   <button
                     onClick={() => openSignUp({ redirectUrl: '/onboarding' })}
-                    className="bg-aji-rojo text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-aji-rojo/90 transition-colors"
+                    className="bg-aji-rojo text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-aji-rojo/90 active:scale-[0.98] transition-all"
                   >
-                    Cadastrar
+                    {t('nav.signup')}
                   </button>
                 </div>
               )}
@@ -105,72 +137,78 @@ export const Navbar = () => {
           </div>
 
           {/* Mobile Menu Button */}
-          <button
-            className="md:hidden p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            aria-expanded={mobileMenuOpen}
-            aria-controls="mobile-menu"
-            aria-label="Abrir menu"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              {mobileMenuOpen ? (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              )}
-            </svg>
-          </button>
+          <div className="flex items-center gap-2 md:hidden">
+            <LanguageToggle />
+            <button
+              className="p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-expanded={mobileMenuOpen}
+              aria-controls="mobile-menu"
+              aria-label={mobileMenuOpen ? 'Fechar menu' : 'Abrir menu'}
+            >
+              {mobileMenuOpen ? <X size={24} /> : <List size={24} />}
+            </button>
+          </div>
         </div>
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div id="mobile-menu" className="md:hidden py-4 border-t border-oro-inca/20 animate-slide-down">
-            <div className="flex flex-col gap-4">
+          <div id="mobile-menu" className="md:hidden py-4 border-t border-oro-inca/20">
+            <div className="flex flex-col gap-2">
               {navLinks.map(({ path, label }) => (
                 <Link
                   key={path}
                   to={path}
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`font-medium py-2 px-2 rounded-lg ${
-                    location.pathname === path
+                  className={`font-medium py-2.5 px-3 rounded-lg text-sm ${
+                    isActive(path)
                       ? 'bg-aji-rojo/10 text-aji-rojo'
                       : 'text-gray-700 dark:text-gray-300 hover:bg-aji-rojo/10 hover:text-aji-rojo'
                   }`}
                 >
-                  {label['pt-BR']}
+                  {label}
                 </Link>
               ))}
-              <div className="pt-4 border-t border-oro-inca/20 flex flex-col gap-3">
+              <div className="pt-4 mt-2 border-t border-oro-inca/20 flex flex-col gap-2">
                 {!user ? (
                   <>
                     <button
-                      onClick={() => openSignIn({ redirectUrl: '/' })}
-                      className="w-full bg-aji-rojo text-white py-2 rounded-lg font-medium"
+                      onClick={() => { openSignIn({ redirectUrl: '/' }); setMobileMenuOpen(false); }}
+                      className="w-full bg-aji-rojo text-white py-2.5 rounded-lg font-medium text-sm"
                     >
-                      Entrar
+                      {t('nav.login')}
                     </button>
                     <button
-                      onClick={() => openSignUp({ redirectUrl: '/onboarding' })}
-                      className="w-full border border-aji-rojo text-aji-rojo py-2 rounded-lg font-medium"
+                      onClick={() => { openSignUp({ redirectUrl: '/onboarding' }); setMobileMenuOpen(false); }}
+                      className="w-full border border-aji-rojo text-aji-rojo py-2.5 rounded-lg font-medium text-sm"
                     >
-                      Cadastrar
+                      {t('nav.signup')}
                     </button>
                   </>
                 ) : (
                   <>
-                    <Link to="/onboarding" className="w-full bg-aji-rojo text-white py-2 rounded-lg font-medium text-center">
-                      Meu Negócio
+                    <Link
+                      to="/onboarding"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="w-full bg-aji-rojo text-white py-2.5 rounded-lg font-medium text-sm text-center"
+                    >
+                      {t('nav.my_business')}
                     </Link>
                     {user.publicMetadata?.role === 'admin' && (
-                      <Link to="/admin" className="w-full bg-oro-inca text-noche-lima py-2 rounded-lg font-medium text-center">
-                        Admin
+                      <Link
+                        to="/admin"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="w-full bg-oro-inca text-noche-lima py-2.5 rounded-lg font-medium text-sm text-center"
+                      >
+                        {t('nav.admin')}
                       </Link>
                     )}
                     <button
-                      onClick={() => signOut()}
-                      className="w-full text-gray-700 dark:text-gray-300 py-2 font-medium"
+                      onClick={() => { signOut(); setMobileMenuOpen(false); }}
+                      className="w-full text-gray-600 dark:text-gray-400 py-2.5 font-medium text-sm flex items-center justify-center gap-2"
                     >
-                      Sair
+                      <SignOut size={16} />
+                      {t('nav.logout')}
                     </button>
                   </>
                 )}
@@ -180,7 +218,7 @@ export const Navbar = () => {
         )}
       </nav>
     </header>
-  )
-}
+  );
+};
 
-export default Navbar
+export default Navbar;

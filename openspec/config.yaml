@@ -1,0 +1,44 @@
+schema: spec-driven
+
+context: |
+  DiretorioPeruano (ConectaPerú) — directory of Peruvian businesses in Brazil.
+  Tech stack: React 18 + TypeScript + Vite 5 + Tailwind CSS 4.
+  Auth: Clerk (React SDK). Database: Neon PostgreSQL + Prisma ORM.
+  Deploy: Netlify (SPA). State management: Zustand.
+  HTTP client: Axios.
+  Styling: Tailwind CSS 4 (PostCSS plugin via @tailwindcss/postcss).
+  Lint: ESLint 8 (main), Oxlint config present.
+  TypeScript strict mode: enabled.
+  No test framework installed. No code formatter detected in devDependencies.
+  Multi-category business directory starting with restaurants.
+  Content language: Portuguese (Brazil) for UI and business content.
+  i18n planned (PT-BR / ES-PE) but not yet implemented.
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes
+    - Estimate effort in terms of affected components
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+    - Reference Prisma schema entities for data requirements
+  design:
+    - Include sequence diagrams for complex flows
+    - Document architecture decisions with rationale
+    - Reference existing component structure in src/components/
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+  apply:
+    guidelines:
+      - Follow existing code patterns (React 18, TypeScript, Tailwind)
+      - Maintain dark/light theme support
+      - Keep responsive design (mobile|tablet|desktop)
+    tdd: false
+    test_command: ""
+  verify:
+    test_command: ""
+    build_command: "npm run build"
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas
