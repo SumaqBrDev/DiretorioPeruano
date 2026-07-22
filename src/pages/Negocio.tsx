@@ -1,4 +1,3 @@
-// src/pages/Negocio.tsx
 import { useParams, Link } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { useState } from 'react';
@@ -24,14 +23,14 @@ export const Negocio = () => {
 
   if (!isLoaded) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-creme-andino">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-aji-rojo border-t-transparent"></div>
+      <div className="min-h-screen flex items-center justify-center bg-creme-andino dark:bg-zinc-950">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-aji-rojo border-t-transparent" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-creme-andino dark:bg-noche-lima">
+    <div className="min-h-screen bg-creme-andino dark:bg-zinc-950">
       <nav className="container mx-auto px-4 py-4" aria-label="Breadcrumb">
         <Breadcrumb name={business.name} />
       </nav>
@@ -43,33 +42,33 @@ export const Negocio = () => {
             <BusinessInfoCard business={business} />
 
             <div className="mb-8">
-              <div className="flex gap-2 border-b border-oro-inca/20">
+              <div className="flex gap-1 border-b border-oro-inca/20 overflow-x-auto pb-1 -mx-4 px-4">
                 <button
                   onClick={() => setActiveTab('sobre')}
-                  className={`pb-3 px-4 font-semibold transition-all duration-300 ${
+                  className={`whitespace-nowrap pb-3 px-4 font-semibold transition-all duration-300 ${
                     activeTab === 'sobre'
                       ? 'text-aji-rojo border-b-2 border-aji-rojo'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-aji-rojo'
+                      : 'text-zinc-600 dark:text-zinc-400 hover:text-aji-rojo'
                   }`}
                 >
                   Sobre
                 </button>
                 <button
                   onClick={() => setActiveTab('cardapio')}
-                  className={`pb-3 px-4 font-semibold transition-all duration-300 ${
+                  className={`whitespace-nowrap pb-3 px-4 font-semibold transition-all duration-300 ${
                     activeTab === 'cardapio'
                       ? 'text-aji-rojo border-b-2 border-aji-rojo'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-aji-rojo'
+                      : 'text-zinc-600 dark:text-zinc-400 hover:text-aji-rojo'
                   }`}
                 >
                   Cardápio
                 </button>
                 <button
                   onClick={() => setActiveTab('avaliacoes')}
-                  className={`pb-3 px-4 font-semibold transition-all duration-300 ${
+                  className={`whitespace-nowrap pb-3 px-4 font-semibold transition-all duration-300 ${
                     activeTab === 'avaliacoes'
                       ? 'text-aji-rojo border-b-2 border-aji-rojo'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-aji-rojo'
+                      : 'text-zinc-600 dark:text-zinc-400 hover:text-aji-rojo'
                   }`}
                 >
                   Avaliações ({business.reviews.length})
