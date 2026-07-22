@@ -1,7 +1,19 @@
-import { Handler } from '@netlify/functions';
+import { Handler, HandlerEvent } from '@netlify/functions';
 import prisma from './lib/prisma';
 
-export const handler: Handler = async () => {
+export const handler: Handler = async (event: HandlerEvent) => {
+  // Security: Only allow GET requests for this read-only endpoint
+  if (event.httpMethod !== 'GET') {
+    return {
+      statusCode: 405,
+      headers: {
+        'Content-Type': 'application/json',
+        'Allow': 'GET',
+      },
+      body: JSON.stringify({ error: 'Method not allowed' }),
+    };
+  }
+
   try {
     const businesses = await prisma.businessProfile.findMany({
       where: { status: 'active' },
@@ -27,14 +39,21 @@ export const handler: Handler = async () => {
 
     return {
       statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Frame-Options': 'DENY',
+        'X-Content-Type-Options': 'nosniff',
+      },
       body: JSON.stringify(categories),
     };
   } catch (error) {
     console.error('Error fetching categories:', error);
     return {
       statusCode: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Frame-Options': 'DENY',
+      },
       body: JSON.stringify({ error: 'Failed to fetch categories' }),
     };
   }

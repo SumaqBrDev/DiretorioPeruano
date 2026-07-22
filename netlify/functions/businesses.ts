@@ -2,6 +2,18 @@ import { Handler, HandlerEvent } from '@netlify/functions';
 import prisma from './lib/prisma';
 
 export const handler: Handler = async (event: HandlerEvent) => {
+  // Security: Only allow GET requests for this read-only endpoint
+  if (event.httpMethod !== 'GET') {
+    return {
+      statusCode: 405,
+      headers: {
+        'Content-Type': 'application/json',
+        'Allow': 'GET',
+      },
+      body: JSON.stringify({ error: 'Method not allowed' }),
+    };
+  }
+
   try {
     const params = event.queryStringParameters || {};
     const { q, category, city, minRating } = params;
@@ -24,7 +36,7 @@ export const handler: Handler = async (event: HandlerEvent) => {
       where.address = { path: ['city'], string_contains: city };
     }
 
-    let businesses = await prisma.businessProfile.findMany({
+    const businesses = await prisma.businessProfile.findMany({
       where,
       take: 50,
       orderBy: { createdAt: 'desc' },
@@ -32,13 +44,6 @@ export const handler: Handler = async (event: HandlerEvent) => {
         _count: { select: { reviews: true } },
       },
     });
-
-    if (minRating) {
-      const min = parseFloat(minRating);
-      businesses = businesses.filter((b) => {
-        return true;
-      });
-    }
 
     const mapped = businesses.map((b) => ({
       id: b.id,
@@ -56,14 +61,21 @@ export const handler: Handler = async (event: HandlerEvent) => {
 
     return {
       statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Frame-Options': 'DENY',
+        'X-Content-Type-Options': 'nosniff',
+      },
       body: JSON.stringify(mapped),
     };
   } catch (error) {
     console.error('Error fetching businesses:', error);
     return {
       statusCode: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Frame-Options': 'DENY',
+      },
       body: JSON.stringify({ error: 'Failed to fetch businesses' }),
     };
   }
