@@ -75,7 +75,7 @@
     "try_adjusting": "Intenta ajustar los filtros o buscar con otro término"
   },
   "footer": {
-    "copyright": "Conectando peruanos en Brasil.",
+    "copyright": "Desarrollado por <a href=\"https://stratai-consulting-site.netlify.app/\" target=\"_blank\" rel=\"noopener\" class=\"text-aji-rojo hover:underline\">StratAi Consulting</a>. Conectando peruanos en Brasil.",
     "privacy": "Política de Privacidad",
     "terms": "Términos de Servicio",
     "cookies": "Cookies"

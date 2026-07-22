@@ -50,9 +50,7 @@ function AppRoutes() {
         <footer className="bg-creme-andino dark:bg-zinc-950 border-t border-oro-inca/20 py-8 mt-auto">
           <div className="container mx-auto px-4">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <p className="text-gray-500 dark:text-gray-400 text-sm">
-                &copy; {new Date().getFullYear()} {t('brand.name')}. {t('footer.copyright')}
-              </p>
+              <p className="text-gray-500 dark:text-gray-400 text-sm" dangerouslySetInnerHTML={{ __html: t('footer.copyright') }} />
               <nav className="flex items-center gap-6">
                 <a
                   href="/privacidade"
