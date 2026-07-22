@@ -80,32 +80,34 @@ export const Navbar = () => {
                   </button>
 
                   {userMenuOpen && (
-                    <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-zinc-800 rounded-xl shadow-xl border border-oro-inca/20 py-2 z-50">
-                      {user.publicMetadata?.role === 'business' && (
-                        <Link
-                          to="/onboarding"
-                          onClick={() => setUserMenuOpen(false)}
-                          className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-aji-rojo/10 hover:text-aji-rojo"
-                        >
-                          {t('nav.my_business')}
-                        </Link>
-                      )}
+                    <div className="absolute right-0 top-full mt-2 w-52 bg-white dark:bg-zinc-800 rounded-xl shadow-xl border border-oro-inca/20 py-2 z-50">
+                      <div className="px-4 py-2 border-b border-oro-inca/10 mb-1">
+                        <p className="text-sm font-medium text-noche-lima dark:text-white truncate">{user.fullName || user.username || 'Usuário'}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user.primaryEmailAddress?.emailAddress || ''}</p>
+                      </div>
+                      <Link
+                        to="/meu-negocio"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-aji-rojo/10 hover:text-aji-rojo"
+                      >
+                        🏪 Meu Negócio
+                      </Link>
+                      <Link
+                        to="/inbox"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-aji-rojo/10 hover:text-aji-rojo"
+                      >
+                        💬 {t('nav.inbox')}
+                      </Link>
                       {user.publicMetadata?.role === 'admin' && (
                         <Link
                           to="/admin"
                           onClick={() => setUserMenuOpen(false)}
                           className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-aji-rojo/10 hover:text-aji-rojo"
                         >
-                          {t('nav.admin')}
+                          ⚙️ Admin
                         </Link>
                       )}
-                      <Link
-                        to="/inbox"
-                        onClick={() => setUserMenuOpen(false)}
-                        className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-aji-rojo/10 hover:text-aji-rojo"
-                      >
-                        {t('nav.inbox')}
-                      </Link>
                       <hr className="my-1 border-oro-inca/20" />
                       <button
                         onClick={() => { signOut(); setUserMenuOpen(false); }}

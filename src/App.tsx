@@ -7,6 +7,7 @@ import { Home } from './pages/Home';
 import { Busca } from './pages/Busca';
 import { Negocio } from './pages/Negocio';
 import { Onboarding } from './pages/Onboarding';
+import { MeuNegocio } from './pages/MeuNegocio';
 import { Inbox } from './pages/Inbox';
 import { Admin } from './pages/Admin';
 import { Moderar } from './pages/Moderar';
@@ -37,6 +38,7 @@ function AppRoutes() {
             <Route path="/busca" element={<Busca />} />
             <Route path="/negocio/:id" element={<Negocio />} />
             <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/meu-negocio" element={<MeuNegocio />} />
             <Route path="/inbox" element={<Inbox />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/admin/moderar" element={<Moderar />} />
