@@ -55,6 +55,9 @@ export const MeuNegocio = () => {
   });
   const [newTag, setNewTag] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
+  const [cnpj, setCnpj] = useState('');
+  const [ownerFullName, setOwnerFullName] = useState('');
+  const [ownerBirthCity, setOwnerBirthCity] = useState('');
 
   useEffect(() => {
     if (isLoaded) {
@@ -63,6 +66,9 @@ export const MeuNegocio = () => {
       if (myBiz) {
         setBusiness(myBiz);
         setPhotos(myBiz.photos || []);
+        setCnpj(myBiz.cnpj || '');
+        setOwnerFullName(myBiz.ownerFullName || '');
+        setOwnerBirthCity(myBiz.ownerBirthCity || '');
         setFormData({
           name: myBiz.name,
           description: myBiz.description,
@@ -175,17 +181,49 @@ export const MeuNegocio = () => {
         Meu Negócio
       </h1>
 
-      {/* Status badge */}
+      {/* Status badge — mais visível */}
+      {business.status === 'rejected' && (
+        <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">❌</span>
+            <div>
+              <h3 className="font-semibold text-red-700 dark:text-red-300">Negócio Rejeitado</h3>
+              <p className="text-red-600 dark:text-red-400 text-sm mt-1">{business.rejectionReason}</p>
+            </div>
+          </div>
+        </div>
+      )}
+      {business.status === 'disabled' && (
+        <div className="mb-6 p-4 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">🚫</span>
+            <div>
+              <h3 className="font-semibold text-gray-700 dark:text-gray-300">Negócio Desabilitado</h3>
+              <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Seu negócio foi desabilitado. Entre em contato com o suporte para mais informações.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="mb-8 flex items-center gap-3">
-        <span className={`px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${
-          business.status === 'active'
-            ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300'
-            : business.status === 'pending'
-            ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300'
+        <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-semibold ${
+          business.status === 'approved'
+            ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300 border border-green-300 dark:border-green-700'
+            : business.status === 'pending' || !business.status
+            ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300 border border-yellow-300 dark:border-yellow-700'
+            : business.status === 'rejected'
+            ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300 border border-red-300 dark:border-red-700'
+            : business.status === 'disabled'
+            ? 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600'
             : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
         }`}>
-          {business.status === 'active' ? '✅ Ativo' : business.status === 'pending' ? '⏳ Pendente' : business.status}
+          {business.status === 'approved' ? '✅ Aprovado' : business.status === 'pending' || !business.status ? '⏳ Pendente de Aprovação' : business.status === 'rejected' ? '❌ Rejeitado' : business.status === 'disabled' ? '🚫 Desabilitado' : business.status}
         </span>
+        {business.subscriptionStatus === 'trial' && business.trialEndsAt && (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-700">
+            🧪 Trial até {new Date(business.trialEndsAt).toLocaleDateString('pt-BR')}
+          </span>
+        )}
         <span className="text-sm text-gray-500 dark:text-gray-400">
           Cadastrado em {new Date(business.createdAt).toLocaleDateString('pt-BR')}
         </span>
@@ -217,7 +255,28 @@ export const MeuNegocio = () => {
               <p className="text-gray-700 dark:text-gray-300">{business.description}</p>
             </div>
 
+            {/* Novos campos: CNPJ, Proprietário, Cidade Origem */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {cnpj && (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">CNPJ</h3>
+                  <p className="text-gray-700 dark:text-gray-300 font-mono text-sm">
+                    {cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')}
+                  </p>
+                </div>
+              )}
+              {ownerFullName && (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Proprietário</h3>
+                  <p className="text-gray-700 dark:text-gray-300">{ownerFullName}</p>
+                </div>
+              )}
+              {ownerBirthCity && (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Cidade de Origem (Peru)</h3>
+                  <p className="text-gray-700 dark:text-gray-300">{ownerBirthCity}</p>
+                </div>
+              )}
               <div>
                 <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Endereço</h3>
                 <p className="text-gray-700 dark:text-gray-300">

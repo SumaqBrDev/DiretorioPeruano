@@ -108,6 +108,15 @@ export const Navbar = () => {
                           ⚙️ Admin
                         </Link>
                       )}
+                      {user.primaryEmailAddress?.emailAddress === 'jose.rocah.pe@gmail.com' && (
+                        <Link
+                          to="/admin/super"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-aji-rojo/10 hover:text-aji-rojo"
+                        >
+                          👑 SuperAdmin
+                        </Link>
+                      )}
                       <hr className="my-1 border-oro-inca/20" />
                       <button
                         onClick={() => { signOut(); setUserMenuOpen(false); }}
@@ -203,6 +212,15 @@ export const Navbar = () => {
                         className="w-full bg-oro-inca text-noche-lima py-2.5 rounded-lg font-medium text-sm text-center"
                       >
                         {t('nav.admin')}
+                      </Link>
+                    )}
+                    {user.primaryEmailAddress?.emailAddress === 'jose.rocah.pe@gmail.com' && (
+                      <Link
+                        to="/admin/super"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="w-full border border-oro-inca text-oro-inca py-2.5 rounded-lg font-medium text-sm text-center"
+                      >
+                        👑 SuperAdmin
                       </Link>
                     )}
                     <button

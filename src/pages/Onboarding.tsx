@@ -70,6 +70,16 @@ function isValidCity(value: string): boolean {
   return value.trim().length >= 3;
 }
 
+function formatCNPJ(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 14);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 5) return `${digits.slice(0, 2)}.${digits.slice(2)}`;
+  if (digits.length <= 8) return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5)}`;
+  if (digits.length <= 12)
+    return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8)}`;
+  return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12)}`;
+}
+
 // --- Toast Component ---
 
 interface ToastProps {
@@ -137,6 +147,9 @@ function FieldError({ message }: { message: string | null }) {
 interface OnboardingFormData {
   name: string;
   description: string;
+  cnpj: string;
+  ownerFullName: string;
+  ownerBirthCity: string;
   category: string;
   address: {
     street: string;
@@ -157,6 +170,9 @@ export const Onboarding = () => {
   const [formData, setFormData] = useState<OnboardingFormData>({
     name: '',
     description: '',
+    cnpj: '',
+    ownerFullName: '',
+    ownerBirthCity: '',
     category: 'restaurante',
     address: { street: '', city: '', state: '', zip: '' },
     tags: [],
@@ -175,6 +191,8 @@ export const Onboarding = () => {
     if (formData.description.trim().length < 10) {
       newErrors.description = 'A descrição deve ter pelo menos 10 caracteres';
     }
+    if (!formData.ownerFullName.trim()) newErrors.ownerFullName = 'O nome do proprietário é obrigatório';
+    if (!formData.ownerBirthCity.trim()) newErrors.ownerBirthCity = 'A cidade de origem é obrigatória';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -255,6 +273,9 @@ export const Onboarding = () => {
     const businessData = {
       name: formData.name.trim(),
       description: formData.description.trim(),
+      cnpj: formData.cnpj.replace(/\D/g, ''),
+      ownerFullName: formData.ownerFullName.trim(),
+      ownerBirthCity: formData.ownerBirthCity.trim(),
       category: formData.category,
       address: { ...formData.address, city: formData.address.city.trim() },
       tags: formData.tags,
@@ -378,6 +399,67 @@ export const Onboarding = () => {
               required
             />
             <FieldError message={errors.description} />
+          </div>
+          {/* CNPJ */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              CNPJ do Negócio <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={formData.cnpj}
+              onChange={(e) => {
+                setFormData({ ...formData, cnpj: formatCNPJ(e.target.value) });
+                clearError('cnpj');
+              }}
+              className={`w-full p-3 rounded-lg border bg-white dark:bg-noche-lima text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-aji-rojo transition-colors ${
+                errors.cnpj ? 'border-red-400' : 'border-oro-inca/30'
+              }`}
+              placeholder="XX.XXX.XXX/XXXX-XX"
+              maxLength={18}
+              required
+            />
+            <FieldError message={errors.cnpj} />
+          </div>
+          {/* Proprietário */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Nome Completo do Proprietário <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={formData.ownerFullName}
+              onChange={(e) => {
+                setFormData({ ...formData, ownerFullName: e.target.value });
+                clearError('ownerFullName');
+              }}
+              className={`w-full p-3 rounded-lg border bg-white dark:bg-noche-lima text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-aji-rojo transition-colors ${
+                errors.ownerFullName ? 'border-red-400' : 'border-oro-inca/30'
+              }`}
+              placeholder="Como no RG/CPF"
+              required
+            />
+            <FieldError message={errors.ownerFullName} />
+          </div>
+          {/* Cidade de Origem */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Cidade de Origem (Peru) <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={formData.ownerBirthCity}
+              onChange={(e) => {
+                setFormData({ ...formData, ownerBirthCity: e.target.value });
+                clearError('ownerBirthCity');
+              }}
+              className={`w-full p-3 rounded-lg border bg-white dark:bg-noche-lima text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-aji-rojo transition-colors ${
+                errors.ownerBirthCity ? 'border-red-400' : 'border-oro-inca/30'
+              }`}
+              placeholder="Ex: Lima, Cusco, Arequipa..."
+              required
+            />
+            <FieldError message={errors.ownerBirthCity} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

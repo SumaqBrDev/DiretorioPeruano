@@ -10,6 +10,7 @@ import { Onboarding } from './pages/Onboarding';
 import { MeuNegocio } from './pages/MeuNegocio';
 import { Inbox } from './pages/Inbox';
 import { Admin } from './pages/Admin';
+import { SuperAdmin } from './pages/SuperAdmin';
 import { Moderar } from './pages/Moderar';
 import { Login } from './pages/Login';
 import { Privacidade } from './pages/Privacidade';
@@ -41,6 +42,7 @@ function AppRoutes() {
             <Route path="/meu-negocio" element={<MeuNegocio />} />
             <Route path="/inbox" element={<Inbox />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/admin/super" element={<SuperAdmin />} />
             <Route path="/admin/moderar" element={<Moderar />} />
             <Route path="/entrar" element={<Login />} />
             <Route path="/cadastrar" element={<Login />} />
