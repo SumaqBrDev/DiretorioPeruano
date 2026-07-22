@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ClerkProvider, useUser } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
 import { Navbar } from './components/Navbar';
+import { CookieBanner } from './components/CookieBanner';
 import { Home } from './pages/Home';
 import { Busca } from './pages/Busca';
 import { Negocio } from './pages/Negocio';
@@ -10,6 +11,8 @@ import { Inbox } from './pages/Inbox';
 import { Admin } from './pages/Admin';
 import { Moderar } from './pages/Moderar';
 import { Login } from './pages/Login';
+import { Privacidade } from './pages/Privacidade';
+import { Termos } from './pages/Termos';
 import './App.css';
 
 function AppRoutes() {
@@ -39,11 +42,32 @@ function AppRoutes() {
             <Route path="/admin/moderar" element={<Moderar />} />
             <Route path="/entrar" element={<Login />} />
             <Route path="/cadastrar" element={<Login />} />
+            <Route path="/privacidade" element={<Privacidade />} />
+            <Route path="/termos" element={<Termos />} />
           </Routes>
         </main>
+        <CookieBanner />
         <footer className="bg-creme-andino dark:bg-zinc-950 border-t border-oro-inca/20 py-8 mt-auto">
-          <div className="container mx-auto px-4 text-center text-gray-500 dark:text-gray-400 text-sm">
-            <p>&copy; {new Date().getFullYear()} {t('brand.name')}. {t('footer.copyright')}</p>
+          <div className="container mx-auto px-4">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <p className="text-gray-500 dark:text-gray-400 text-sm">
+                &copy; {new Date().getFullYear()} {t('brand.name')}. {t('footer.copyright')}
+              </p>
+              <nav className="flex items-center gap-6">
+                <a
+                  href="/privacidade"
+                  className="text-sm text-gray-500 dark:text-gray-400 hover:text-aji-rojo dark:hover:text-aji-rojo transition-colors"
+                >
+                  {t('footer.privacy')}
+                </a>
+                <a
+                  href="/termos"
+                  className="text-sm text-gray-500 dark:text-gray-400 hover:text-aji-rojo dark:hover:text-aji-rojo transition-colors"
+                >
+                  {t('footer.terms')}
+                </a>
+              </nav>
+            </div>
           </div>
         </footer>
       </div>

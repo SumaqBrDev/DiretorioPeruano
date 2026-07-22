@@ -75,7 +75,15 @@
     "try_adjusting": "Intenta ajustar los filtros o buscar con otro término"
   },
   "footer": {
-    "copyright": "Conectando peruanos en Brasil."
+    "copyright": "Conectando peruanos en Brasil.",
+    "privacy": "Política de Privacidad",
+    "terms": "Términos de Servicio",
+    "cookies": "Cookies"
+  },
+
+  "pages": {
+    "privacidade": "Política de Privacidad",
+    "termos": "Términos de Servicio"
   },
   "common": {
     "loading": "Cargando...",
