@@ -26,7 +26,7 @@ export const HeroSection = () => {
         };
 
   return (
-    <section className="relative min-h-[90dvh] flex items-center justify-center overflow-hidden">
+    <section className="relative min-h-[90dvh] flex items-center justify-center overflow-hidden z-0">
       {/* Full-bleed background image overlay */}
       <div className="absolute inset-0 -z-10">
         <img
@@ -80,7 +80,7 @@ export const HeroSection = () => {
           {/* Search Bar */}
           <motion.div {...fadeUp(0.55)}>
             <form onSubmit={handleSearch} className="max-w-2xl mx-auto">
-              <div className="glass-search rounded-2xl p-2 flex items-center gap-2 transition-all duration-300">
+              <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-2 flex items-center gap-2 transition-all duration-300">
                 <MagnifyingGlass size={24} className="ml-4 text-white/60 shrink-0" />
                 <input
                   type="text"
