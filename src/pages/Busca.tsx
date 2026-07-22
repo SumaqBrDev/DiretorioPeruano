@@ -1,9 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { MagnifyingGlass, Star, Funnel } from '@phosphor-icons/react';
 import axios from 'axios';
 import { SkeletonCard } from '../components/SkeletonCard';
+import { getBusinesses } from '../lib/localData';
+import { mockBusinesses } from '../data/mockBusinesses';
 import { fallbackFeatured } from '../data/fallbackData';
 
 interface SearchResult {
@@ -42,6 +44,11 @@ const CITIES = [
   { value: 'belo horizonte', label: 'Belo Horizonte - MG' },
   { value: 'porto alegre', label: 'Porto Alegre - RS' },
   { value: 'salvador', label: 'Salvador - BA' },
+  { value: 'fortaleza', label: 'Fortaleza - CE' },
+  { value: 'recife', label: 'Recife - PE' },
+  { value: 'manaus', label: 'Manaus - AM' },
+  { value: 'florianopolis', label: 'Florianópolis - SC' },
+  { value: 'goiania', label: 'Goiânia - GO' },
 ];
 
 const RATINGS = [
@@ -51,20 +58,129 @@ const RATINGS = [
   { value: '3.5', label: '3.5+ estrelas' },
 ];
 
+/** Normalize a city string for comparison */
+const normalizeCity = (city: string) =>
+  city.toLowerCase().replace(/[^a-záéíóúãõâêîôûà0-9\s]/g, '').trim();
+
+/** Normalize text for search matching */
+const normalizeText = (text: string) =>
+  text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
+/** Build fallback results from localStorage + mockBusinesses */
+function getLocalFallbackResults(): SearchResult[] {
+  const map = new Map<string, SearchResult>();
+
+  // From localStorage (real registered businesses)
+  const localBizzes = getBusinesses();
+  localBizzes.forEach((b) => {
+    const key = b.id;
+    if (!map.has(key)) {
+      map.set(key, {
+        id: key,
+        name: b.name,
+        category: b.category,
+        city: b.address.city,
+        state: b.address.state,
+        rating: 4.5,
+        reviewsCount: 0,
+        tags: b.tags || [],
+        coverImage: b.photos?.[0] || '',
+        description: b.description || '',
+      });
+    }
+  });
+
+  // From mockBusinesses
+  mockBusinesses.forEach((b) => {
+    const key = String(b.id);
+    if (!map.has(key)) {
+      const parts = b.city.split(' - ');
+      map.set(key, {
+        id: key,
+        name: b.name,
+        category: b.category,
+        city: parts[0] || b.city,
+        state: parts[1] || '',
+        rating: b.rating,
+        reviewsCount: b.reviewsCount,
+        tags: b.tags || [],
+        coverImage: b.images?.[0] || '',
+        description: b.about || '',
+      });
+    }
+  });
+
+  // Also include fallbackFeatured for coverage
+  fallbackFeatured.forEach((f) => {
+    if (!map.has(f.id)) {
+      map.set(f.id, { ...f, description: '' });
+    }
+  });
+
+  return Array.from(map.values());
+}
+
 export const Busca = () => {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [results, setResults] = useState<any[]>(fallbackFeatured);
+  const [results, setResults] = useState<SearchResult[]>(() => getLocalFallbackResults());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
+  // Read URL params using the CORRECT keys: q, category, city, rating
   const query = searchParams.get('q') || '';
-  const category = searchParams.get('categoria') || '';
-  const city = searchParams.get('cidade') || '';
+  const category = searchParams.get('category') || '';
+  const city = searchParams.get('city') || '';
   const minRating = searchParams.get('rating') || '';
 
   const [searchInput, setSearchInput] = useState(query);
+
+  // ── Filtering logic ──────────────────────────────────────────
+
+  const filteredResults = useMemo(() => {
+    let filtered = [...results];
+
+    // Text search (fuzzy match on name, tags, city)
+    if (searchInput.trim()) {
+      const q = normalizeText(searchInput);
+      filtered = filtered.filter((item) => {
+        const name = normalizeText(item.name);
+        const tags = item.tags.map((t) => normalizeText(t)).join(' ');
+        const cityText = normalizeText(item.city);
+        const stateText = normalizeText(item.state || '');
+        const haystack = `${name} ${tags} ${cityText} ${stateText}`;
+        return haystack.includes(q);
+      });
+    }
+
+    // Category filter
+    if (category) {
+      filtered = filtered.filter(
+        (item) => item.category.toLowerCase() === category.toLowerCase()
+      );
+    }
+
+    // City filter
+    if (city) {
+      const nc = normalizeCity(city);
+      filtered = filtered.filter((item) => {
+        const itemCity = normalizeCity(item.city);
+        const full = normalizeCity(`${item.city} ${item.state || ''}`);
+        return itemCity.includes(nc) || full.includes(nc);
+      });
+    }
+
+    // Rating filter
+    if (minRating) {
+      const min = parseFloat(minRating);
+      filtered = filtered.filter((item) => item.rating >= min);
+    }
+
+    return filtered;
+  }, [results, searchInput, category, city, minRating]);
+
+  // ── Fetch from API (if configured) ────────────────────────────
 
   const fetchResults = useCallback(async () => {
     setLoading(true);
@@ -80,7 +196,7 @@ export const Busca = () => {
       setResults(data);
     } catch (err: any) {
       if (err?.message?.includes('No API base URL') || err?.code === 'ERR_NETWORK') {
-        setResults(fallbackFeatured);
+        // Already populated by local fallback — keep it
       } else {
         setError(err?.message || 'Erro ao buscar resultados');
         setResults([]);
@@ -95,24 +211,30 @@ export const Busca = () => {
     fetchResults();
   }, [fetchResults]);
 
+  // ── Handle Search form submit ─────────────────────────────────
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const params = new URLSearchParams();
     if (searchInput.trim()) params.set('q', searchInput.trim());
-    if (category) params.set('categoria', category);
-    if (city) params.set('cidade', city);
+    if (category) params.set('category', category);
+    if (city) params.set('city', city);
     if (minRating) params.set('rating', minRating);
     setSearchParams(params);
   };
 
+  // ── Update filter (syncs to URL) ──────────────────────────────
+
   const updateFilter = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams);
     if (value) {
+      // Keep search query if present
+      if (searchInput.trim()) params.set('q', searchInput.trim());
       params.set(key, value);
     } else {
       params.delete(key);
     }
-    setSearchParams(params);
+    setSearchParams(params, { replace: true });
   };
 
   const getCategoryBadge = (cat: string) => {
@@ -139,7 +261,7 @@ export const Busca = () => {
         </p>
       </header>
 
-      {/* Search Bar */}
+      {/* Search Bar (real-time filtering) */}
       <form onSubmit={handleSearch} className="mb-8">
         <div className="flex items-center gap-2 bg-white dark:bg-zinc-800 rounded-2xl shadow-lg p-2 border border-oro-inca/20 focus-within:border-aji-rojo/50 focus-within:ring-2 focus-within:ring-aji-rojo/20 transition-all">
           <MagnifyingGlass size={22} className="ml-3 text-gray-400 shrink-0" />
@@ -172,7 +294,7 @@ export const Busca = () => {
       {!API_BASE && (
         <div className="mb-6 p-4 bg-oro-inca/10 border border-oro-inca/30 rounded-xl text-center">
           <p className="text-oro-inca text-sm font-medium">
-            Modo de desenvolvimento — exibindo dados de exemplo
+            Modo de desenvolvimento — exibindo dados locais
           </p>
         </div>
       )}
@@ -194,14 +316,14 @@ export const Busca = () => {
               </button>
             </div>
 
-            {/* Category Filter */}
+            {/* Category Filter — correct key 'category' */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 {t('search.category')}
               </label>
               <select
                 value={category}
-                onChange={(e) => updateFilter('categoria', e.target.value)}
+                onChange={(e) => updateFilter('category', e.target.value)}
                 className="w-full p-3 rounded-xl border border-oro-inca/30 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-aji-rojo/30 focus:border-aji-rojo/50 transition-all text-sm"
               >
                 {CATEGORIES.map((cat) => (
@@ -212,14 +334,14 @@ export const Busca = () => {
               </select>
             </div>
 
-            {/* City Filter */}
+            {/* City Filter — correct key 'city' */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 {t('search.city')}
               </label>
               <select
                 value={city}
-                onChange={(e) => updateFilter('cidade', e.target.value)}
+                onChange={(e) => updateFilter('city', e.target.value)}
                 className="w-full p-3 rounded-xl border border-oro-inca/30 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-aji-rojo/30 focus:border-aji-rojo/50 transition-all text-sm"
               >
                 {CITIES.map((c) => (
@@ -252,10 +374,13 @@ export const Busca = () => {
             {hasFilters && (
               <div className="pt-4 border-t border-oro-inca/20">
                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                  {results.length} {t('search.results')}
+                  {filteredResults.length} {t('search.results')}
                 </p>
                 <button
-                  onClick={() => setSearchParams({})}
+                  onClick={() => {
+                    setSearchInput('');
+                    setSearchParams({});
+                  }}
                   className="text-xs text-aji-rojo font-medium hover:underline"
                 >
                   Limpar filtros
@@ -285,9 +410,9 @@ export const Busca = () => {
                 <SkeletonCard key={i} variant="card" />
               ))}
             </div>
-          ) : results.length > 0 ? (
+          ) : filteredResults.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-              {results.map((item) => (
+              {filteredResults.map((item) => (
                 <Link
                   key={item.id}
                   to={`/negocio/${item.id}`}
