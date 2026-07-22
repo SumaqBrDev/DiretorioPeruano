@@ -1,7 +1,7 @@
 // src/components/BusinessCard.tsx
 "use client";
 
-import { updateBusinessStatus } from "@/actions/business";
+import axios from "axios";
 
 interface BusinessCardProps {
   business: {
@@ -13,6 +13,15 @@ interface BusinessCardProps {
 }
 
 export const BusinessCard = ({ business }: BusinessCardProps) => {
+  const updateBusinessStatus = async (id: string, status: string) => {
+    try {
+      await axios.patch(`/api/businesses`, { id, status });
+      window.location.reload();
+    } catch (err) {
+      console.error(err);
+      alert("Error atualizando negócio");
+    }
+  };
   return (
     <div className="bg-creme-andino p-6 rounded-xl shadow-sm">
       <div className="flex justify-between items-start">
