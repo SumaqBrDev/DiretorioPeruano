@@ -1,5 +1,5 @@
 import { Handler, HandlerEvent } from '@netlify/functions';
-import prisma from '../../src/lib/prisma';
+import prisma from './lib/prisma';
 
 export const handler: Handler = async (event: HandlerEvent) => {
   try {
