@@ -1,7 +1,7 @@
 import { Handler, HandlerEvent } from '@netlify/functions';
 import prisma from './lib/prisma';
 
-export const handler: Handler = async (event: HandlerEvent) => {
+export const handler = async (event: HandlerEvent) => {
   // Security: Only allow GET requests for this read-only endpoint
   if (event.httpMethod !== 'GET') {
     return {

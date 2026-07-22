@@ -54,7 +54,7 @@ const RATINGS = [
 export const Busca = () => {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [results, setResults] = useState<SearchResult[]>(fallbackFeatured);
+  const [results, setResults] = useState<any[]>(fallbackFeatured);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
@@ -329,7 +329,7 @@ export const Busca = () => {
                       </p>
                       {item.tags.length > 0 && (
                         <div className="flex flex-wrap gap-2">
-                          {item.tags.slice(0, 3).map((tag, i) => (
+                          {item.tags.slice(0, 3).map((tag: string, i: number) => (
                             <span
                               key={i}
                               className="bg-oro-inca/20 text-oro-inca dark:text-oro-inca/80 px-3 py-1 rounded-full text-xs font-medium"

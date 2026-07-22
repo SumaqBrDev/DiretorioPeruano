@@ -22,7 +22,7 @@ export const HeroSection = () => {
       : {
           initial: { opacity: 0, y: 40 },
           animate: { opacity: 1, y: 0 },
-          transition: { duration: 0.7, delay, ease: [0.16, 1, 0.3, 1] },
+          transition: { duration: 0.7, delay, ease: "easeOut" as any },
         };
 
   return (
