@@ -21,43 +21,45 @@ model User {
 }
 
 model BusinessProfile {
-  id          String    @id @default(uuid())
-  name        String
-  description String
-  category    String    @default("restaurante")
-  address     Json
-  tags        String[]
-  photos      String[]
-  contact     Json
-  status      String    @default("pending")
-  owner       User      @relation(fields: [ownerId], references: [id])
-  ownerId     String    @unique
-  reviews     Review[]
-  messagesSent     Message[] @relation("fromBusiness")
-  messagesReceived   Message[] @relation("toBusiness")
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id               String           @id @default(uuid())
+  name             String
+  description      String
+  category         String           @default("restaurante")
+  address          Json
+  tags             String[]
+  photos           String[]
+  contact          Json
+  status           String           @default("pending")
+  owner            User             @relation(fields: [ownerId], references: [id])
+  ownerId          String           @unique
+  reviews          Review[]
+  messagesSent     Message[]        @relation("fromBusiness")
+  messagesReceived Message[]        @relation("toBusiness")
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 }
 
 model Review {
-  id          String    @id @default(uuid())
+  id          String           @id @default(uuid())
   rating      Int
   comment     String
-  status      String    @default("pending")
-  business    BusinessProfile @relation(fields: [businessId], references: [id])
+  status      String           @default("pending")
+  business    BusinessProfile  @relation(fields: [businessId], references: [id])
   businessId  String
-  consumer    User      @relation(fields: [consumerId], references: [id])
+  consumer    User             @relation(fields: [consumerId], references: [id])
   consumerId  String
-  createdAt   DateTime  @default(now())
+  createdAt   DateTime         @default(now())
 }
 
 model Message {
-  id            String           @id @default(uuid())
-  fromBusiness  BusinessProfile  @relation("fromBusiness", fields: [fromBusinessId], references: [id])
+  id             String           @id @default(uuid())
+  fromBusiness   BusinessProfile  @relation("fromBusiness", fields: [fromBusinessId], references: [id])
   fromBusinessId String
-  toBusiness    BusinessProfile  @relation("toBusiness", fields: [toBusinessId], references: [id])
-  toBusinessId String
-  body          String
-  read          Boolean          @default(false)
-  createdAt     DateTime         @default(now())
+  toBusiness     BusinessProfile  @relation("toBusiness", fields: [toBusinessId], references: [id])
+  toBusinessId   String
+  body           String
+  read           Boolean          @default(false)
+  archived       Boolean          @default(false)
+  deletedAt      DateTime?
+  createdAt      DateTime         @default(now())
 }
