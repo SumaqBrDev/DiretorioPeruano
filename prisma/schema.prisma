@@ -12,7 +12,7 @@ model User {
   clerkId        String           @unique
   email          String
   name           String?
-  role           String           @default("consumer")
+  role           String           @default("consumer") // consumer, business, admin, superadmin
   language       String           @default("pt-BR")
   business       BusinessProfile?
   reviews        Review[]
@@ -21,34 +21,57 @@ model User {
 }
 
 model BusinessProfile {
-  id               String           @id @default(uuid())
-  name             String
-  description      String
-  category         String           @default("restaurante")
-  address          Json
-  tags             String[]
-  photos           String[]
-  contact          Json
-  status           String           @default("pending")
-  owner            User             @relation(fields: [ownerId], references: [id])
-  ownerId          String           @unique
-  reviews          Review[]
-  messagesSent     Message[]        @relation("fromBusiness")
-  messagesReceived Message[]        @relation("toBusiness")
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  id                 String           @id @default(uuid())
+  name               String
+  description        String
+  category           String           @default("restaurante")
+  address            Json
+  tags               String[]
+  photos             String[]
+  contact            Json
+  
+  // Approval workflow
+  status             String           @default("pending") // pending, approved, rejected, disabled
+  rejectionReason    String?
+  approvedAt         DateTime?
+  
+  // Stripe subscription
+  stripeCustomerId   String?
+  stripeSubscriptionId String?
+  subscriptionStatus String           @default("none") // none, trial, active, past_due, canceled
+  trialEndsAt        DateTime?
+  
+  // Owner info (required for KYC)
+  ownerFullName      String?
+  ownerBirthCity     String?          // Must be in Peru
+  cnpj               String?          // Brazilian CNPJ
+  
+  owner              User             @relation(fields: [ownerId], references: [id])
+  ownerId            String           @unique
+  reviews            Review[]
+  messagesSent       Message[]        @relation("fromBusiness")
+  messagesReceived   Message[]        @relation("toBusiness")
+  
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  
+  @@index([status])
+  @@index([stripeCustomerId])
+  @@index([subscriptionStatus])
 }
 
 model Review {
   id          String           @id @default(uuid())
   rating      Int
   comment     String
-  status      String           @default("pending")
+  status      String           @default("pending") // pending, approved, rejected
   business    BusinessProfile  @relation(fields: [businessId], references: [id])
   businessId  String
   consumer    User             @relation(fields: [consumerId], references: [id])
   consumerId  String
   createdAt   DateTime         @default(now())
+  
+  @@index([businessId, status])
 }
 
 model Message {
@@ -62,4 +85,15 @@ model Message {
   archived       Boolean          @default(false)
   deletedAt      DateTime?
   createdAt      DateTime         @default(now())
+  
+  @@index([fromBusinessId, toBusinessId])
+  @@index([toBusinessId, read])
+}
+
+model SiteConfig {
+  id        String   @id @default("singleton")
+  betaMode  Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+  
+  @@unique([id])
 }

@@ -16,6 +16,14 @@ export interface Business {
   tags: string[];
   photos: string[];
   userId: string;
+  cnpj?: string;
+  ownerFullName?: string;
+  ownerBirthCity?: string;
+  status?: string; // pending, approved, rejected, disabled
+  rejectionReason?: string;
+  approvedAt?: string;
+  subscriptionStatus?: string; // none, trial, active, past_due, canceled
+  trialEndsAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -97,6 +105,31 @@ export function updateBusiness(id: string, updates: Partial<Business>): Business
  */
 export function updateBusinessPhotos(id: string, photos: string[]): Business | null {
   return updateBusiness(id, { photos });
+}
+
+export function deleteBusiness(id: string): boolean {
+  const businesses = getBusinesses();
+  const index = businesses.findIndex(b => b.id === id);
+  if (index === -1) return false;
+  businesses.splice(index, 1);
+  localStorage.setItem(STORAGE_KEYS.businesses, JSON.stringify(businesses));
+  return true;
+}
+
+export function getBusinessesByStatus(status: string): Business[] {
+  return getBusinesses().filter(b => (b.status || 'pending') === status);
+}
+
+export function getBetaMode(): boolean {
+  try {
+    return localStorage.getItem('diretorio_beta_mode') !== 'false';
+  } catch {
+    return true;
+  }
+}
+
+export function setBetaMode(enabled: boolean): void {
+  localStorage.setItem('diretorio_beta_mode', enabled ? 'true' : 'false');
 }
 
 // --- Reviews ---
