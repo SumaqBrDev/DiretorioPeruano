@@ -4,6 +4,7 @@ import { useUser } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { getBusinesses, saveBusiness, updateBusiness } from '../lib/localData';
+import { BusinessGallery } from '../components/BusinessGallery';
 import type { Business } from '../lib/localData';
 
 const CATEGORIES = [
@@ -53,6 +54,7 @@ export const MeuNegocio = () => {
     tags: [] as string[],
   });
   const [newTag, setNewTag] = useState('');
+  const [photos, setPhotos] = useState<string[]>([]);
 
   useEffect(() => {
     if (isLoaded) {
@@ -60,6 +62,7 @@ export const MeuNegocio = () => {
       const myBiz = businesses.find(b => b.userId === user?.id);
       if (myBiz) {
         setBusiness(myBiz);
+        setPhotos(myBiz.photos || []);
         setFormData({
           name: myBiz.name,
           description: myBiz.description,
@@ -336,6 +339,15 @@ export const MeuNegocio = () => {
             </div>
           </div>
         )}
+      </div>
+
+      {/* ────── Galeria de Fotos ────── */}
+      <div className="bg-white dark:bg-noche-lima rounded-2xl shadow-lg border border-oro-inca/20 p-8 mt-8">
+        <BusinessGallery
+          businessId={business.id}
+          photos={photos}
+          onPhotosChange={setPhotos}
+        />
       </div>
     </div>
   );

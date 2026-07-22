@@ -91,6 +91,14 @@ export function updateBusiness(id: string, updates: Partial<Business>): Business
   return businesses[index];
 }
 
+/**
+ * Convenience helper to update only the photos array of a business.
+ * Persists immediately to localStorage.
+ */
+export function updateBusinessPhotos(id: string, photos: string[]): Business | null {
+  return updateBusiness(id, { photos });
+}
+
 // --- Reviews ---
 
 export function getReviews(businessId: string): Review[] {
