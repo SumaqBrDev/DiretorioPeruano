@@ -52,7 +52,19 @@ function AppRoutes() {
 }
 
 function App() {
-  const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string || 'pk_test_default';
+  const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string;
+
+  if (!publishableKey) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-50 text-zinc-900 p-4 text-center">
+        <h1 className="text-2xl font-bold text-red-600 mb-2">Falta configuración de Clerk</h1>
+        <p className="max-w-md">
+          No se encontró la variable de entorno <code>VITE_CLERK_PUBLISHABLE_KEY</code>. 
+          Por favor, configúrala en el panel de Netlify (Environment Variables) y vuelve a desplegar.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <ClerkProvider
