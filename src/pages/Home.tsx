@@ -3,6 +3,7 @@ import { HeroSection } from '../components/HeroSection';
 import { CommunityStats } from '../components/CommunityStats';
 import { CategoryGrid } from '../components/CategoryGrid';
 import { FeaturedBusinesses } from '../components/FeaturedBusinesses';
+import { CommunityReviews } from '../components/CommunityReviews';
 import { TestimonialsSection } from '../components/TestimonialsSection';
 import { BusinessOwnerCTA } from '../components/BusinessOwnerCTA';
 
@@ -15,6 +16,7 @@ export const Home = () => {
       <CommunityStats />
       <CategoryGrid />
       <FeaturedBusinesses />
+      <CommunityReviews />
       <TestimonialsSection />
       <BusinessOwnerCTA />
     </div>
