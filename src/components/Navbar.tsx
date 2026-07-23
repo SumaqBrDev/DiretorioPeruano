@@ -15,16 +15,7 @@ export const Navbar = () => {
 
   if (!isLoaded) return null;
 
-  // DEBUG TEMPORAL - ver qué trae Clerk
-  console.log('[DEBUG Navbar] user:', {
-    id: user?.id,
-    email: user?.primaryEmailAddress?.emailAddress,
-    publicMetadata: user?.publicMetadata,
-    unsafeMetadata: user?.unsafeMetadata,
-    privateMetadata: user?.privateMetadata,
-  });
-
-    const SUPERADMIN_CLERK_ID = 'user_3GsBXtg23VQOhHPN3HCF1oCN4Eq';
+  const SUPERADMIN_CLERK_ID = 'user_3GsBXtg23VQOhHPN3HCF1oCN4Eq';
   const isSuperAdmin = user?.id === SUPERADMIN_CLERK_ID;
   const publicMeta = user?.publicMetadata || {};
   const isAdmin = (publicMeta.role === 'admin' || publicMeta.rol === 'admin') && !isSuperAdmin;
