@@ -15,6 +15,20 @@ export const Navbar = () => {
 
   if (!isLoaded) return null;
 
+  // DEBUG TEMPORAL - ver qué trae Clerk
+  console.log('[DEBUG Navbar] user:', {
+    id: user?.id,
+    email: user?.primaryEmailAddress?.emailAddress,
+    publicMetadata: user?.publicMetadata,
+    unsafeMetadata: user?.unsafeMetadata,
+    privateMetadata: user?.privateMetadata,
+  });
+
+    const SUPERADMIN_CLERK_ID = 'user_3GsBXtg23VQOhHPN3HCF1oCN4Eq';
+  const isSuperAdmin = user?.id === SUPERADMIN_CLERK_ID;
+  const publicMeta = user?.publicMetadata || {};
+  const isAdmin = (publicMeta.role === 'admin' || publicMeta.rol === 'admin') && !isSuperAdmin;
+
   const navLinks = [
     { path: '/', label: t('nav.home') },
     { path: '/busca', label: t('nav.search') },
@@ -85,13 +99,16 @@ export const Navbar = () => {
                         <p className="text-sm font-medium text-noche-lima dark:text-white truncate">{user.fullName || user.username || 'Usuário'}</p>
                         <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user.primaryEmailAddress?.emailAddress || ''}</p>
                       </div>
-                      <Link
-                        to="/meu-negocio"
-                        onClick={() => setUserMenuOpen(false)}
-                        className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-aji-rojo/10 hover:text-aji-rojo"
-                      >
-                        🏪 Meu Negócio
-                      </Link>
+                      {/* Superadmin/Admin não precisa de Meu Negócio — têm painéis próprios */}
+                      {!isAdmin && !isSuperAdmin && (
+                        <Link
+                          to="/meu-negocio"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-aji-rojo/10 hover:text-aji-rojo"
+                        >
+                          🏪 Meu Negócio
+                        </Link>
+                      )}
                       <Link
                         to="/inbox"
                         onClick={() => setUserMenuOpen(false)}
@@ -99,7 +116,7 @@ export const Navbar = () => {
                       >
                         💬 {t('nav.inbox')}
                       </Link>
-                      {user.publicMetadata?.role === 'admin' && (
+                      {isAdmin && (
                         <Link
                           to="/admin"
                           onClick={() => setUserMenuOpen(false)}
@@ -108,7 +125,7 @@ export const Navbar = () => {
                           ⚙️ Admin
                         </Link>
                       )}
-                      {user.primaryEmailAddress?.emailAddress === 'jose.rocah.pe@gmail.com' && (
+                      {isSuperAdmin && (
                         <Link
                           to="/admin/super"
                           onClick={() => setUserMenuOpen(false)}
@@ -198,14 +215,17 @@ export const Navbar = () => {
                   </>
                 ) : (
                   <>
-                    <Link
-                      to="/onboarding"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="w-full bg-aji-rojo text-white py-2.5 rounded-lg font-medium text-sm text-center"
-                    >
-                      {t('nav.my_business')}
-                    </Link>
-                    {user.publicMetadata?.role === 'admin' && (
+                    {/* Superadmin/Admin não precisa de Meu Negócio — têm painéis próprios */}
+                    {!isAdmin && !isSuperAdmin && (
+                      <Link
+                        to="/onboarding"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="w-full bg-aji-rojo text-white py-2.5 rounded-lg font-medium text-sm text-center"
+                      >
+                        {t('nav.my_business')}
+                      </Link>
+                    )}
+                    {isAdmin && (
                       <Link
                         to="/admin"
                         onClick={() => setMobileMenuOpen(false)}
@@ -214,7 +234,7 @@ export const Navbar = () => {
                         {t('nav.admin')}
                       </Link>
                     )}
-                    {user.primaryEmailAddress?.emailAddress === 'jose.rocah.pe@gmail.com' && (
+                    {isSuperAdmin && (
                       <Link
                         to="/admin/super"
                         onClick={() => setMobileMenuOpen(false)}

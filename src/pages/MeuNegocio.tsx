@@ -139,7 +139,18 @@ export const MeuNegocio = () => {
     );
   }
 
+  const SUPERADMIN_CLERK_ID = 'user_3GsBXtg23VQOhHPN3HCF1oCN4Eq';
+  const publicMeta = user?.publicMetadata || {};
+  const isAdmin = (publicMeta.role === 'admin' || publicMeta.rol === 'admin');
+  const isSuperAdmin = user?.id === SUPERADMIN_CLERK_ID;
+
   if (!business) {
+    // Admin users without a business get redirected to the admin panel
+    if (isAdmin || isSuperAdmin) {
+      navigate(isSuperAdmin ? '/admin/super' : '/admin');
+      return null;
+    }
+
     return (
       <div className="container mx-auto px-4 py-16 text-center">
         <div className="text-6xl mb-6">📋</div>
