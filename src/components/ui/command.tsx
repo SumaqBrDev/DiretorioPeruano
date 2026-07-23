@@ -72,17 +72,22 @@ function CommandInput({
 }: React.ComponentProps<typeof CommandPrimitive.Input>) {
   return (
     <div data-slot="command-input-wrapper" className="p-1 pb-0">
-      <InputGroup className="h-8! rounded-lg! border-input/30 bg-input/30 shadow-none! *:data-[slot=input-group-addon]:pl-2!">
+      <InputGroup
+        className={cn(
+          "h-10 rounded-lg border-oro-inca/30 dark:border-oro-inca/50 bg-white dark:bg-noche-lima shadow-none! *:data-[slot=input-group-addon]:pl-2",
+          className
+        )}
+      >
         <CommandPrimitive.Input
           data-slot="command-input"
           className={cn(
-            "w-full text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
+            "w-full text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50 bg-transparent text-gray-900 dark:text-gray-100 placeholder:text-gray-400",
             className
           )}
           {...props}
         />
         <InputGroupAddon>
-          <SearchIcon className="size-4 shrink-0 opacity-50" />
+          <SearchIcon className="size-4 shrink-0 opacity-50 text-gray-400" />
         </InputGroupAddon>
       </InputGroup>
     </div>
@@ -97,7 +102,7 @@ function CommandList({
     <CommandPrimitive.List
       data-slot="command-list"
       className={cn(
-        "no-scrollbar max-h-72 scroll-py-1 overflow-x-hidden overflow-y-auto outline-none",
+        "no-scrollbar max-h-[500px] scroll-py-1 overflow-x-hidden overflow-y-auto outline-none rounded-xl border border-oro-inca/20 dark:border-oro-inca/30 bg-white dark:bg-noche-lima shadow-lg",
         className
       )}
       {...props}
