@@ -1,7 +1,7 @@
 // src/pages/Inbox.tsx
 // B2B Chat Inbox — sidebar conversations + WhatsApp-style chat window
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useUser } from '@clerk/clerk-react'
 import { MessageList } from '@/components/MessageList'
 import { MessageForm } from '@/components/MessageForm'
@@ -12,12 +12,19 @@ import {
   saveB2BMessage,
   toggleArchiveB2B,
   softDeleteB2B,
+  getBusinesses,
 } from '@/lib/localData'
-import type { B2BConversation } from '@/lib/localData'
+import type { B2BConversation, Business } from '@/lib/localData'
 
 // ─── Current business (mock for demo) ───
 const CURRENT_BUSINESS_ID = 'biz-1'
 const CURRENT_BUSINESS_NAME = 'Sabores do Peru'
+
+// ─── Type for business options in autocomplete ───
+interface BusinessOption {
+  id: string
+  name: string
+}
 
 export const Inbox = () => {
   const { user, isLoaded } = useUser()
@@ -31,6 +38,14 @@ export const Inbox = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [newMessage, setNewMessage] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // ── Derive business list for autocomplete ──
+  const businessOptions: BusinessOption[] = useMemo(() => {
+    return getBusinesses()
+      .filter((b) => b.status === 'approved')
+      .map((b) => ({ id: b.id, name: b.name }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [])
 
   // ── Load data on mount ──
   useEffect(() => {
@@ -341,6 +356,7 @@ export const Inbox = () => {
           isOpen={showMessageForm}
           onClose={() => setShowMessageForm(false)}
           onSend={handleNewMessage}
+          businesses={businessOptions}
         />
       )}
 

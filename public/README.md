@@ -1,6 +1,3 @@
-<<<BEGIN_EXTERNAL_UNTRUSTED_CONTENT id="02233f28f7910180">>>
-Source: External
----
 # ConectaPeru — Kit basado en el símbolo maestro
 
 Todos los recursos de este paquete derivan directamente de `conectaperu-symbol-original.png`. La silueta, las proporciones, los degradados, el redondeo y el escalón dorado permanecen sin reinterpretación ni redibujo.
@@ -29,4 +26,3 @@ Todos los recursos de este paquete derivan directamente de `conectaperu-symbol-o
 ```
 
 No se incluye una falsa versión vectorial: vectorizar automáticamente el original modificaría precisamente las curvas y el acabado que se decidió conservar.
-<<<END_EXTERNAL_UNTRUSTED_CONTENT id="02233f28f7910180">>

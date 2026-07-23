@@ -1,68 +1,20 @@
 {
   "name": "ConectaPeru",
   "short_name": "ConectaPeru",
-  "description": "Diretório Multi-Setorial de negócios peruanos no Brasil. Conectando a comunidade peruana no Brasil.",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#FAF3E0",
-  "theme_color": "#C0392B",
-  "orientation": "portrait-primary",
-  "scope": "/",
-  "lang": "pt-BR",
+  "description": "O Hub do Empreendedor Peruano no Brasil",
   "icons": [
-    {
-      "src": "/favicon-16x16.png",
-      "sizes": "16x16",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/favicon-32x32.png",
-      "sizes": "32x32",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/apple-touch-icon.png",
-      "sizes": "180x180",
-      "type": "image/png",
-      "purpose": "any"
-    },
     {
       "src": "/conectaperu-icon-192x192.png",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     },
     {
       "src": "/conectaperu-icon-512x512.png",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     }
   ],
-  "categories": ["business", "food", "lifestyle", "travel"],
-  "shortcuts": [
-    {
-      "name": "Buscar Negócios",
-      "short_name": "Buscar",
-      "description": "Buscar negócios peruanos no Brasil",
-      "url": "/busca",
-      "icons": [{ "src": "/favicon-32x32.png", "sizes": "32x32" }]
-    },
-    {
-      "name": "Meu Negócio",
-      "short_name": "Meu Negócio",
-      "description": "Gerenciar meu negócio",
-      "url": "/meu-negocio",
-      "icons": [{ "src": "/favicon-32x32.png", "sizes": "32x32" }]
-    },
-    {
-      "name": "Cadastrar Negócio",
-      "short_name": "Cadastrar",
-      "description": "Cadastrar novo negócio",
-      "url": "/onboarding",
-      "icons": [{ "src": "/favicon-32x32.png", "sizes": "32x32" }]
-    }
-  ]
+  "theme_color": "#C0392B",
+  "background_color": "#FAF3E0",
+  "display": "standalone"
 }
