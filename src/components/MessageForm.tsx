@@ -1,7 +1,7 @@
 // src/components/MessageForm.tsx
 // Modal overlay for composing a new B2B message with shadcn combobox + autocomplete
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Check, ChevronsUpDown, Send, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -36,12 +36,23 @@ export const MessageForm = ({ isOpen, onClose, onSend, businesses }: MessageForm
   const [open, setOpen] = useState(false)
   const [value, setValue] = useState('')
   const [body, setBody] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+
+  // Filter businesses based on search query
+  const filteredBusinesses = useMemo(() => {
+    if (!searchQuery) return businesses
+    const q = searchQuery.toLowerCase()
+    return businesses.filter(
+      (b) => b.name.toLowerCase().includes(q) || b.id.toLowerCase().includes(q)
+    )
+  }, [businesses, searchQuery])
 
   // Reset on close
   useEffect(() => {
     if (!isOpen) {
       setValue('')
       setBody('')
+      setSearchQuery('')
       setOpen(false)
     }
   }, [isOpen])
@@ -52,6 +63,7 @@ export const MessageForm = ({ isOpen, onClose, onSend, businesses }: MessageForm
     onSend(value, body.trim())
     setValue('')
     setBody('')
+    setSearchQuery('')
     onClose()
   }
 
@@ -105,28 +117,34 @@ export const MessageForm = ({ isOpen, onClose, onSend, businesses }: MessageForm
               </PopoverTrigger>
               <PopoverContent className="w-full p-0" align="start">
                 <Command>
-                  <CommandInput placeholder="Buscar negócio..." />
+                  <CommandInput
+                    placeholder="Buscar negócio..."
+                    value={searchQuery}
+                    onValueChange={(value) => setSearchQuery(value)}
+                    className="h-10 bg-white dark:bg-noche-lima text-gray-900 dark:text-gray-100 placeholder:text-gray-400"
+                  />
                   <CommandList>
                     <CommandEmpty>Nenhum negócio encontrado.</CommandEmpty>
                     <CommandGroup>
-                      {businesses.map((business) => (
+                      {filteredBusinesses.map((business) => (
                         <CommandItem
                           key={business.id}
-                          value={business.name}
+                          value={business.id}
                           onSelect={(currentValue) => {
                             const biz = businesses.find(
-                              (b) => b.name.toLowerCase() === currentValue.toLowerCase()
+                              (b) => b.id === currentValue
                             )
                             if (biz) {
                               setValue(biz.id === value ? '' : biz.id)
                             }
                             setOpen(false)
+                            setSearchQuery('')
                           }}
                         >
                           <Check
                             className={cn(
-                              'mr-2 h-4 w-4',
-                              value === business.id ? 'opacity-100' : 'opacity-0'
+                              'mr-2 h-4 w-4 shrink-0',
+                              value === business.id ? 'opacity-100 text-aji-rojo' : 'opacity-0'
                             )}
                           />
                           {business.name}
