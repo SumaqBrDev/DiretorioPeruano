@@ -8,13 +8,42 @@ interface BusinessGalleryProps {
   onPhotosChange: (photos: string[]) => void;
 }
 
+interface FilePreview {
+  id: string;
+  file: File;
+  previewUrl: string;
+  status: 'pending' | 'uploading' | 'success' | 'error';
+  progress: number;
+  errorMessage?: string;
+  uploadedUrl?: string;
+}
+
+interface UploadResult {
+  url: string;
+  key: string;
+}
+
+interface UploadResponse {
+  urls: UploadResult[];
+  errors?: Array<{ filename: string; error: string }>;
+  totalUploaded: number;
+  totalErrors: number;
+}
+
 const MAX_PHOTOS = 10;
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
+let fileIdCounter = 0;
+function nextFileId(): string {
+  fileIdCounter++;
+  return `file-${Date.now()}-${fileIdCounter}`;
+}
+
 export const BusinessGallery = ({ businessId, photos, onPhotosChange }: BusinessGalleryProps) => {
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [overallProgress, setOverallProgress] = useState(0);
+  const [filePreviews, setFilePreviews] = useState<FilePreview[]>([]);
   const [modalIndex, setModalIndex] = useState<number | null>(null);
   const [confirmDeleteUrl, setConfirmDeleteUrl] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -47,71 +76,215 @@ export const BusinessGallery = ({ businessId, photos, onPhotosChange }: Business
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [modalIndex, photos.length]);
 
-  const uploadFile = async (file: File) => {
-    // Client-side validation
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      showToast(
-        `Tipo não suportado: ${file.type}. Permitidos: JPEG, PNG, WebP`,
-        'error'
-      );
-      return;
-    }
-    if (file.size > MAX_SIZE) {
-      showToast('Arquivo muito grande. Máximo permitido: 5MB', 'error');
-      return;
-    }
-    if (photos.length >= MAX_PHOTOS) {
+  // Cleanup object URLs when previews change
+  useEffect(() => {
+    return () => {
+      filePreviews.forEach((fp) => URL.revokeObjectURL(fp.previewUrl));
+    };
+  }, [filePreviews]);
+
+  const addFilesForUpload = (files: FileList | File[]) => {
+    const filesArray = Array.from(files);
+    const remainingSlots = MAX_PHOTOS - photos.length - filePreviews.filter(fp => fp.status === 'pending').length;
+
+    if (remainingSlots <= 0) {
       showToast(`Máximo de ${MAX_PHOTOS} fotos atingido`, 'error');
       return;
     }
 
-    setUploading(true);
-    setUploadProgress(0);
+    const validFiles = filesArray.filter((f) => {
+      if (!ALLOWED_TYPES.includes(f.type)) {
+        showToast(`Tipo não suportado: ${f.name}. Permitidos: JPEG, PNG, WebP`, 'error');
+        return false;
+      }
+      if (f.size > MAX_SIZE) {
+        showToast(`Arquivo muito grande: ${f.name}. Máximo: 5MB`, 'error');
+        return false;
+      }
+      return true;
+    });
 
-    try {
+    const filesToAdd = validFiles.slice(0, remainingSlots);
+
+    if (filesToAdd.length < validFiles.length) {
+      showToast(`Limite de ${MAX_PHOTOS} fotos. ${validFiles.length - filesToAdd.length} arquivo(s) ignorado(s).`, 'error');
+    }
+
+    if (filesToAdd.length === 0) return;
+
+    const newPreviews: FilePreview[] = filesToAdd.map((file) => ({
+      id: nextFileId(),
+      file,
+      previewUrl: URL.createObjectURL(file),
+      status: 'pending',
+      progress: 0,
+    }));
+
+    setFilePreviews((prev) => [...prev, ...newPreviews]);
+  };
+
+  const removePreview = (id: string) => {
+    setFilePreviews((prev) => {
+      const fp = prev.find((p) => p.id === id);
+      if (fp) URL.revokeObjectURL(fp.previewUrl);
+      return prev.filter((p) => p.id !== id);
+    });
+  };
+
+  const uploadSingleFile = async (
+    preview: FilePreview
+  ): Promise<{ success: boolean; url?: string }> => {
+    return new Promise((resolve) => {
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', preview.file);
       formData.append('businessId', businessId);
 
-      const result = await new Promise<{ url: string; key: string }>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
+      const xhr = new XMLHttpRequest();
 
-        xhr.upload.addEventListener('progress', (e) => {
-          if (e.lengthComputable) {
-            setUploadProgress(Math.round((e.loaded / e.total) * 100));
-          }
-        });
-
-        xhr.addEventListener('load', () => {
-          if (xhr.status === 200) {
-            resolve(JSON.parse(xhr.responseText));
-          } else {
-            try {
-              const err = JSON.parse(xhr.responseText);
-              reject(new Error(err.error || 'Erro ao fazer upload'));
-            } catch {
-              reject(new Error('Erro ao fazer upload'));
-            }
-          }
-        });
-
-        xhr.addEventListener('error', () => reject(new Error('Erro de conexão')));
-        xhr.addEventListener('abort', () => reject(new Error('Upload cancelado')));
-
-        xhr.open('POST', '/api/upload-image');
-        xhr.send(formData);
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          const pct = Math.round((e.loaded / e.total) * 100);
+          setFilePreviews((prev) =>
+            prev.map((fp) => (fp.id === preview.id ? { ...fp, progress: pct } : fp))
+          );
+        }
       });
 
-      const updatedPhotos = [...photos, result.url];
+      xhr.addEventListener('load', () => {
+        if (xhr.status === 200) {
+          try {
+            const response: UploadResponse = JSON.parse(xhr.responseText);
+            if (response.urls && response.urls.length > 0) {
+              const uploaded = response.urls[0];
+              setFilePreviews((prev) =>
+                prev.map((fp) =>
+                  fp.id === preview.id
+                    ? { ...fp, status: 'success', progress: 100, uploadedUrl: uploaded.url }
+                    : fp
+                )
+              );
+              resolve({ success: true, url: uploaded.url });
+            } else {
+              const errMsg = response.errors?.[0]?.error || 'Erro ao fazer upload';
+              setFilePreviews((prev) =>
+                prev.map((fp) =>
+                  fp.id === preview.id
+                    ? { ...fp, status: 'error', errorMessage: errMsg }
+                    : fp
+                )
+              );
+              resolve({ success: false });
+            }
+          } catch {
+            setFilePreviews((prev) =>
+              prev.map((fp) =>
+                fp.id === preview.id
+                  ? { ...fp, status: 'error', errorMessage: 'Erro ao processar resposta' }
+                  : fp
+              )
+            );
+            resolve({ success: false });
+          }
+        } else {
+          let errMsg = 'Erro ao fazer upload';
+          try {
+            const err = JSON.parse(xhr.responseText);
+            errMsg = err.error || errMsg;
+          } catch {
+            // use default
+          }
+          setFilePreviews((prev) =>
+            prev.map((fp) =>
+              fp.id === preview.id ? { ...fp, status: 'error', errorMessage: errMsg } : fp
+            )
+          );
+          resolve({ success: false });
+        }
+      });
+
+      xhr.addEventListener('error', () => {
+        setFilePreviews((prev) =>
+          prev.map((fp) =>
+            fp.id === preview.id
+              ? { ...fp, status: 'error', errorMessage: 'Erro de conexão' }
+              : fp
+          )
+        );
+        resolve({ success: false });
+      });
+
+      xhr.addEventListener('abort', () => {
+        setFilePreviews((prev) =>
+          prev.map((fp) =>
+            fp.id === preview.id
+              ? { ...fp, status: 'error', errorMessage: 'Upload cancelado' }
+              : fp
+          )
+        );
+        resolve({ success: false });
+      });
+
+      // Mark as uploading
+      setFilePreviews((prev) =>
+        prev.map((fp) => (fp.id === preview.id ? { ...fp, status: 'uploading', progress: 0 } : fp))
+      );
+
+      xhr.open('POST', '/api/upload-image');
+      xhr.send(formData);
+    });
+  };
+
+  const startUpload = async () => {
+    const pendingFiles = filePreviews.filter((fp) => fp.status === 'pending');
+    if (pendingFiles.length === 0) return;
+
+    setUploading(true);
+    setOverallProgress(0);
+
+    const uploadedUrls: string[] = [];
+    let completedCount = 0;
+    const totalFiles = pendingFiles.length;
+
+    // Upload files sequentially to avoid overwhelming the server
+    for (const fp of pendingFiles) {
+      const result = await uploadSingleFile(fp);
+      if (result.success && result.url) {
+        uploadedUrls.push(result.url);
+      }
+      completedCount++;
+      setOverallProgress(Math.round((completedCount / totalFiles) * 100));
+    }
+
+    // Update parent with new photos
+    if (uploadedUrls.length > 0) {
+      const updatedPhotos = [...photos, ...uploadedUrls];
       updateBusinessPhotos(businessId, updatedPhotos);
       onPhotosChange(updatedPhotos);
-      showToast('Foto enviada com sucesso! ✅', 'success');
-    } catch (err: any) {
-      showToast(err.message || 'Erro ao enviar foto', 'error');
-    } finally {
-      setUploading(false);
-      setUploadProgress(0);
     }
+
+    // Remove successful previews, keep errors for user to review
+    setFilePreviews((prev) => prev.filter((fp) => fp.status === 'error'));
+
+    const successCount = uploadedUrls.length;
+    const errorCount = pendingFiles.length - successCount;
+
+    if (errorCount === 0) {
+      showToast(`${successCount} foto(s) enviada(s) com sucesso! ✅`, 'success');
+    } else {
+      showToast(
+        `${successCount} enviada(s), ${errorCount} erro(s). Verifique os arquivos com erro.`,
+        errorCount > 0 ? 'error' : 'success'
+      );
+    }
+
+    setUploading(false);
+    setOverallProgress(0);
+  };
+
+  const cancelPreviews = () => {
+    // Revoke all object URLs
+    filePreviews.forEach((fp) => URL.revokeObjectURL(fp.previewUrl));
+    setFilePreviews([]);
   };
 
   const handleSetCover = (index: number) => {
@@ -174,22 +347,23 @@ export const BusinessGallery = ({ businessId, photos, onPhotosChange }: Business
     setDragOver(false);
     dragCounter.current = 0;
 
-    const files = Array.from(e.dataTransfer.files).filter((f) =>
-      ALLOWED_TYPES.includes(f.type)
-    );
-    if (files.length > 0) {
-      uploadFile(files[0]);
-    } else {
-      showToast('Arraste apenas imagens (JPEG, PNG, WebP)', 'error');
+    if (e.dataTransfer.files) {
+      addFilesForUpload(e.dataTransfer.files);
     }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) uploadFile(file);
-    // Reset input so same file can be re-selected
+    if (e.target.files && e.target.files.length > 0) {
+      addFilesForUpload(e.target.files);
+    }
+    // Reset input so same files can be re-selected
     e.target.value = '';
   };
+
+  const totalSlots = MAX_PHOTOS;
+  const slotsUsed = photos.length;
+  const slotsPending = filePreviews.filter(fp => fp.status === 'pending' || fp.status === 'uploading').length;
+  const slotsAvailable = totalSlots - slotsUsed - slotsPending;
 
   return (
     <div className="space-y-6">
@@ -197,11 +371,9 @@ export const BusinessGallery = ({ businessId, photos, onPhotosChange }: Business
         <h2 className="font-playfair text-2xl font-bold text-noche-lima dark:text-white">
           📸 Galeria de Fotos
         </h2>
-        {photos.length > 0 && (
-          <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">
-            {photos.length}/{MAX_PHOTOS}
-          </span>
-        )}
+        <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">
+          {slotsUsed}/{totalSlots}
+        </span>
       </div>
 
       {/* Upload zone */}
@@ -216,7 +388,7 @@ export const BusinessGallery = ({ businessId, photos, onPhotosChange }: Business
         onDragOver={handleDragOver}
         onDrop={handleDrop}
         onClick={() => {
-          if (!uploading && photos.length < MAX_PHOTOS) {
+          if (!uploading && slotsAvailable > 0) {
             fileInputRef.current?.click();
           }
         }}
@@ -225,16 +397,17 @@ export const BusinessGallery = ({ businessId, photos, onPhotosChange }: Business
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
-            if (!uploading && photos.length < MAX_PHOTOS) {
+            if (!uploading && slotsAvailable > 0) {
               fileInputRef.current?.click();
             }
           }
         }}
-        aria-label="Upload de foto - clique ou arraste uma imagem"
+        aria-label="Upload de fotos - clique ou arraste imagens"
       >
         <input
           ref={fileInputRef}
           type="file"
+          multiple
           accept=".jpeg,.jpg,.png,.webp"
           className="hidden"
           onChange={handleFileSelect}
@@ -244,18 +417,18 @@ export const BusinessGallery = ({ businessId, photos, onPhotosChange }: Business
           <div className="space-y-3">
             <div className="text-4xl animate-pulse">⏳</div>
             <p className="text-gray-600 dark:text-gray-400 font-medium">
-              Enviando imagem...
+              Enviando {filePreviews.filter(fp => fp.status === 'uploading' || fp.status === 'pending').length} foto(s)...
             </p>
             <div className="w-full max-w-xs mx-auto bg-gray-200 dark:bg-zinc-700 rounded-full h-3 overflow-hidden">
               <motion.div
                 className="h-full bg-aji-rojo rounded-full"
                 initial={{ width: 0 }}
-                animate={{ width: `${uploadProgress}%` }}
+                animate={{ width: `${overallProgress}%` }}
                 transition={{ duration: 0.3 }}
               />
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-500">
-              {uploadProgress}%
+              {overallProgress}%
             </p>
           </div>
         ) : (
@@ -263,21 +436,193 @@ export const BusinessGallery = ({ businessId, photos, onPhotosChange }: Business
             <div className="text-5xl mb-2">📷</div>
             <p className="text-gray-600 dark:text-gray-400 font-medium">
               {dragOver
-                ? '🎯 Solte a imagem aqui'
-                : 'Clique ou arraste uma imagem'}
+                ? '🎯 Solte as imagens aqui'
+                : 'Clique ou arraste imagens'}
             </p>
             <p className="text-sm text-gray-400 dark:text-gray-500">
-              JPEG, PNG ou WebP • Máx 5MB • {photos.length}/{MAX_PHOTOS}
+              {slotsAvailable > 0
+                ? `JPEG, PNG ou WebP • Máx 5MB • ${slotsUsed}/${totalSlots}`
+                : `Limite máximo de ${MAX_PHOTOS} fotos atingido`}
             </p>
           </div>
         )}
 
-        {photos.length >= MAX_PHOTOS && !uploading && (
+        {slotsAvailable <= 0 && !uploading && (
           <div className="mt-3 text-amber-600 dark:text-amber-400 text-sm font-medium flex items-center justify-center gap-1">
             ⚠️ Limite máximo de fotos atingido
           </div>
         )}
       </div>
+
+      {/* ────── File Preview Cards (before upload) ────── */}
+      {filePreviews.length > 0 && !uploading && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400">
+              Arquivos selecionados ({filePreviews.length})
+            </h3>
+            <div className="flex gap-2">
+              <button
+                onClick={cancelPreviews}
+                className="px-3 py-1.5 text-xs rounded-lg border border-gray-300 dark:border-zinc-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={startUpload}
+                disabled={filePreviews.filter(fp => fp.status === 'pending').length === 0}
+                className="px-4 py-1.5 text-xs rounded-lg bg-aji-rojo text-white font-semibold hover:bg-aji-rojo/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Enviar {filePreviews.filter(fp => fp.status === 'pending').length} arquivo(s)
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            {filePreviews.map((fp) => (
+              <motion.div
+                key={fp.id}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="relative rounded-xl overflow-hidden bg-zinc-100 dark:bg-zinc-800 aspect-square shadow-md ring-1 ring-black/5 dark:ring-white/10 group"
+              >
+                <img
+                  src={fp.previewUrl}
+                  alt={fp.file.name}
+                  className="w-full h-full object-cover"
+                />
+
+                {/* File name overlay */}
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 pt-6">
+                  <p className="text-white text-[10px] truncate font-medium">
+                    {fp.file.name}
+                  </p>
+                  <p className="text-white/60 text-[9px]">
+                    {(fp.file.size / 1024 / 1024).toFixed(1)} MB
+                  </p>
+                </div>
+
+                {/* Status badge */}
+                {fp.status === 'error' && (
+                  <div className="absolute top-1 right-1 bg-red-500/90 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                    ❌
+                  </div>
+                )}
+
+                {/* Remove button (only for pending files) */}
+                {fp.status === 'pending' && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removePreview(fp.id);
+                    }}
+                    className="absolute top-1 right-1 bg-black/50 hover:bg-black/70 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                    aria-label={`Remover ${fp.file.name}`}
+                  >
+                    ✕
+                  </button>
+                )}
+
+                {/* Progress bar for uploading */}
+                {fp.status === 'uploading' && (
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                    <div className="w-4/5 bg-black/50 rounded-full h-2 overflow-hidden">
+                      <motion.div
+                        className="h-full bg-green-500 rounded-full"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${fp.progress}%` }}
+                        transition={{ duration: 0.2 }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Success check */}
+                {fp.status === 'success' && (
+                  <div className="absolute inset-0 bg-green-500/20 flex items-center justify-center">
+                    <span className="text-3xl">✅</span>
+                  </div>
+                )}
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Error detail list */}
+          {filePreviews.filter(fp => fp.status === 'error').length > 0 && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3">
+              <p className="text-sm font-semibold text-red-700 dark:text-red-300 mb-1">
+                Erros ao enviar:
+              </p>
+              <ul className="text-xs text-red-600 dark:text-red-400 space-y-0.5">
+                {filePreviews
+                  .filter(fp => fp.status === 'error')
+                  .map((fp) => (
+                    <li key={fp.id}>
+                      <strong>{fp.file.name}</strong>: {fp.errorMessage || 'Erro desconhecido'}
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Overall progress bar during upload */}
+      {uploading && filePreviews.filter(fp => fp.status === 'uploading' || fp.status === 'pending').length > 0 && (
+        <div className="space-y-3">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Enviando {filePreviews.filter(fp => fp.status === 'success').length} de {filePreviews.filter(fp => fp.status !== 'error').length} arquivos...
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            {filePreviews.map((fp) => (
+              <motion.div
+                key={fp.id}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="relative rounded-xl overflow-hidden bg-zinc-100 dark:bg-zinc-800 aspect-square shadow-md ring-1 ring-black/5 dark:ring-white/10"
+              >
+                <img
+                  src={fp.previewUrl}
+                  alt={fp.file.name}
+                  className="w-full h-full object-cover"
+                />
+
+                {/* Status overlay */}
+                {fp.status === 'uploading' && (
+                  <div className="absolute inset-0 bg-black/30 flex flex-col items-center justify-center gap-2">
+                    <div className="w-4/5 bg-black/50 rounded-full h-2 overflow-hidden">
+                      <motion.div
+                        className="h-full bg-green-500 rounded-full"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${fp.progress}%` }}
+                        transition={{ duration: 0.2 }}
+                      />
+                    </div>
+                    <span className="text-white text-xs">{fp.progress}%</span>
+                  </div>
+                )}
+                {fp.status === 'pending' && (
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                    <span className="text-white text-xs font-medium animate-pulse">
+                      ⏳ Aguardando...
+                    </span>
+                  </div>
+                )}
+                {fp.status === 'success' && (
+                  <div className="absolute inset-0 bg-green-500/20 flex items-center justify-center">
+                    <span className="text-3xl">✅</span>
+                  </div>
+                )}
+                {fp.status === 'error' && (
+                  <div className="absolute inset-0 bg-red-500/20 flex items-center justify-center">
+                    <span className="text-3xl">❌</span>
+                  </div>
+                )}
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Photo grid */}
       {photos.length > 0 && (
@@ -347,7 +692,7 @@ export const BusinessGallery = ({ businessId, photos, onPhotosChange }: Business
       )}
 
       {/* Empty state */}
-      {photos.length === 0 && !uploading && (
+      {photos.length === 0 && filePreviews.length === 0 && !uploading && (
         <div className="text-center py-8 text-gray-400 dark:text-gray-600">
           <p className="text-lg font-medium">Nenhuma foto ainda</p>
           <p className="text-sm mt-1">

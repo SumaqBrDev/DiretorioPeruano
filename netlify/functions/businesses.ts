@@ -56,7 +56,7 @@ export const handler = async (event: any) => {
       const params = event.queryStringParameters || {};
       const { q, category, city, minRating } = params;
 
-      const where: any = { status: 'active' };
+      const where: any = { status: 'approved' };
 
       if (q) {
         where.OR = [

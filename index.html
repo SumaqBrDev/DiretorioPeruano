@@ -4,36 +4,146 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ConectaPeru - O Hub do Empreendedor Peruano no Brasil</title>
-  <meta name="description" content="ConectaPeru - Diretório Multi-Setorial de negócios peruanos no Brasil. Encontre gastronomia, serviços, e muito mais." />
-  <meta name="keywords" content="restaurante peruano, ceviche, lomo saltado, comida peruana Brasil, comunidade peruana Brasil" />
-  <link rel="canonical" href="https://conectaperu.com.br/" />
+  <meta name="description" content="ConectaPeru - Diretório Multi-Setorial de negócios peruanos no Brasil. Encontre gastronomia, serviços, saúde, mercados e muito mais da comunidade peruana." />
+  <meta name="keywords" content="restaurante peruano, ceviche, lomo saltado, comida peruana Brasil, comunidade peruana Brasil, diretório peruanos Brasil, empreendedores peruanos, negócios peruanos" />
+  <meta name="author" content="ConectaPeru" />
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+  <link rel="canonical" href="https://conectaperu.netlify.app/" />
 
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://conectaperu.com.br/" />
+  <meta property="og:url" content="https://conectaperu.netlify.app/" />
   <meta property="og:title" content="ConectaPeru - O Hub do Empreendedor Peruano no Brasil" />
-  <meta property="og:description" content="ConectaPeru - Diretório Multi-Setorial de negócios peruanos no Brasil. Encontre gastronomia, serviços, e muito mais." />
-  <meta property="og:image" content="https://conectaperu.com.br/og-image.png" />
+  <meta property="og:description" content="ConectaPeru - Diretório Multi-Setorial de negócios peruanos no Brasil. Encontre gastronomia, serviços, saúde, mercados e muito mais da comunidade peruana." />
+  <meta property="og:image" content="https://conectaperu.netlify.app/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="ConectaPeru - Conectando peruanos no Brasil" />
   <meta property="og:site_name" content="ConectaPeru" />
   <meta property="og:locale" content="pt_BR" />
   <meta property="og:locale:alternate" content="es_PE" />
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:url" content="https://conectaperu.com.br/" />
+  <meta name="twitter:url" content="https://conectaperu.netlify.app/" />
   <meta name="twitter:title" content="ConectaPeru - O Hub do Empreendedor Peruano no Brasil" />
-  <meta name="twitter:description" content="ConectaPeru - Diretório Multi-Setorial de negócios peruanos no Brasil. Encontre gastronomia, serviços, e muito mais." />
-  <meta name="twitter:image" content="https://conectaperu.com.br/og-image.png" />
+  <meta name="twitter:description" content="ConectaPeru - Diretório Multi-Setorial de negócios peruanos no Brasil. Encontre gastronomia, serviços, saúde, mercados e muito mais." />
+  <meta name="twitter:image" content="https://conectaperu.netlify.app/og-image.png" />
+  <meta name="twitter:image:alt" content="ConectaPeru - Conectando peruanos no Brasil" />
 
   <!-- hreflang -->
-  <link rel="alternate" hreflang="pt-BR" href="https://conectaperu.com.br/" />
-  <link rel="alternate" hreflang="es-PE" href="https://conectaperu.com.br/es/" />
-  <link rel="alternate" hreflang="x-default" href="https://conectaperu.com.br/" />
+  <link rel="alternate" hreflang="pt-BR" href="https://conectaperu.netlify.app/" />
+  <link rel="alternate" hreflang="es-PE" href="https://conectaperu.netlify.app/es/" />
+  <link rel="alternate" hreflang="x-default" href="https://conectaperu.netlify.app/" />
 
-  <link rel="icon" href="/favicon.ico" />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Favicons & Icons -->
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/svg+xml" href="/conectaperu-favicon.svg" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="manifest" href="/site.webmanifest" />
+
+  <!-- Theme color -->
+  <meta name="theme-color" content="#C0392B" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#1A1A2E" media="(prefers-color-scheme: dark)" />
+
+  <!-- Preconnect -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://images.unsplash.com" />
+  <link rel="dns-prefetch" href="https://api.netlify.com" />
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- JSON-LD Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "ConectaPeru",
+    "url": "https://conectaperu.netlify.app/",
+    "description": "Diretório Multi-Setorial de negócios peruanos no Brasil. Conectando a comunidade peruana no Brasil.",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": {
+        "@type": "EntryPoint",
+        "urlTemplate": "https://conectaperu.netlify.app/busca?q={search_term_string}"
+      },
+      "query-input": "required name=search_term_string"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "ConectaPeru",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://conectaperu.netlify.app/conectaperu-logo.png"
+      }
+    },
+    "inLanguage": ["pt-BR", "es-PE"]
+  }
+  </script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "ConectaPeru",
+    "url": "https://conectaperu.netlify.app/",
+    "logo": "https://conectaperu.netlify.app/conectaperu-logo.png",
+    "description": "Diretório Multi-Setorial de negócios peruanos no Brasil. Conectando a comunidade peruana no Brasil.",
+    "sameAs": [
+      "https://www.facebook.com/ConectaPeru",
+      "https://www.instagram.com/conectaperu",
+      "https://www.linkedin.com/company/conectaperu"
+    ],
+    "contactPoint": {
+      "@type": "ContactPoint",
+      "telephone": "+55-11-99999-9999",
+      "contactType": "customer service",
+      "availableLanguage": ["Portuguese", "Spanish"]
+    },
+    "areaServed": "BR",
+    "foundingDate": "2024",
+    "knowsAbout": ["Negócios peruanos", "Comunidade peruana no Brasil", "Gastronomia peruana", "Serviços profissionais"]
+  }
+  </script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "name": "ConectaPeru - O Hub do Empreendedor Peruano no Brasil",
+    "description": "Diretório Multi-Setorial de negócios peruanos no Brasil. Encontre gastronomia, serviços, saúde, mercados e muito mais.",
+    "url": "https://conectaperu.netlify.app/",
+    "inLanguage": "pt-BR",
+    "isPartOf": {
+      "@type": "WebSite",
+      "name": "ConectaPeru",
+      "url": "https://conectaperu.netlify.app/"
+    },
+    "about": {
+      "@type": "Thing",
+      "name": "Diretório de negócios peruanos no Brasil"
+    },
+    "mainEntity": {
+      "@type": "ItemList",
+      "name": "Categorias de negócios",
+      "numberOfItems": 8,
+      "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": "Restaurantes"},
+        {"@type": "ListItem", "position": 2, "name": "Mercados"},
+        {"@type": "ListItem", "position": 3, "name": "Salões de Beleza"},
+        {"@type": "ListItem", "position": 4, "name": "Serviços Profissionais"},
+        {"@type": "ListItem", "position": 5, "name": "Saúde"},
+        {"@type": "ListItem", "position": 6, "name": "Jurídico"},
+        {"@type": "ListItem", "position": 7, "name": "Financeiro"},
+        {"@type": "ListItem", "position": 8, "name": "Imóveis"}
+      ]
+    }
+  }
+  </script>
 </head>
 <body>
   <div id="root"></div>

@@ -34,7 +34,7 @@ interface LocalBizSummary {
  * 2. Fallback to mockBusinesses
  * 3. Merge where possible
  */
-function findBusiness(id: string | number): Business {
+function findBusiness(id: string | number): Business & { localId?: string } {
   const strId = String(id);
   const numId = typeof id === 'number' ? id : parseInt(id, 10);
 
@@ -59,6 +59,7 @@ function findBusiness(id: string | number): Business {
       images: local.photos?.length ? local.photos : mock.images,
       reviewsCount: mock.reviewsCount,
       rating: mock.rating,
+      localId: local.id, // <-- Pass the localStorage UUID
     };
   }
 
@@ -92,6 +93,7 @@ function findBusiness(id: string | number): Business {
       longitude: 0,
       menu: [],
       reviews: [],
+      localId: local.id, // <-- Pass the localStorage UUID
     };
   }
 
@@ -157,7 +159,7 @@ export const Negocio = () => {
                         : 'text-zinc-600 dark:text-zinc-400 hover:text-aji-rojo'
                     }`}
                   >
-                    Cardápio
+                    {t('nav.products_services')}
                   </button>
                 )}
                 {hasGallery && (
@@ -225,7 +227,7 @@ export const Negocio = () => {
                 </section>
               )}
               {activeTab === 'avaliacoes' && (
-                <ReviewsSection business={business} />
+                <ReviewsSection business={business} localBusinessId={business.localId} />
               )}
             </div>
           </div>

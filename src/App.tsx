@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ClerkProvider, useUser } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
+import { HelmetProvider } from 'react-helmet-async';
 import { Navbar } from './components/Navbar';
 import { CookieBanner } from './components/CookieBanner';
 import { Home } from './pages/Home';
@@ -93,21 +94,23 @@ function App() {
   }
 
   return (
-    <ClerkProvider
-      publishableKey={publishableKey}
-      appearance={{
-        variables: {
-          colorPrimary: '#C0392B',
-        },
-        elements: {
-          formButtonPrimary: 'bg-aji-rojo hover:bg-aji-rojo/90 text-white',
-          card: 'shadow-lg border border-oro-inca/20',
-        },
-      }}
-      localization={{ locale: 'pt-BR' }}
-    >
-      <AppRoutes />
-    </ClerkProvider>
+    <HelmetProvider>
+      <ClerkProvider
+        publishableKey={publishableKey}
+        appearance={{
+          variables: {
+            colorPrimary: '#C0392B',
+          },
+          elements: {
+            formButtonPrimary: 'bg-aji-rojo hover:bg-aji-rojo/90 text-white',
+            card: 'shadow-lg border border-oro-inca/20',
+          },
+        }}
+        localization={{ locale: 'pt-BR' }}
+      >
+        <AppRoutes />
+      </ClerkProvider>
+    </HelmetProvider>
   );
 }
 

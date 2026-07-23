@@ -1,0 +1,11 @@
+name = "r2-upload-worker"
+main = "src/index.ts"
+compatibility_date = "2024-03-20"
+workers_dev = true
+
+[[r2_buckets]]
+binding = "ASSETS_BUCKET"
+bucket_name = "diretorio-assets"
+
+[vars]
+AUTH_SECRET = "super_secret_token_123"

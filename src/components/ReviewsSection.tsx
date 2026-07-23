@@ -10,6 +10,7 @@ import { getReviews, saveReview } from '@/lib/localData';
 
 interface ReviewsSectionProps {
   business: Business;
+  localBusinessId?: string;
 }
 
 interface ReviewDisplay {
@@ -36,11 +37,12 @@ export const ReviewsSection = ({ business }: ReviewsSectionProps) => {
   const [localReviews, setLocalReviews] = useState<ReviewDisplay[]>([]);
 
   const businessId = String(business.id);
+  const localId = business.localId;
   const userId = user?.id || '';
 
   // Load local reviews and check if user already reviewed
   useEffect(() => {
-    const stored = getReviews(businessId);
+    const stored = getReviews(localId || businessId);
     const mapped: ReviewDisplay[] = stored.map((r) => ({
       id: r.id,
       author: r.author,
@@ -59,7 +61,7 @@ export const ReviewsSection = ({ business }: ReviewsSectionProps) => {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [businessId, userId]);
+  }, [localId || businessId, userId]);
 
   const [hasReviewed, setHasReviewed] = useState(false);
 
@@ -129,7 +131,7 @@ export const ReviewsSection = ({ business }: ReviewsSectionProps) => {
 
     try {
       // 1. Save to localStorage immediately
-      const saved = saveReview(businessId, newReviewPayload);
+      const saved = saveReview(localId || businessId, newReviewPayload);
 
       // 2. Try API POST (non-blocking)
       try {

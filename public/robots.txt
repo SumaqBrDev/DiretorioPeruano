@@ -1,0 +1,17 @@
+# robots.txt para ConectaPeru
+User-agent: *
+Allow: /
+
+# Disallow admin and private areas
+Disallow: /admin/
+Disallow: /onboarding/
+Disallow: /meu-negocio/
+Disallow: /inbox/
+Disallow: /entrar/
+Disallow: /cadastrar/
+
+# Sitemap
+Sitemap: https://conectaperu.netlify.app/sitemap.xml
+
+# Crawl-delay para ser respetuosos
+Crawl-delay: 10
