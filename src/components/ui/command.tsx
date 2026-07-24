@@ -25,7 +25,7 @@ function Command({
     <CommandPrimitive
       data-slot="command"
       className={cn(
-        "flex size-full flex-col overflow-hidden rounded-xl! bg-popover p-1 text-popover-foreground",
+        "flex size-full flex-col overflow-hidden bg-white dark:bg-noche-lima text-gray-900 dark:text-gray-100",
         className
       )}
       {...props}
@@ -71,25 +71,16 @@ function CommandInput({
   ...props
 }: React.ComponentProps<typeof CommandPrimitive.Input>) {
   return (
-    <div data-slot="command-input-wrapper" className="p-1 pb-0">
-      <InputGroup
+    <div className="flex items-center border-b border-oro-inca/20 dark:border-oro-inca/30 px-4" data-slot="command-input-wrapper">
+      <SearchIcon className="mr-3 h-5 w-5 shrink-0 opacity-50 text-gray-500 dark:text-gray-400" />
+      <CommandPrimitive.Input
+        data-slot="command-input"
         className={cn(
-          "h-10 rounded-lg border-oro-inca/30 dark:border-oro-inca/50 bg-white dark:bg-noche-lima shadow-none! *:data-[slot=input-group-addon]:pl-2",
+          "flex h-12 w-full rounded-md bg-transparent py-3 text-sm outline-none disabled:cursor-not-allowed disabled:opacity-50 text-gray-900 dark:text-gray-100 placeholder:text-gray-400",
           className
         )}
-      >
-        <CommandPrimitive.Input
-          data-slot="command-input"
-          className={cn(
-            "w-full text-sm outline-none disabled:cursor-not-allowed disabled:opacity-50 bg-transparent text-gray-900 dark:text-gray-100 placeholder:text-gray-400",
-            className
-          )}
-          {...props}
-        />
-        <InputGroupAddon>
-          <SearchIcon className="size-4 shrink-0 opacity-50 text-gray-400" />
-        </InputGroupAddon>
-      </InputGroup>
+        {...props}
+      />
     </div>
   )
 }
@@ -102,7 +93,7 @@ function CommandList({
     <CommandPrimitive.List
       data-slot="command-list"
       className={cn(
-        "no-scrollbar max-h-[500px] scroll-py-1 overflow-x-hidden overflow-y-auto outline-none rounded-xl border border-oro-inca/20 dark:border-oro-inca/30 bg-white dark:bg-noche-lima shadow-lg",
+        "no-scrollbar max-h-[400px] overflow-y-auto overflow-x-hidden p-2",
         className
       )}
       {...props}
@@ -161,13 +152,12 @@ function CommandItem({
     <CommandPrimitive.Item
       data-slot="command-item"
       className={cn(
-        "group/command-item relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none select-none in-data-[slot=dialog-content]:rounded-lg! data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-selected:bg-muted data-selected:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 data-selected:*:[svg]:text-foreground",
+        "relative flex cursor-default select-none items-center rounded-md px-3 py-2.5 text-sm outline-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-gray-100 dark:data-[selected=true]:bg-zinc-800 data-[selected=true]:text-aji-rojo",
         className
       )}
       {...props}
     >
       {children}
-      <CheckIcon className="ml-auto opacity-0 group-has-data-[slot=command-shortcut]/command-item:hidden group-data-[checked=true]/command-item:opacity-100" />
     </CommandPrimitive.Item>
   )
 }
