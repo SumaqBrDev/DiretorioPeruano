@@ -368,7 +368,7 @@ function DetailModal({
               {business.photos.map((photo, i) => (
                 <div key={i} className="aspect-square rounded-lg overflow-hidden bg-gray-100 dark:bg-zinc-800">
                   <img
-                    src={photo.startsWith('blob:') || photo.startsWith('http') ? photo : `/uploads/${photo}`}
+                    src={photo.startsWith('blob:') || photo.startsWith('http') || photo.startsWith('data:') ? photo : `/uploads/${photo}`}
                     alt={`${business.name} ${i + 1}`}
                     className="w-full h-full object-cover"
                     onError={(e) => {
