@@ -1,15 +1,14 @@
 // src/components/CommunityReviews.tsx
-// "O que a comunidade diz" — muestra reseñas aleatorias de 5 estrellas
+// "O que a comunidade diz" — mostrar reseñas aleatorias de 5 estrellas desde localStorage
 
 import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, useReducedMotion } from 'motion/react';
 import { Star } from '@phosphor-icons/react';
-import { getReviews } from '../lib/localData';
-import { mockBusinesses } from '../data/mockBusinesses';
+import { getBusinesses, getReviews } from '../lib/localData';
 
 interface CommunityReview {
-  id: string | number;
+  id: string;
   author: string;
   businessName: string;
   rating: number;
@@ -22,37 +21,17 @@ export const CommunityReviews = () => {
 
   const reviews = useMemo<CommunityReview[]>(() => {
     const all: CommunityReview[] = [];
+    const reviewIds = new Set<string>();
 
-    // From localStorage (real reviews by users)
-    const localIds = new Set<string>();
-    const localReviewIds = new Set<string | number>();
-
-    mockBusinesses.forEach((biz) => {
-      const storedReviews = getReviews(String(biz.id));
+    // From localStorage (reviews by users)
+    const businesses = getBusinesses();
+    businesses.forEach((biz) => {
+      const storedReviews = getReviews(biz.id);
       storedReviews.forEach((r) => {
-        if (r.rating === 5) {
+        if (r.rating >= 4) { // Use 4+ for community section
           const key = `${r.author}_${r.text}`;
-          if (!localReviewIds.has(key)) {
-            localReviewIds.add(key);
-            all.push({
-              id: r.id,
-              author: r.author,
-              businessName: biz.name,
-              rating: r.rating,
-              text: r.text,
-            });
-          }
-        }
-      });
-    });
-
-    // From mockBusinesses — reviews with rating === 5
-    mockBusinesses.forEach((biz) => {
-      biz.reviews.forEach((r) => {
-        if (r.rating === 5) {
-          const key = `${r.author}_${r.text}`;
-          if (!localReviewIds.has(key)) {
-            localReviewIds.add(key);
+          if (!reviewIds.has(key)) {
+            reviewIds.add(key);
             all.push({
               id: r.id,
               author: r.author,

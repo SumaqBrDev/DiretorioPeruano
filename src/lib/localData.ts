@@ -28,6 +28,39 @@ export interface Business {
   updatedAt: string;
 }
 
+// ── Rich display type used by Negocio page & detail components ──
+export interface DisplayBusiness {
+  id: number;
+  name: string;
+  category: string;
+  city: string;
+  address: string;
+  rating: number;
+  reviewsCount: number;
+  tags: string[];
+  about: string;
+  images: string[];
+  hours: Array<{ day: string; time: string; isOpen: boolean }>;
+  phone: string;
+  whatsapp: string;
+  website: string;
+  email: string;
+  latitude: number;
+  longitude: number;
+  menu: Array<{
+    category: string;
+    items: Array<{ name: string; price: string; description: string }>;
+  }>;
+  reviews: Array<{
+    id: string | number;
+    author: string;
+    rating: number;
+    date: string;
+    text: string;
+  }>;
+  localId?: string;
+}
+
 export interface Review {
   id: string;
   businessId: string;
@@ -118,6 +151,10 @@ export function deleteBusiness(id: string): boolean {
 
 export function getBusinessesByStatus(status: string): Business[] {
   return getBusinesses().filter(b => (b.status || 'pending') === status);
+}
+
+export function getBusinessById(id: string): Business | undefined {
+  return getBusinesses().find(b => b.id === id);
 }
 
 export function getBetaMode(): boolean {
@@ -405,21 +442,26 @@ export function softDeleteB2B(conversationId: string, businessId: string): boole
 }
 
 // ──────────────────────────────────────────────
-// Seed data for B2B (first run)
+// Seed data for B2B (first run — accepts business map for real IDs)
 // ──────────────────────────────────────────────
 
-export function seedB2BData(): void {
+export function seedB2BData(businessMap?: Map<string, string>): void {
   const existing = localStorage.getItem(B2B_STORAGE_KEY);
   if (existing) return;
+
+  // If no businessMap provided, don't seed (prevents mock IDs)
+  if (!businessMap) return;
 
   const now = new Date();
   const t = (minutesAgo: number) => new Date(now.getTime() - minutesAgo * 60000).toISOString();
 
+  const get = (name: string) => businessMap.get(name) || name
+
   const conversations: B2BConversation[] = [
     {
-      id: 'biz-1_biz-2',
-      participantIds: ['biz-1', 'biz-2'],
-      participantNames: ['Sabores do Peru', 'Lima Criolla'],
+      id: makeConvId(get('El Ceviche de Lima'), get('Sabor Andino')),
+      participantIds: [get('El Ceviche de Lima'), get('Sabor Andino')] as [string, string],
+      participantNames: ['El Ceviche de Lima', 'Sabor Andino'],
       archivedBy: [],
       deletedBy: [],
       deletedAt: null,
@@ -428,24 +470,24 @@ export function seedB2BData(): void {
       messages: [
         {
           id: 'b2b_seed_1',
-          fromBusinessId: 'biz-2',
-          fromBusinessName: 'Lima Criolla',
+          fromBusinessId: get('Sabor Andino'),
+          fromBusinessName: 'Sabor Andino',
           body: 'Olá! Gostaria de saber se vocês têm interesse em uma parceria para fornecer ingredientes peruanos.',
           createdAt: t(120),
           read: true,
         },
         {
           id: 'b2b_seed_2',
-          fromBusinessId: 'biz-1',
-          fromBusinessName: 'Sabores do Peru',
+          fromBusinessId: get('El Ceviche de Lima'),
+          fromBusinessName: 'El Ceviche de Lima',
           body: 'Sim, temos interesse! Quais ingredientes vocês precisam? Temos ají amarillo, ají panca, rocoto fresco...',
           createdAt: t(90),
           read: true,
         },
         {
           id: 'b2b_seed_3',
-          fromBusinessId: 'biz-2',
-          fromBusinessName: 'Lima Criolla',
+          fromBusinessId: get('Sabor Andino'),
+          fromBusinessName: 'Sabor Andino',
           body: 'Perfeito! Precisamos de ají amarillo e rocoto para o novo cardápio. Podemos marcar uma reunião para acertar os detalhes?',
           createdAt: t(30),
           read: false,
@@ -453,9 +495,9 @@ export function seedB2BData(): void {
       ],
     },
     {
-      id: 'biz-1_biz-3',
-      participantIds: ['biz-1', 'biz-3'],
-      participantNames: ['Sabores do Peru', 'Ceviche House SP'],
+      id: makeConvId(get('El Ceviche de Lima'), get('Pachamama')),
+      participantIds: [get('El Ceviche de Lima'), get('Pachamama')] as [string, string],
+      participantNames: ['El Ceviche de Lima', 'Pachamama'],
       archivedBy: [],
       deletedBy: [],
       deletedAt: null,
@@ -464,8 +506,8 @@ export function seedB2BData(): void {
       messages: [
         {
           id: 'b2b_seed_4',
-          fromBusinessId: 'biz-3',
-          fromBusinessName: 'Ceviche House SP',
+          fromBusinessId: get('Pachamama'),
+          fromBusinessName: 'Pachamama',
           body: 'Vocês fazem delivery para a zona sul de SP? Gostaria de pedir uns ceviches para um evento corporativo na próxima semana.',
           createdAt: t(180),
           read: false,
@@ -473,10 +515,10 @@ export function seedB2BData(): void {
       ],
     },
     {
-      id: 'biz-1_biz-4',
-      participantIds: ['biz-1', 'biz-4'],
-      participantNames: ['Sabores do Peru', 'Andina Grill'],
-      archivedBy: ['biz-1'],
+      id: makeConvId(get('El Ceviche de Lima'), get('Mercado Inca')),
+      participantIds: [get('El Ceviche de Lima'), get('Mercado Inca')] as [string, string],
+      participantNames: ['El Ceviche de Lima', 'Mercado Inca'],
+      archivedBy: [get('El Ceviche de Lima')],
       deletedBy: [],
       deletedAt: null,
       createdAt: t(300),
@@ -484,16 +526,16 @@ export function seedB2BData(): void {
       messages: [
         {
           id: 'b2b_seed_5',
-          fromBusinessId: 'biz-4',
-          fromBusinessName: 'Andina Grill',
+          fromBusinessId: get('Mercado Inca'),
+          fromBusinessName: 'Mercado Inca',
           body: 'Olá! Vamos fazer um festival gastronômico no próximo mês e gostaríamos de convidar vocês para participar conosco!',
           createdAt: t(300),
           read: true,
         },
         {
           id: 'b2b_seed_6',
-          fromBusinessId: 'biz-1',
-          fromBusinessName: 'Sabores do Peru',
+          fromBusinessId: get('El Ceviche de Lima'),
+          fromBusinessName: 'El Ceviche de Lima',
           body: 'Que legal! Adoraríamos participar. Me mandem mais detalhes sobre as datas e o formato do evento.',
           createdAt: t(240),
           read: true,

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import axios from 'axios';
-import { fallbackCategories, fallbackStats, fallbackFeatured, fallbackTestimonials } from '../data/fallbackData';
+import { getBusinesses, getReviews } from '../lib/localData';
 
 export interface Category {
   slug: string;
@@ -70,11 +70,45 @@ const apiGet = async (url: string) => {
   return data;
 };
 
+/** Build featured businesses from localStorage */
+function getLocalFeatured(): FeaturedBusiness[] {
+  return getBusinesses()
+    .filter(b => b.status === 'approved' || b.status === 'pending')
+    .map(b => ({
+      id: b.id,
+      name: b.name,
+      category: b.category,
+      city: b.address.city,
+      state: b.address.state,
+      rating: 4.5,
+      reviewsCount: getReviews(b.id).length,
+      tags: b.tags || [],
+      coverImage: b.photos?.[0] || '',
+    }));
+}
+
+/** Build stats from localStorage */
+function getLocalStats(): Stat[] {
+  const businesses = getBusinesses();
+  const total = businesses.length;
+  const approved = businesses.filter(b => b.status === 'approved').length;
+  const cities = new Set(businesses.map(b => b.address.city)).size;
+  let totalReviews = 0;
+  businesses.forEach(b => { totalReviews += getReviews(b.id).length; });
+
+  return [
+    { label: 'stats.businesses', value: total, suffix: '' },
+    { label: 'stats.cities', value: cities, suffix: '' },
+    { label: 'stats.reviews', value: totalReviews, suffix: '' },
+    { label: 'stats.categories', value: 8, suffix: '' },
+  ];
+}
+
 export const useHomeStore = create<HomeState>((set) => ({
-  categories: fallbackCategories,
-  featuredBusinesses: fallbackFeatured,
-  stats: fallbackStats,
-  testimonials: fallbackTestimonials,
+  categories: [],
+  featuredBusinesses: [],
+  stats: [],
+  testimonials: [],
   loading: {
     categories: false,
     featured: false,
@@ -106,7 +140,10 @@ export const useHomeStore = create<HomeState>((set) => ({
       const data = await apiGet('/api/featured');
       set((s) => ({ featuredBusinesses: data, loading: { ...s.loading, featured: false } }));
     } catch (err: any) {
+      // Fallback to localStorage data
+      const localFeatured = getLocalFeatured();
       set((s) => ({
+        featuredBusinesses: localFeatured,
         loading: { ...s.loading, featured: false },
       }));
     }
@@ -118,7 +155,9 @@ export const useHomeStore = create<HomeState>((set) => ({
       const data = await apiGet('/api/stats');
       set((s) => ({ stats: data, loading: { ...s.loading, stats: false } }));
     } catch (err: any) {
+      const localStats = getLocalStats();
       set((s) => ({
+        stats: localStats,
         loading: { ...s.loading, stats: false },
       }));
     }

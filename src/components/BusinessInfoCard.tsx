@@ -1,9 +1,9 @@
 import { MapPin } from '@phosphor-icons/react';
-import { Business } from '../data/mockBusinesses';
+import type { DisplayBusiness } from '../lib/localData';
 import { StarRating } from './StarRating';
 
 interface BusinessInfoCardProps {
-  business: Business;
+  business: DisplayBusiness;
 }
 
 export const BusinessInfoCard = ({ business }: BusinessInfoCardProps) => {

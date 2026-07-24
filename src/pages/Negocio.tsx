@@ -2,8 +2,8 @@ import { useParams, Link } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { mockBusinesses, type Business } from '@/data/mockBusinesses';
-import { getBusinesses } from '@/lib/localData';
+import { getBusinesses, getBusinessById, getReviews } from '@/lib/localData';
+import type { DisplayBusiness } from '@/lib/localData';
 import { StarRating } from '@/components/StarRating';
 import { Breadcrumb } from '@/components/Breadcrumb';
 import { PhotoGallery } from '@/components/PhotoGallery';
@@ -29,50 +29,27 @@ interface LocalBizSummary {
 }
 
 /**
- * Build a composite business object:
- * 1. Try localStorage first (real registered business)
- * 2. Fallback to mockBusinesses
- * 3. Merge where possible
+ * Build a composite business object from localStorage data only.
+ * No more mock fallbacks.
  */
-function findBusiness(id: string | number): Business & { localId?: string } {
+function findBusiness(id: string | number): DisplayBusiness | null {
   const strId = String(id);
-  const numId = typeof id === 'number' ? id : parseInt(id, 10);
+  const numId = typeof id === 'number' ? id : parseInt(strId, 10);
 
-  // Try localStorage
+  // Try localStorage first (real registered business)
   const localBizzes = getBusinesses();
   const local = localBizzes.find((b) => b.id === strId);
 
-  // Try mockBusinesses
-  const mock = mockBusinesses.find((b) => b.id === numId);
-
-  if (local && mock) {
-    // Merge: localStorage data overrides mock, but keep mock's rich data for missing fields
-    return {
-      ...mock,
-      id: numId,
-      name: local.name,
-      category: local.category,
-      city: `${local.address.city} - ${local.address.state}`,
-      address: `${local.address.street}, ${local.address.city} - ${local.address.state}, ${local.address.zip}`,
-      tags: local.tags?.length ? local.tags : mock.tags,
-      about: local.description || mock.about,
-      images: local.photos?.length ? local.photos : mock.images,
-      reviewsCount: mock.reviewsCount,
-      rating: mock.rating,
-      localId: local.id, // <-- Pass the localStorage UUID
-    };
-  }
-
-  if (local && !mock) {
+  if (local) {
     // Build a business-like object from localStorage data
     return {
-      id: numId || parseInt(strId.replace(/\D/g, ''), 10) || 999,
+      id: numId || 999,
       name: local.name,
       category: local.category,
       city: `${local.address.city} - ${local.address.state}`,
       address: `${local.address.street}, ${local.address.city} - ${local.address.state}, ${local.address.zip}`,
       rating: 4.5,
-      reviewsCount: 0,
+      reviewsCount: getReviews(local.id).length,
       tags: local.tags || [],
       about: local.description || '',
       images: local.photos || [],
@@ -92,13 +69,21 @@ function findBusiness(id: string | number): Business & { localId?: string } {
       latitude: 0,
       longitude: 0,
       menu: [],
-      reviews: [],
-      localId: local.id, // <-- Pass the localStorage UUID
+      reviews: getReviews(local.id).map(r => ({
+        id: r.id,
+        author: r.author,
+        rating: r.rating,
+        date: r.createdAt,
+        text: r.text,
+        userId: r.userId,
+        createdAt: r.createdAt,
+      })),
+      localId: local.id,
     };
   }
 
-  // Fallback to mockBusinesses
-  return mock || mockBusinesses[0];
+  // No mock fallback - return null if not found
+  return null;
 }
 
 export const Negocio = () => {
@@ -108,10 +93,10 @@ export const Negocio = () => {
 
   const business = useMemo(() => findBusiness(id || '1'), [id]);
 
-  const hasGallery = business.images && business.images.length > 0;
+  const hasGallery = business?.images && business.images.length > 0;
   const tabs: Array<'sobre' | 'cardapio' | 'avaliacoes' | 'galeria'> = [
     'sobre',
-    ...(business.menu?.length ? ['cardapio' as const] : []),
+    ...(business?.menu?.length ? ['cardapio' as const] : []),
     ...(hasGallery ? ['galeria' as const] : []),
     'avaliacoes' as const,
   ];
@@ -121,6 +106,19 @@ export const Negocio = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-creme-andino dark:bg-zinc-950">
         <div className="animate-spin rounded-full h-12 w-12 border-4 border-aji-rojo border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (!business) {
+    return (
+      <div className="container mx-auto px-4 py-20 text-center">
+        <h2 className="font-playfair text-2xl font-bold text-aji-rojo mb-4">Negócio não encontrado</h2>
+        <p className="text-gray-500 dark:text-gray-400 mb-6">O negócio solicitado não existe ou foi removido.</p>
+        <Link to="/busca" className="inline-flex items-center gap-2 bg-aji-rojo text-white px-6 py-3 rounded-xl font-semibold hover:bg-aji-rojo/90 transition-all">
+          Voltar à Busca
+          <CaretRight size={16} />
+        </Link>
       </div>
     );
   }

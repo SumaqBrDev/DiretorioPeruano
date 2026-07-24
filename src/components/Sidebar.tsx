@@ -1,8 +1,8 @@
 import { Phone, WhatsappLogo, Globe, Envelope, MapPin, Clock, Star } from '@phosphor-icons/react';
-import { Business } from '../data/mockBusinesses';
+import type { DisplayBusiness } from '../lib/localData';
 
 interface SidebarProps {
-  business: Business;
+  business: DisplayBusiness;
 }
 
 const formatPhoneForWhatsApp = (phone: string) => {

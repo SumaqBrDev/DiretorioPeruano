@@ -1,7 +1,7 @@
-import { Business } from '@/data/mockBusinesses';
+import type { DisplayBusiness } from '@/lib/localData';
 
 interface HoursSectionProps {
-  business: Business;
+  business: DisplayBusiness;
 }
 
 export const HoursSection = ({ business }: HoursSectionProps) => {

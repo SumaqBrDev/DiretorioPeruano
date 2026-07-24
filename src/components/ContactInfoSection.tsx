@@ -1,7 +1,7 @@
-import { Business } from '@/data/mockBusinesses';
+import type { DisplayBusiness } from '@/lib/localData';
 
 interface ContactInfoSectionProps {
-  business: Business;
+  business: DisplayBusiness;
 }
 
 export const ContactInfoSection = ({ business }: ContactInfoSectionProps) => {

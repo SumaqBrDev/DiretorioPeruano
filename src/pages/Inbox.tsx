@@ -6,7 +6,6 @@ import { useUser } from '@clerk/clerk-react'
 import { MessageList } from '@/components/MessageList'
 import { MessageForm } from '@/components/MessageForm'
 import {
-  seedB2BData,
   getB2BConversations,
   getB2BArchivedConversations,
   saveB2BMessage,
@@ -15,10 +14,6 @@ import {
   getBusinesses,
 } from '@/lib/localData'
 import type { B2BConversation, Business } from '@/lib/localData'
-
-// ─── Current business (mock for demo) ───
-const CURRENT_BUSINESS_ID = 'biz-1'
-const CURRENT_BUSINESS_NAME = 'Sabores do Peru'
 
 // ─── Type for business options in autocomplete ───
 interface BusinessOption {
@@ -39,21 +34,35 @@ export const Inbox = () => {
   const [newMessage, setNewMessage] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // ── Find current user's business from localStorage ──
+  const currentBusiness = useMemo<Business | null>(() => {
+    if (!user) return null
+    const businesses = getBusinesses()
+    // Match by userId (the Clerk user owns businesses via Onboarding)
+    return businesses.find(b => b.userId === user.id) || null
+  }, [user])
+
+  const CURRENT_BUSINESS_ID = currentBusiness?.id || ''
+  const CURRENT_BUSINESS_NAME = currentBusiness?.name || 'Meu Negócio'
+
   // ── Derive business list for autocomplete ──
   const businessOptions: BusinessOption[] = useMemo(() => {
+    if (!CURRENT_BUSINESS_ID) return []
     return getBusinesses()
-      .filter((b) => b.status === 'approved' || b.status === 'pending' || !b.status)
+      .filter((b) => b.id !== CURRENT_BUSINESS_ID && (b.status === 'approved' || b.status === 'pending' || !b.status))
       .map((b) => ({ id: b.id, name: b.name }))
       .sort((a, b) => a.name.localeCompare(b.name))
-  }, [])
+  }, [CURRENT_BUSINESS_ID])
 
   // ── Load data on mount ──
   useEffect(() => {
-    seedB2BData()
-    loadConversations()
-  }, [])
+    if (CURRENT_BUSINESS_ID) {
+      loadConversations()
+    }
+  }, [CURRENT_BUSINESS_ID])
 
   function loadConversations() {
+    if (!CURRENT_BUSINESS_ID) return
     setConversations(getB2BConversations(CURRENT_BUSINESS_ID))
     setArchivedConvs(getB2BArchivedConversations(CURRENT_BUSINESS_ID))
   }
@@ -78,17 +87,8 @@ export const Inbox = () => {
   // ── Handlers ──
 
   function handleNewMessage(toBusinessId: string, body: string) {
-    const otherName =
-      toBusinessId === 'biz-2'
-        ? 'Lima Criolla'
-        : toBusinessId === 'biz-3'
-          ? 'Ceviche House SP'
-          : toBusinessId === 'biz-4'
-            ? 'Andina Grill'
-            : toBusinessId === 'biz-5'
-              ? 'Pisco Bar'
-              : 'Desconhecido'
-
+    const other = getBusinesses().find(b => b.id === toBusinessId)
+    const otherName = other?.name || toBusinessId
     saveB2BMessage(CURRENT_BUSINESS_ID, CURRENT_BUSINESS_NAME, toBusinessId, otherName, body)
     loadConversations()
     setSelectedConvId([CURRENT_BUSINESS_ID, toBusinessId].sort().join('_'))
@@ -136,6 +136,23 @@ export const Inbox = () => {
     return (
       <div className="container mx-auto px-4 py-8 text-center text-noche-lima dark:text-white">
         Não autenticado
+      </div>
+    )
+  }
+
+  if (!currentBusiness) {
+    return (
+      <div className="container mx-auto px-4 py-20 text-center">
+        <h2 className="font-playfair text-2xl font-bold text-aji-rojo mb-4">Nenhum negócio encontrado</h2>
+        <p className="text-gray-500 dark:text-gray-400 mb-6">
+          Você precisa cadastrar um negócio antes de usar o Inbox.
+        </p>
+        <a
+          href="/onboarding"
+          className="inline-flex items-center gap-2 bg-aji-rojo text-white px-6 py-3 rounded-xl font-semibold hover:bg-aji-rojo/90 transition-all"
+        >
+          Cadastrar Negócio →
+        </a>
       </div>
     )
   }

@@ -3,13 +3,13 @@
 
 import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
-import { Business } from '@/data/mockBusinesses';
+import type { DisplayBusiness } from '@/lib/localData';
 import { StarRating } from './StarRating';
 import { InteractiveStarRating } from './InteractiveStarRating';
 import { getReviews, saveReview } from '@/lib/localData';
 
 interface ReviewsSectionProps {
-  business: Business;
+  business: DisplayBusiness;
   localBusinessId?: string;
 }
 

@@ -4,9 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { MagnifyingGlass, Star, Funnel } from '@phosphor-icons/react';
 import axios from 'axios';
 import { SkeletonCard } from '../components/SkeletonCard';
-import { getBusinesses } from '../lib/localData';
-import { mockBusinesses } from '../data/mockBusinesses';
-import { fallbackFeatured } from '../data/fallbackData';
+import { getBusinesses, getReviews } from '../lib/localData';
 
 interface SearchResult {
   id: string;
@@ -66,58 +64,21 @@ const normalizeCity = (city: string) =>
 const normalizeText = (text: string) =>
   text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
-/** Build fallback results from localStorage + mockBusinesses */
+/** Build fallback results from localStorage only */
 function getLocalFallbackResults(): SearchResult[] {
-  const map = new Map<string, SearchResult>();
-
-  // From localStorage (real registered businesses)
   const localBizzes = getBusinesses();
-  localBizzes.forEach((b) => {
-    const key = b.id;
-    if (!map.has(key)) {
-      map.set(key, {
-        id: key,
-        name: b.name,
-        category: b.category,
-        city: b.address.city,
-        state: b.address.state,
-        rating: 4.5,
-        reviewsCount: 0,
-        tags: b.tags || [],
-        coverImage: b.photos?.[0] || '',
-        description: b.description || '',
-      });
-    }
-  });
-
-  // From mockBusinesses
-  mockBusinesses.forEach((b) => {
-    const key = String(b.id);
-    if (!map.has(key)) {
-      const parts = b.city.split(' - ');
-      map.set(key, {
-        id: key,
-        name: b.name,
-        category: b.category,
-        city: parts[0] || b.city,
-        state: parts[1] || '',
-        rating: b.rating,
-        reviewsCount: b.reviewsCount,
-        tags: b.tags || [],
-        coverImage: b.images?.[0] || '',
-        description: b.about || '',
-      });
-    }
-  });
-
-  // Also include fallbackFeatured for coverage
-  fallbackFeatured.forEach((f) => {
-    if (!map.has(f.id)) {
-      map.set(f.id, { ...f, description: '' });
-    }
-  });
-
-  return Array.from(map.values());
+  return localBizzes.map((b) => ({
+    id: b.id,
+    name: b.name,
+    category: b.category,
+    city: b.address.city,
+    state: b.address.state,
+    rating: 4.5,
+    reviewsCount: getReviews(b.id).length,
+    tags: b.tags || [],
+    coverImage: b.photos?.[0] || '',
+    description: b.description || '',
+  }));
 }
 
 export const Busca = () => {
