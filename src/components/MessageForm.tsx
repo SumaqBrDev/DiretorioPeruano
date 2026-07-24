@@ -1,24 +1,12 @@
 // src/components/MessageForm.tsx
-// Modal overlay for composing a new B2B message with shadcn combobox + autocomplete
+// Modal overlay for composing a new B2B message with simple native select
 
 import { useState, useEffect, useMemo } from 'react'
-import { Check, ChevronsUpDown, Send, X } from 'lucide-react'
+import { Send, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
-import { cn } from '@/lib/utils'
+import { Select } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
 
 interface BusinessOption {
   id: string
@@ -33,8 +21,7 @@ interface MessageFormProps {
 }
 
 export const MessageForm = ({ isOpen, onClose, onSend, businesses }: MessageFormProps) => {
-  const [open, setOpen] = useState(false)
-  const [value, setValue] = useState('')
+  const [selectedBusinessId, setSelectedBusinessId] = useState('')
   const [body, setBody] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -47,27 +34,29 @@ export const MessageForm = ({ isOpen, onClose, onSend, businesses }: MessageForm
     )
   }, [businesses, searchQuery])
 
+  // Options for select
+  const selectOptions = useMemo(() => 
+    filteredBusinesses.map((b) => ({ value: b.id, label: b.name }))
+  , [filteredBusinesses])
+
   // Reset on close
   useEffect(() => {
     if (!isOpen) {
-      setValue('')
+      setSelectedBusinessId('')
       setBody('')
       setSearchQuery('')
-      setOpen(false)
     }
   }, [isOpen])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!value || !body.trim()) return
-    onSend(value, body.trim())
-    setValue('')
+    if (!selectedBusinessId || !body.trim()) return
+    onSend(selectedBusinessId, body.trim())
+    setSelectedBusinessId('')
     setBody('')
     setSearchQuery('')
     onClose()
   }
-
-  const selected = businesses.find((b) => b.id === value)
 
   if (!isOpen) return null
 
@@ -96,84 +85,39 @@ export const MessageForm = ({ isOpen, onClose, onSend, businesses }: MessageForm
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Destination: shadcn combobox */}
+          {/* Search input for filtering businesses */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-              Para
+              Buscar negócio
             </label>
-            <Popover open={open} onOpenChange={setOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={open}
-                  className="w-full justify-between border-oro-inca/30 text-left font-normal"
-                >
-                  {selected
-                    ? selected.name
-                    : 'Selecione um negócio...'}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[--radix-popover-trigger-width] p-0 border-oro-inca/30 dark:border-oro-inca/50 shadow-xl rounded-xl" align="start">
-                <Command>
-                  <CommandInput
-                    placeholder="Buscar negócio..."
-                    value={searchQuery}
-                    onValueChange={(value) => setSearchQuery(value)}
-                    className="h-10 bg-white dark:bg-noche-lima text-gray-900 dark:text-gray-100 placeholder:text-gray-400"
-                  />
-                  <CommandList>
-                    <CommandEmpty>Nenhum negócio encontrado.</CommandEmpty>
-                    <CommandGroup>
-                      {filteredBusinesses.map((business) => (
-                        <CommandItem
-                          key={business.id}
-                          value={business.id}
-                          onSelect={(currentValue) => {
-                            const biz = businesses.find(
-                              (b) => b.id === currentValue
-                            )
-                            if (biz) {
-                              setValue(biz.id === value ? '' : biz.id)
-                            }
-                            setOpen(false)
-                            setSearchQuery('')
-                          }}
-                        >
-                          <Check
-                            className={cn(
-                              'mr-2 h-4 w-4 shrink-0',
-                              value === business.id ? 'opacity-100 text-aji-rojo' : 'opacity-0'
-                            )}
-                          />
-                          {business.name}
-                          <span className="ml-2 text-xs text-gray-400">
-                            ({business.id})
-                          </span>
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          {/* Message textarea */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-              Mensagem
-            </label>
-            <textarea
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              rows={4}
-              className="w-full p-3 rounded-xl border border-oro-inca/30 bg-white dark:bg-noche-lima text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-aji-rojo transition-shadow resize-none"
-              placeholder="Escreva sua mensagem..."
-              required
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Digite para filtrar..."
+              className="w-full p-3 rounded-xl border border-oro-inca/30 bg-white dark:bg-noche-lima text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-aji-rojo transition-shadow"
             />
           </div>
+
+          {/* Destination: Simple native select */}
+          <Select
+            label="Para"
+            placeholder="Selecione um negócio..."
+            value={selectedBusinessId}
+            onChange={(e) => setSelectedBusinessId(e.target.value)}
+            options={selectOptions}
+            error={!selectedBusinessId && searchQuery ? 'Nenhum negócio encontrado' : undefined}
+          />
+
+          {/* Message textarea */}
+          <Textarea
+            label="Mensagem"
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            rows={4}
+            placeholder="Escreva sua mensagem..."
+            required
+          />
 
           {/* Actions */}
           <div className="flex gap-3 pt-2">
@@ -187,7 +131,7 @@ export const MessageForm = ({ isOpen, onClose, onSend, businesses }: MessageForm
             </Button>
             <Button
               type="submit"
-              disabled={!value || !body.trim()}
+              disabled={!selectedBusinessId || !body.trim()}
               className="flex-1 bg-aji-rojo hover:bg-aji-rojo/90 text-white"
             >
               <Send className="mr-2 h-4 w-4" />
