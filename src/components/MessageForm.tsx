@@ -1,12 +1,12 @@
 // src/components/MessageForm.tsx
-// Modal overlay for composing a new B2B message with simple native select
+// Modal overlay for composing a new B2B message with simple autocomplete select
 
-import { useState, useEffect, useMemo } from 'react'
-import { Send, X } from 'lucide-react'
+import { useState, useEffect, useMemo, useRef } from 'react'
+import { Send, X, ChevronDown } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { cn } from '@/lib/utils'
 
 interface BusinessOption {
   id: string
@@ -24,6 +24,10 @@ export const MessageForm = ({ isOpen, onClose, onSend, businesses }: MessageForm
   const [selectedBusinessId, setSelectedBusinessId] = useState('')
   const [body, setBody] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
+  const [showDropdown, setShowDropdown] = useState(false)
+  const [highlightedIndex, setHighlightedIndex] = useState(-1)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   // Filter businesses based on search query
   const filteredBusinesses = useMemo(() => {
@@ -34,19 +38,57 @@ export const MessageForm = ({ isOpen, onClose, onSend, businesses }: MessageForm
     )
   }, [businesses, searchQuery])
 
-  // Options for select
-  const selectOptions = useMemo(() => 
-    filteredBusinesses.map((b) => ({ value: b.id, label: b.name }))
-  , [filteredBusinesses])
-
   // Reset on close
   useEffect(() => {
     if (!isOpen) {
       setSelectedBusinessId('')
       setBody('')
       setSearchQuery('')
+      setShowDropdown(false)
+      setHighlightedIndex(-1)
     }
   }, [isOpen])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Keyboard navigation
+  useEffect(() => {
+    if (!showDropdown) return
+    function handleKeyDown(e: KeyboardEvent) {
+      const max = filteredBusinesses.length - 1
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setHighlightedIndex((i) => (i < max ? i + 1 : 0))
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setHighlightedIndex((i) => (i > 0 ? i - 1 : max))
+      } else if (e.key === 'Enter' && highlightedIndex >= 0) {
+        e.preventDefault()
+        selectBusiness(filteredBusinesses[highlightedIndex].id)
+      } else if (e.key === 'Escape') {
+        setShowDropdown(false)
+        setHighlightedIndex(-1)
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [showDropdown, filteredBusinesses, highlightedIndex])
+
+  const selectBusiness = (id: string) => {
+    setSelectedBusinessId(id)
+    setSearchQuery(businesses.find((b) => b.id === id)?.name || '')
+    setShowDropdown(false)
+    setHighlightedIndex(-1)
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -55,8 +97,27 @@ export const MessageForm = ({ isOpen, onClose, onSend, businesses }: MessageForm
     setSelectedBusinessId('')
     setBody('')
     setSearchQuery('')
+    setShowDropdown(false)
     onClose()
   }
+
+  const handleInputClick = () => {
+    if (filteredBusinesses.length > 0) setShowDropdown(true)
+  }
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setSearchQuery(value)
+    if (value && filteredBusinesses.length > 0) {
+      setShowDropdown(true)
+      setHighlightedIndex(0)
+    } else {
+      setShowDropdown(false)
+      setHighlightedIndex(-1)
+    }
+  }
+
+  const selectedBusiness = businesses.find((b) => b.id === selectedBusinessId)
 
   if (!isOpen) return null
 
@@ -85,29 +146,90 @@ export const MessageForm = ({ isOpen, onClose, onSend, businesses }: MessageForm
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Search input for filtering businesses */}
+          {/* Destination: Autocomplete select */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-              Buscar negócio
+              Para
             </label>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Digite para filtrar..."
-              className="w-full p-3 rounded-xl border border-oro-inca/30 bg-white dark:bg-noche-lima text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-aji-rojo transition-shadow"
-            />
-          </div>
+            <div className="relative" ref={dropdownRef}>
+              <div className="relative">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={selectedBusiness ? selectedBusiness.name : searchQuery}
+                  onChange={handleInputChange}
+                  onClick={handleInputClick}
+                  onFocus={handleInputClick}
+                  placeholder={selectedBusiness ? '' : 'Selecione ou busque um negócio...'}
+                  className={cn(
+                    'w-full p-3 rounded-xl border bg-white dark:bg-noche-lima text-gray-700 dark:text-gray-300',
+                    'focus:outline-none focus:ring-2 focus:ring-aji-rojo transition-shadow',
+                    selectedBusiness
+                      ? 'border-green-400 bg-green-50 dark:bg-green-900/20'
+                      : 'border-oro-inca/30'
+                  )}
+                  readOnly={!!selectedBusiness}
+                  autoComplete="off"
+                />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                  {selectedBusiness ? (
+                    <span className="text-green-600 dark:text-green-400">✓</span>
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-gray-400" />
+                  )}
+                </div>
+              </div>
 
-          {/* Destination: Simple native select */}
-          <Select
-            label="Para"
-            placeholder="Selecione um negócio..."
-            value={selectedBusinessId}
-            onChange={(e) => setSelectedBusinessId(e.target.value)}
-            options={selectOptions}
-            error={!selectedBusinessId && searchQuery ? 'Nenhum negócio encontrado' : undefined}
-          />
+              {/* Clear button when selected */}
+              {selectedBusiness && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedBusinessId('')
+                    setSearchQuery('')
+                    setShowDropdown(false)
+                    inputRef.current?.focus()
+                  }}
+                  className="absolute right-10 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                  aria-label="Limpar seleção"
+                >
+                  ✕
+                </button>
+              )}
+
+              {/* Dropdown list */}
+              {showDropdown && filteredBusinesses.length > 0 && (
+                <div className="absolute z-10 w-full mt-1 bg-white dark:bg-noche-lima rounded-xl border border-oro-inca/30 shadow-xl overflow-hidden max-h-60 overflow-y-auto">
+                  {filteredBusinesses.map((biz, idx) => (
+                    <button
+                      key={biz.id}
+                      type="button"
+                      onClick={() => selectBusiness(biz.id)}
+                      onMouseEnter={() => setHighlightedIndex(idx)}
+                      className={cn(
+                        'w-full px-3 py-2.5 text-left text-sm transition-colors',
+                        highlightedIndex === idx
+                          ? 'bg-aji-rojo/10 text-aji-rojo'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800'
+                      )}
+                    >
+                      {biz.name}
+                      <span className="ml-2 text-xs text-gray-400">({biz.id})</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {showDropdown && filteredBusinesses.length === 0 && searchQuery && (
+                <div className="absolute z-10 w-full mt-1 bg-white dark:bg-noche-lima rounded-xl border border-oro-inca/30 shadow-xl p-3 text-center text-sm text-gray-500 dark:text-gray-400">
+                  Nenhum negócio encontrado
+                </div>
+              )}
+            </div>
+            {!selectedBusiness && searchQuery && filteredBusinesses.length === 0 && (
+              <p className="mt-1.5 text-sm text-red-500">Nenhum negócio encontrado</p>
+            )}
+          </div>
 
           {/* Message textarea */}
           <Textarea
