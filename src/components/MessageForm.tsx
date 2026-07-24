@@ -115,7 +115,7 @@ export const MessageForm = ({ isOpen, onClose, onSend, businesses }: MessageForm
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-full p-0" align="start">
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0 border-oro-inca/30 dark:border-oro-inca/50 shadow-xl rounded-xl" align="start">
                 <Command>
                   <CommandInput
                     placeholder="Buscar negócio..."
