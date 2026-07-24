@@ -42,7 +42,7 @@ export const Inbox = () => {
   // ── Derive business list for autocomplete ──
   const businessOptions: BusinessOption[] = useMemo(() => {
     return getBusinesses()
-      .filter((b) => b.status === 'approved')
+      .filter((b) => b.status === 'approved' || b.status === 'pending' || !b.status)
       .map((b) => ({ id: b.id, name: b.name }))
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [])
