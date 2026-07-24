@@ -270,6 +270,17 @@ export const Onboarding = () => {
     setSubmitting(true);
     setToast(null);
 
+    // Convert photos to base64 data URLs for localStorage demo
+    const photoDataUrls = await Promise.all(
+      formData.photos.map(async (file) => {
+        return new Promise<string>((resolve) => {
+          const reader = new FileReader()
+          reader.onload = (e) => resolve(e.target?.result as string)
+          reader.readAsDataURL(file)
+        })
+      })
+    )
+
     const businessData = {
       name: formData.name.trim(),
       description: formData.description.trim(),
@@ -279,7 +290,7 @@ export const Onboarding = () => {
       category: formData.category,
       address: { ...formData.address, city: formData.address.city.trim() },
       tags: formData.tags,
-      photos: formData.photos.map(f => f.name), // Store filenames; actual upload would be handled separately
+      photos: photoDataUrls,
       userId: user?.id || 'anonymous',
     };
 
