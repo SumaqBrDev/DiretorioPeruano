@@ -1,11 +1,10 @@
 // src/pages/MeuNegocio.tsx
-import { useState, useEffect } from 'react';
-import { useUser } from '@clerk/clerk-react';
+import { useState, useEffect, useCallback } from 'react';
+import { useUser, useAuth } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { getBusinesses, saveBusiness, updateBusiness } from '../lib/localData';
+import { getMyBusiness, updateMyBusiness, openStripeCheckout, openStripePortal, type ApiBusiness as Business } from '../lib/api';
 import { BusinessGallery } from '../components/BusinessGallery';
-import type { Business } from '../lib/localData';
 
 const CATEGORIES = [
   { value: 'restaurante', label: 'Restaurante' },
@@ -37,10 +36,12 @@ const BRAZIL_STATES = [
 
 export const MeuNegocio = () => {
   const { user, isLoaded } = useUser();
+  const { getToken } = useAuth();
   const navigate = useNavigate();
   const [business, setBusiness] = useState<Business | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
@@ -59,37 +60,72 @@ export const MeuNegocio = () => {
   const [ownerFullName, setOwnerFullName] = useState('');
   const [ownerBirthCity, setOwnerBirthCity] = useState('');
 
-  useEffect(() => {
-    if (isLoaded) {
-      const businesses = getBusinesses();
-      const myBiz = businesses.find(b => b.userId === user?.id);
-      if (myBiz) {
-        setBusiness(myBiz);
-        setPhotos(myBiz.photos || []);
-        setCnpj(myBiz.cnpj || '');
-        setOwnerFullName(myBiz.ownerFullName || '');
-        setOwnerBirthCity(myBiz.ownerBirthCity || '');
-        setFormData({
-          name: myBiz.name,
-          description: myBiz.description,
-          category: myBiz.category,
-          street: myBiz.address?.street || '',
-          city: myBiz.address?.city || '',
-          state: myBiz.address?.state || '',
-          zip: myBiz.address?.zip || '',
-          tags: myBiz.tags || [],
-        });
+  const hydrate = useCallback((b: Business) => {
+    setBusiness(b);
+    setPhotos(b.photos || []);
+    setCnpj(b.cnpj || '');
+    setOwnerFullName(b.ownerFullName || '');
+    setOwnerBirthCity(b.ownerBirthCity || '');
+    setFormData({
+      name: b.name || '',
+      description: b.description || '',
+      category: b.category || 'restaurante',
+      street: (b.address as any)?.street || '',
+      city: (b.address as any)?.city || '',
+      state: (b.address as any)?.state || '',
+      zip: (b.address as any)?.zip || '',
+      tags: b.tags || [],
+    });
+  }, []);
+
+  const refresh = useCallback(async () => {
+    if (!isLoaded) return;
+    const token = await getToken();
+    if (!token) {
+      setLoading(false);
+      setLoadError('Não foi possível obter sessão Clerk.');
+      return;
+    }
+    try {
+      const mine = await getMyBusiness(token);
+      if (mine) {
+        hydrate(mine);
+        setLoadError(null);
       }
+    } catch (err: any) {
+      // 404 = user has no business yet — that's the normal empty state
+      if (err?.statusCode !== 404) {
+        setLoadError(err?.message || 'Erro ao carregar seu negócio.');
+      }
+      setBusiness(null);
+    } finally {
       setLoading(false);
     }
-  }, [isLoaded, user]);
+  }, [isLoaded, getToken, hydrate]);
 
-  const handleSave = () => {
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const persistPhotos = useCallback(
+    async (_businessId: string, newPhotos: string[]) => {
+      const token = await getToken();
+      if (!token) throw new Error('Sem sessão');
+      const updated = await updateMyBusiness(token, { photos: newPhotos });
+      setBusiness(updated);
+    },
+    [getToken]
+  );
+
+  const handleSave = async () => {
     if (!business || !user) return;
     setSaving(true);
 
     try {
-      const updated = updateBusiness(business.id, {
+      const token = await getToken();
+      if (!token) throw new Error('Sem sessão');
+
+      const updated = await updateMyBusiness(token, {
         name: formData.name,
         description: formData.description,
         category: formData.category,
@@ -100,18 +136,42 @@ export const MeuNegocio = () => {
           zip: formData.zip,
         },
         tags: formData.tags,
+        cnpj: cnpj || undefined,
+        ownerFullName: ownerFullName || undefined,
+        ownerBirthCity: ownerBirthCity || undefined,
       });
 
-      if (updated) {
-        setBusiness(updated);
-        setToast({ message: 'Dados atualizados com sucesso! ✅', type: 'success' });
-        setIsEditing(false);
-      }
-    } catch {
-      setToast({ message: 'Erro ao salvar. Tente novamente.', type: 'error' });
+      hydrate(updated);
+      setToast({ message: 'Dados atualizados com sucesso! ✅', type: 'success' });
+      setIsEditing(false);
+    } catch (err: any) {
+      setToast({ message: err?.message || 'Erro ao salvar. Tente novamente.', type: 'error' });
     } finally {
       setSaving(false);
       setTimeout(() => setToast(null), 4000);
+    }
+  };
+
+  const handleManageSubscription = async () => {
+    if (!business) return;
+    try {
+      const token = await getToken();
+      if (!token) throw new Error('Sem sessão');
+      let url: string | undefined;
+      if (business.subscriptionStatus === 'active' || business.subscriptionStatus === 'past_due') {
+        const res = await openStripePortal(token, business.id);
+        url = res.url;
+      } else {
+        const res = await openStripeCheckout(token, business.id);
+        url = res.url || '';
+        if (!url) {
+          setToast({ message: res.betaMode ? 'Modo Beta ativo — assinatura de teste concedida. 🧪' : 'Checkout não disponível.', type: 'success' });
+          return;
+        }
+      }
+      if (url) window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (err: any) {
+      setToast({ message: err?.message || 'Erro ao abrir assinatura.', type: 'error' });
     }
   };
 
@@ -135,6 +195,17 @@ export const MeuNegocio = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-creme-andino dark:bg-zinc-950">
         <p className="text-gray-600 dark:text-gray-400">Acesso negado</p>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-creme-andino dark:bg-zinc-950 p-6">
+        <div className="text-center max-w-md">
+          <div className="text-5xl mb-4">⚠️</div>
+          <p className="text-gray-700 dark:text-gray-300">{loadError}</p>
+        </div>
       </div>
     );
   }
@@ -234,6 +305,14 @@ export const MeuNegocio = () => {
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-700">
             🧪 Trial até {new Date(business.trialEndsAt).toLocaleDateString('pt-BR')}
           </span>
+        )}
+        {business.status === 'approved' && (
+          <button
+            onClick={handleManageSubscription}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-oro-inca/20 text-oro-inca hover:bg-oro-inca/30 border border-oro-inca/30 transition-colors"
+          >
+            🔑 {business.subscriptionStatus === 'active' || business.subscriptionStatus === 'past_due' ? 'Gerenciar Assinatura' : 'Assinar / Ativar'}
+          </button>
         )}
         <span className="text-sm text-gray-500 dark:text-gray-400">
           Cadastrado em {new Date(business.createdAt).toLocaleDateString('pt-BR')}
@@ -417,6 +496,7 @@ export const MeuNegocio = () => {
           businessId={business.id}
           photos={photos}
           onPhotosChange={setPhotos}
+          onPersistPhotos={persistPhotos}
         />
       </div>
     </div>

@@ -1,4 +1,15 @@
 // prisma/schema.prisma
+// Schema para ConectaPeru (DiretorioPeruano)
+//
+// IMPORTANTE: este schema refleja el estado REAL de la base de datos Neon,
+// materializada por los scripts SQL idempotentes:
+//   - apply_schema.sql          (schema base: address/contact JSONB, modelo Message)
+//   - prisma/migration_manual.sql (columnas de billing/KYC añadidas)
+//   - supabase_migration.sql    (archived/deletedAt en Message)
+//
+// Se usa el modelo JSONB + Message (no B2BConversation/B2BMessage estructurado),
+// porque es el que está aplicado y poblado en producción (Neon).
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,92 +19,99 @@ datasource db {
 }
 
 model User {
-  id             String           @id @default(uuid())
-  clerkId        String           @unique
-  email          String
-  name           String?
-  role           String           @default("consumer") // consumer, business, admin, superadmin
-  language       String           @default("pt-BR")
-  business       BusinessProfile?
-  reviews        Review[]
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  id        String           @id @default(dbgenerated("gen_random_uuid()"))
+  clerkId   String?          @unique
+  email     String?
+  name      String?
+  role      String           @default("consumer") // consumer, business, admin, superadmin
+  language  String           @default("pt-BR")
+
+  business  BusinessProfile?
+  reviews   Review[]
+
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
 }
 
 model BusinessProfile {
-  id                 String           @id @default(uuid())
-  name               String
-  description        String
-  category           String           @default("restaurante")
-  address            Json
+  id                 String   @id @default(dbgenerated("gen_random_uuid()"))
+  name               String?
+  description        String?
+  category           String   @default("restaurante")
+
+  // Structured as JSONB in Neon (matches the deployed schema)
+  address            Json?
   tags               String[]
   photos             String[]
-  contact            Json
-  
-  // Approval workflow
-  status             String           @default("pending") // pending, approved, rejected, disabled
+  contact            Json?
+
+  status             String   @default("pending") // pending, approved(PENDING/APPROVED), rejected, disabled
+
+  // Owner (KYC + billing)
+  ownerId            String?  @unique
+  owner              User?    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  cnpj               String?  @unique
+  ownerFullName      String?
+  ownerBirthCity     String?
   rejectionReason    String?
   approvedAt         DateTime?
-  
+  disabledAt         DateTime?
+
   // Stripe subscription
-  stripeCustomerId   String?
-  stripeSubscriptionId String?
-  subscriptionStatus String           @default("none") // none, trial, active, past_due, canceled
+  stripeCustomerId   String?  @unique
+  subscriptionId     String?
+  subscriptionStatus String?  // none, trial, active, past_due, canceled
   trialEndsAt        DateTime?
-  
-  // Owner info (required for KYC)
-  ownerFullName      String?
-  ownerBirthCity     String?          // Must be in Peru
-  cnpj               String?          // Brazilian CNPJ
-  
-  owner              User             @relation(fields: [ownerId], references: [id])
-  ownerId            String           @unique
+
+  // Relations
   reviews            Review[]
-  messagesSent       Message[]        @relation("fromBusiness")
-  messagesReceived   Message[]        @relation("toBusiness")
-  
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
-  
+  sentMessages       Message[] @relation("BusinessSentMessages")
+  receivedMessages   Message[] @relation("BusinessReceivedMessages")
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
   @@index([status])
-  @@index([stripeCustomerId])
-  @@index([subscriptionStatus])
+  @@index([ownerId])
+  @@index([category])
 }
 
 model Review {
-  id          String           @id @default(uuid())
-  rating      Int
-  comment     String
-  status      String           @default("pending") // pending, approved, rejected
-  business    BusinessProfile  @relation(fields: [businessId], references: [id])
+  id          String          @id @default(dbgenerated("gen_random_uuid()"))
+  rating      Int?
+  comment     String?
+  status      String          @default("pending") // pending, approved
+  business    BusinessProfile @relation(fields: [businessId], references: [id], onDelete: Cascade)
   businessId  String
-  consumer    User             @relation(fields: [consumerId], references: [id])
+  consumer    User            @relation(fields: [consumerId], references: [id], onDelete: Cascade)
   consumerId  String
-  createdAt   DateTime         @default(now())
-  
-  @@index([businessId, status])
+  createdAt   DateTime        @default(now())
+
+  @@index([businessId])
+  @@index([status])
 }
 
 model Message {
-  id             String           @id @default(uuid())
-  fromBusiness   BusinessProfile  @relation("fromBusiness", fields: [fromBusinessId], references: [id])
-  fromBusinessId String
-  toBusiness     BusinessProfile  @relation("toBusiness", fields: [toBusinessId], references: [id])
-  toBusinessId   String
-  body           String
-  read           Boolean          @default(false)
-  archived       Boolean          @default(false)
-  deletedAt      DateTime?
-  createdAt      DateTime         @default(now())
-  
-  @@index([fromBusinessId, toBusinessId])
-  @@index([toBusinessId, read])
+  id              String          @id @default(dbgenerated("gen_random_uuid()"))
+  fromBusiness    BusinessProfile @relation("BusinessSentMessages", fields: [fromBusinessId], references: [id], onDelete: Cascade)
+  fromBusinessId  String
+  toBusiness      BusinessProfile @relation("BusinessReceivedMessages", fields: [toBusinessId], references: [id], onDelete: Cascade)
+  toBusinessId    String
+  body            String?
+  read            Boolean         @default(false)
+  archived        Boolean         @default(false)
+  deletedAt       DateTime?
+  createdAt       DateTime        @default(now())
+
+  @@index([fromBusinessId])
+  @@index([toBusinessId])
+  @@index([read])
 }
 
 model SiteConfig {
   id        String   @id @default("singleton")
   betaMode  Boolean  @default(true)
   updatedAt DateTime @updatedAt
-  
+
   @@unique([id])
 }

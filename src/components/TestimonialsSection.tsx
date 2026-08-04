@@ -43,7 +43,7 @@ export const TestimonialsSection = () => {
         <div className="grid md:grid-cols-3 gap-8">
           {loading.testimonials
             ? Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} variant="testimonial" />)
-            : testimonials.map((testimonial, i) => (
+            : testimonials.map((testimonial, _i) => (
                 <article
                   key={testimonial.id}
                   className="bg-white dark:bg-zinc-800 rounded-2xl p-8 shadow-lg border border-oro-inca/20 hover:shadow-xl hover:border-aji-rojo/50 transition-all duration-300"

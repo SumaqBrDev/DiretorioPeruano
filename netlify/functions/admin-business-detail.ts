@@ -1,4 +1,5 @@
 import prisma from './lib/prisma';
+import { requireSuperAdmin } from './lib/auth';
 
 const headers = {
   'Content-Type': 'application/json',
@@ -6,14 +7,6 @@ const headers = {
   'X-Content-Type-Options': 'nosniff',
 };
 
-async function verifySuperAdmin(clerkId: string): Promise<boolean> {
-  if (!clerkId) return false;
-  const user = await prisma.user.findUnique({
-    where: { clerkId },
-    select: { role: true },
-  });
-  return user?.role === 'superadmin';
-}
 
 export const handler = async (event: any) => {
   if (event.httpMethod !== 'GET') {
@@ -25,24 +18,13 @@ export const handler = async (event: any) => {
   }
 
   try {
-    // Verify superadmin
-    const authHeader = event.headers?.authorization || event.headers?.Authorization || '';
-    const token = authHeader.replace('Bearer ', '');
-
-    if (!token) {
+    // Verify superadmin: validate Clerk token + superadmin role in PostgreSQL
+    const auth = await requireSuperAdmin(event);
+    if (!auth.ok) {
       return {
-        statusCode: 401,
+        statusCode: auth.statusCode,
         headers,
-        body: JSON.stringify({ error: 'No autorizado — token requerido' }),
-      };
-    }
-
-    const isSuperAdmin = await verifySuperAdmin(token);
-    if (!isSuperAdmin) {
-      return {
-        statusCode: 403,
-        headers,
-        body: JSON.stringify({ error: 'Acceso denegado — se requiere rol superadmin' }),
+        body: JSON.stringify({ error: auth.error }),
       };
     }
 

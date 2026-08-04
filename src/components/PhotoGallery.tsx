@@ -2,7 +2,7 @@
 // Photo gallery with fullscreen modal and keyboard navigation
 
 import { useState, useEffect, useCallback } from 'react';
-import { CaretLeft, CaretRight, X, ArrowLeft, ArrowRight } from '@phosphor-icons/react';
+import { CaretRight, X, ArrowLeft, ArrowRight } from '@phosphor-icons/react';
 
 interface PhotoGalleryProps {
   images: string[];

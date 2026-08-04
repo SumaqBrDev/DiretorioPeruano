@@ -1,0 +1,27 @@
+{
+  "extends": "./tsconfig.app.json",
+  "include": [
+    "src/lib/api.ts",
+    "src/pages/Inbox.tsx",
+    "src/pages/Onboarding.tsx",
+    "src/pages/Busca.tsx",
+    "src/pages/Negocio.tsx",
+    "src/stores/useHomeStore.ts",
+    "src/components/CommunityReviews.tsx",
+    "src/components/ReviewsSection.tsx",
+    "src/components/MessageList.tsx",
+    "src/components/MessageForm.tsx",
+    "src/pages/MeuNegocio.tsx",
+    "src/pages/SuperAdmin.tsx",
+    "src/pages/Admin.tsx",
+    "src/components/BusinessGallery.tsx"
+  ],
+  "compilerOptions": {
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
+}

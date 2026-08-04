@@ -1,10 +1,8 @@
 import { useParams, Link } from 'react-router-dom';
-import { useUser } from '@clerk/clerk-react';
-import { useState, useMemo } from 'react';
+import { useUser, useAuth } from '@clerk/clerk-react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getBusinesses, getBusinessById, getReviews } from '@/lib/localData';
-import type { DisplayBusiness } from '@/lib/localData';
-import { StarRating } from '@/components/StarRating';
+import { getBusinessDetail, getReviewsForBusiness } from '@/lib/api';
 import { Breadcrumb } from '@/components/Breadcrumb';
 import { PhotoGallery } from '@/components/PhotoGallery';
 import { BusinessInfoCard } from '@/components/BusinessInfoCard';
@@ -14,84 +12,110 @@ import { ContactInfoSection } from '@/components/ContactInfoSection';
 import { MenuSection } from '@/components/MenuSection';
 import { ReviewsSection } from '@/components/ReviewsSection';
 import { Sidebar } from '@/components/Sidebar';
-import { CaretLeft, CaretRight } from '@phosphor-icons/react';
+import { CaretRight } from '@phosphor-icons/react';
 
-// Minimal shape for a "registered" business from localStorage
-interface LocalBizSummary {
-  id: string;
+// Rich shape consumed by the detail section components (matches the former
+// DisplayBusiness contract so PhotoGallery, AboutSection, HoursSection,
+// ContactInfoSection, MenuSection, ReviewsSection and Sidebar keep working).
+interface DetailView {
+  id: number;
   name: string;
   category: string;
   city: string;
-  description: string;
-  photos: string[];
+  address: string;
+  rating: number;
+  reviewsCount: number;
   tags: string[];
-  userId: string;
-}
-
-/**
- * Build a composite business object from localStorage data only.
- * No more mock fallbacks.
- */
-function findBusiness(id: string | number): DisplayBusiness | null {
-  const strId = String(id);
-  const numId = typeof id === 'number' ? id : parseInt(strId, 10);
-
-  // Try localStorage first (real registered business)
-  const localBizzes = getBusinesses();
-  const local = localBizzes.find((b) => b.id === strId);
-
-  if (local) {
-    // Build a business-like object from localStorage data
-    return {
-      id: numId || 999,
-      name: local.name,
-      category: local.category,
-      city: `${local.address.city} - ${local.address.state}`,
-      address: `${local.address.street}, ${local.address.city} - ${local.address.state}, ${local.address.zip}`,
-      rating: 4.5,
-      reviewsCount: getReviews(local.id).length,
-      tags: local.tags || [],
-      about: local.description || '',
-      images: local.photos || [],
-      hours: [
-        { day: 'Segunda', time: '08:00 - 18:00', isOpen: true },
-        { day: 'Terça', time: '08:00 - 18:00', isOpen: true },
-        { day: 'Quarta', time: '08:00 - 18:00', isOpen: true },
-        { day: 'Quinta', time: '08:00 - 18:00', isOpen: true },
-        { day: 'Sexta', time: '08:00 - 18:00', isOpen: true },
-        { day: 'Sábado', time: '09:00 - 13:00', isOpen: true },
-        { day: 'Domingo', time: 'Fechado', isOpen: false },
-      ],
-      phone: '',
-      whatsapp: '',
-      website: '',
-      email: '',
-      latitude: 0,
-      longitude: 0,
-      menu: [],
-      reviews: getReviews(local.id).map(r => ({
-        id: r.id,
-        author: r.author,
-        rating: r.rating,
-        date: r.createdAt,
-        text: r.text,
-        userId: r.userId,
-        createdAt: r.createdAt,
-      })),
-      localId: local.id,
-    };
-  }
-
-  // No mock fallback - return null if not found
-  return null;
+  about: string;
+  images: string[];
+  hours: { day: string; time: string; isOpen: boolean }[];
+  phone: string;
+  whatsapp: string;
+  website: string;
+  email: string;
+  latitude: number;
+  longitude: number;
+  menu: { category: string; items: { name: string; price: string; description: string }[] }[];
+  reviews: { id: string | number; author: string; rating: number; date: string; text: string; tags?: string[] }[];
+  localId?: string;
 }
 
 export const Negocio = () => {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
-  const { user, isLoaded } = useUser();
+  const { isLoaded } = useUser();
+  const { getToken } = useAuth();
 
-  const business = useMemo(() => findBusiness(id || '1'), [id]);
+  const [business, setBusiness] = useState<DetailView | null>(null);
+  const [bizLoading, setBizLoading] = useState(true);
+
+  const businessId = id || '';
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setBizLoading(true);
+      try {
+        const token = await getToken();
+        if (!token) {
+          if (!cancelled) setBusiness(null);
+          return;
+        }
+        const detail = await getBusinessDetail(token, businessId);
+        const reviews = await getReviewsForBusiness(token, businessId);
+        if (cancelled) return;
+        setBusiness({
+          id: parseInt(detail.id.replace(/\D/g, '').slice(0, 9), 10) || 0,
+          name: detail.name,
+          category: detail.category,
+          city: detail.city ? `${detail.city} - ${detail.state}` : detail.state,
+          address: `${detail.address.street}, ${detail.address.city} - ${detail.address.state}, ${detail.address.zip}`.replace(/^,\s*/, ''),
+          rating: detail.rating || 0,
+          reviewsCount: detail.reviewsCount || reviews.length,
+          tags: detail.tags || [],
+          about: detail.description || '',
+          images: detail.photos || [],
+          hours: [
+            { day: 'Segunda', time: '08:00 - 18:00', isOpen: true },
+            { day: 'Terça', time: '08:00 - 18:00', isOpen: true },
+            { day: 'Quarta', time: '08:00 - 18:00', isOpen: true },
+            { day: 'Quinta', time: '08:00 - 18:00', isOpen: true },
+            { day: 'Sexta', time: '08:00 - 18:00', isOpen: true },
+            { day: 'Sábado', time: '09:00 - 13:00', isOpen: true },
+            { day: 'Domingo', time: 'Fechado', isOpen: false },
+          ],
+          phone: detail.phone || '',
+          whatsapp: detail.whatsapp || '',
+          website: detail.website || '',
+          email: detail.email || '',
+          latitude: 0,
+          longitude: 0,
+          menu: [],
+          reviews: reviews.map((r) => ({
+            id: r.id,
+            author: r.author,
+            rating: r.rating,
+            date: r.date,
+            text: r.comment,
+            tags: [],
+          })),
+          localId: detail.id,
+        });
+      } catch (err: any) {
+        if (!cancelled) {
+          // 404 = not found / not approved
+          setBusiness(null);
+        }
+      } finally {
+        if (!cancelled) setBizLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [businessId]);
 
   const hasGallery = business?.images && business.images.length > 0;
   const tabs: Array<'sobre' | 'cardapio' | 'avaliacoes' | 'galeria'> = [
@@ -102,7 +126,7 @@ export const Negocio = () => {
   ];
   const [activeTab, setActiveTab] = useState<(typeof tabs)[number]>('sobre');
 
-  if (!isLoaded) {
+  if (!isLoaded || bizLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-creme-andino dark:bg-zinc-950">
         <div className="animate-spin rounded-full h-12 w-12 border-4 border-aji-rojo border-t-transparent" />

@@ -1,5 +1,6 @@
 import prisma from './lib/prisma';
 import Stripe from 'stripe';
+import { mapSubscriptionStatus } from './lib/subscription';
 import { sendPaymentFailedEmail, sendTrialEndingEmail } from './lib/email';
 
 const headers = {
@@ -14,27 +15,6 @@ const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
 const stripe = new Stripe(STRIPE_SECRET_KEY, {
   apiVersion: '2025-03-01.basil',
 });
-
-/**
- * Map Stripe subscription status to our internal status
- */
-function mapSubscriptionStatus(stripeStatus: string): string {
-  switch (stripeStatus) {
-    case 'trialing':
-      return 'trial';
-    case 'active':
-    case 'past_due':
-      return 'past_due';
-    case 'canceled':
-    case 'unpaid':
-      return 'canceled';
-    case 'incomplete':
-    case 'incomplete_expired':
-      return 'none';
-    default:
-      return 'none';
-  }
-}
 
 /**
  * Sync subscription status to database

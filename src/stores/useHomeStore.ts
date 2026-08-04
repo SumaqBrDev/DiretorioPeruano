@@ -1,6 +1,15 @@
 import { create } from 'zustand';
-import axios from 'axios';
-import { getBusinesses, getReviews } from '../lib/localData';
+import {
+  getHomeCategories,
+  getHomeFeatured,
+  getHomeStats,
+  getHomeTestimonials,
+} from '../lib/api';
+
+// The public read endpoints (categories/featured/stats/testimonials) do not
+// require a Clerk token, so we call them with an empty token for consistency
+// with the api.ts layer.
+const PUBLIC_TOKEN = '';
 
 export interface Category {
   slug: string;
@@ -60,50 +69,6 @@ interface HomeState {
   fetchTestimonials: () => Promise<void>;
 }
 
-const API_BASE = import.meta.env.VITE_API_URL || '';
-
-const apiGet = async (url: string) => {
-  if (!API_BASE && !url.startsWith('http')) {
-    throw new Error('No API base URL configured; using fallback');
-  }
-  const { data } = await axios.get(`${API_BASE}${url}`);
-  return data;
-};
-
-/** Build featured businesses from localStorage */
-function getLocalFeatured(): FeaturedBusiness[] {
-  return getBusinesses()
-    .filter(b => b.status === 'approved' || b.status === 'pending')
-    .map(b => ({
-      id: b.id,
-      name: b.name,
-      category: b.category,
-      city: b.address.city,
-      state: b.address.state,
-      rating: 4.5,
-      reviewsCount: getReviews(b.id).length,
-      tags: b.tags || [],
-      coverImage: b.photos?.[0] || '',
-    }));
-}
-
-/** Build stats from localStorage */
-function getLocalStats(): Stat[] {
-  const businesses = getBusinesses();
-  const total = businesses.length;
-  const approved = businesses.filter(b => b.status === 'approved').length;
-  const cities = new Set(businesses.map(b => b.address.city)).size;
-  let totalReviews = 0;
-  businesses.forEach(b => { totalReviews += getReviews(b.id).length; });
-
-  return [
-    { label: 'stats.businesses', value: total, suffix: '' },
-    { label: 'stats.cities', value: cities, suffix: '' },
-    { label: 'stats.reviews', value: totalReviews, suffix: '' },
-    { label: 'stats.categories', value: 8, suffix: '' },
-  ];
-}
-
 export const useHomeStore = create<HomeState>((set) => ({
   categories: [],
   featuredBusinesses: [],
@@ -125,11 +90,12 @@ export const useHomeStore = create<HomeState>((set) => ({
   fetchCategories: async () => {
     set((s) => ({ loading: { ...s.loading, categories: true }, error: { ...s.error, categories: null } }));
     try {
-      const data = await apiGet('/api/categories');
-      set((s) => ({ categories: data, loading: { ...s.loading, categories: false } }));
+      const data = await getHomeCategories(PUBLIC_TOKEN);
+      set((s) => ({ categories: data as Category[], loading: { ...s.loading, categories: false } }));
     } catch (err: any) {
       set((s) => ({
         loading: { ...s.loading, categories: false },
+        error: { ...s.error, categories: err?.message || 'Erro ao carregar categorias' },
       }));
     }
   },
@@ -137,14 +103,12 @@ export const useHomeStore = create<HomeState>((set) => ({
   fetchFeatured: async () => {
     set((s) => ({ loading: { ...s.loading, featured: true }, error: { ...s.error, featured: null } }));
     try {
-      const data = await apiGet('/api/featured');
-      set((s) => ({ featuredBusinesses: data, loading: { ...s.loading, featured: false } }));
+      const data = await getHomeFeatured(PUBLIC_TOKEN);
+      set((s) => ({ featuredBusinesses: data as FeaturedBusiness[], loading: { ...s.loading, featured: false } }));
     } catch (err: any) {
-      // Fallback to localStorage data
-      const localFeatured = getLocalFeatured();
       set((s) => ({
-        featuredBusinesses: localFeatured,
         loading: { ...s.loading, featured: false },
+        error: { ...s.error, featured: err?.message || 'Erro ao carregar destaques' },
       }));
     }
   },
@@ -152,13 +116,12 @@ export const useHomeStore = create<HomeState>((set) => ({
   fetchStats: async () => {
     set((s) => ({ loading: { ...s.loading, stats: true }, error: { ...s.error, stats: null } }));
     try {
-      const data = await apiGet('/api/stats');
-      set((s) => ({ stats: data, loading: { ...s.loading, stats: false } }));
+      const data = await getHomeStats(PUBLIC_TOKEN);
+      set((s) => ({ stats: data as Stat[], loading: { ...s.loading, stats: false } }));
     } catch (err: any) {
-      const localStats = getLocalStats();
       set((s) => ({
-        stats: localStats,
         loading: { ...s.loading, stats: false },
+        error: { ...s.error, stats: err?.message || 'Erro ao carregar estatísticas' },
       }));
     }
   },
@@ -166,11 +129,12 @@ export const useHomeStore = create<HomeState>((set) => ({
   fetchTestimonials: async () => {
     set((s) => ({ loading: { ...s.loading, testimonials: true }, error: { ...s.error, testimonials: null } }));
     try {
-      const data = await apiGet('/api/testimonials');
-      set((s) => ({ testimonials: data, loading: { ...s.loading, testimonials: false } }));
+      const data = await getHomeTestimonials(PUBLIC_TOKEN);
+      set((s) => ({ testimonials: data as Testimonial[], loading: { ...s.loading, testimonials: false } }));
     } catch (err: any) {
       set((s) => ({
         loading: { ...s.loading, testimonials: false },
+        error: { ...s.error, testimonials: err?.message || 'Erro ao carregar depoimentos' },
       }));
     }
   },

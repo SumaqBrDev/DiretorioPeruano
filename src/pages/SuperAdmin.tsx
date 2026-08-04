@@ -1,14 +1,17 @@
 // src/pages/SuperAdmin.tsx
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useAuth } from '@clerk/clerk-react';
 import {
-  getBusinesses,
-  updateBusiness,
-  deleteBusiness,
-  getBetaMode,
-  setBetaMode,
-} from '../lib/localData';
-import type { Business } from '../lib/localData';
+  adminListBusinesses,
+  adminApprove,
+  adminReject,
+  adminDelete,
+  adminGetBetaMode,
+  adminSetBetaMode,
+  migrateLocalStorage,
+  type ApiBusiness as Business,
+} from '../lib/api';
 
 // ── Helpers ──
 
@@ -45,7 +48,6 @@ function formatCnpj(value: string): string {
 }
 
 const ITEMS_PER_PAGE = 10;
-const SUPERADMIN_EMAIL = 'jose.rocah.pe@gmail.com';
 
 // ── Status Badge ──
 
@@ -407,11 +409,13 @@ function StatsCard({
 // ── Main Component ──
 
 export const SuperAdmin = () => {
+  const { getToken, isLoaded } = useAuth();
+
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('todos');
   const [page, setPage] = useState(1);
-  const [betaMode, setBeta] = useState(() => getBetaMode());
+  const [betaMode, setBeta] = useState<boolean>(true);
   const [loading, setLoading] = useState(true);
 
   // Modal state
@@ -424,23 +428,157 @@ export const SuperAdmin = () => {
 
   // Toast state
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [migrating, setMigrating] = useState(false);
   const closeToast = useCallback(() => setToast(null), []);
 
-  // Load data
-  useEffect(() => {
+  // Load data + beta mode from API (Clerk token verified server-side)
+  const refresh = useCallback(async () => {
+    if (!isLoaded) return;
+    const token = await getToken();
+    if (!token) {
+      setLoading(false);
+      setToast({ message: 'Não foi possível obter sessão Clerk.', type: 'error' });
+      return;
+    }
     try {
-      const data = getBusinesses();
-      setBusinesses(data);
-    } catch {
-      // ignore
+      const [list, beta] = await Promise.all([
+        adminListBusinesses(token, { status: 'ALL', limit: 100 }),
+        adminGetBetaMode(token),
+      ]);
+      // Normalize API payload into the display shape used by the modals
+      const normalized: Business[] = (list.businesses || []).map((b) => ({
+        ...b,
+        ownerFullName: b.owner?.name || b.ownerFullName,
+        address: {
+          street: b.city || '',
+          city: b.city || '',
+          state: b.state || '',
+          zip: '',
+        },
+      }));
+      setBusinesses(normalized);
+      setBeta(beta.betaMode);
+    } catch (err: any) {
+      setToast({ message: err?.message || 'Erro ao carregar negócios.', type: 'error' });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isLoaded, getToken]);
 
-  const refresh = useCallback(() => {
-    setBusinesses(getBusinesses());
-  }, []);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  // Actions (via API)
+  const handleApprove = useCallback(
+    async (business: Business) => {
+      try {
+        const token = await getToken();
+        if (!token) throw new Error('Sem sessão');
+        await adminApprove(token, business.id);
+        setConfirmAction(null);
+        setToast({ message: `${business.name} aprovado com sucesso! 🎉`, type: 'success' });
+        await refresh();
+      } catch (err: any) {
+        setToast({ message: err?.message || 'Erro ao aprovar.', type: 'error' });
+      }
+    },
+    [getToken, refresh]
+  );
+
+  const handleReject = useCallback(
+    async (business: Business, reason: string) => {
+      try {
+        const token = await getToken();
+        if (!token) throw new Error('Sem sessão');
+        await adminReject(token, business.id, reason);
+        setRejectBusiness(null);
+        setToast({ message: `${business.name} rejeitado.`, type: 'success' });
+        await refresh();
+      } catch (err: any) {
+        setToast({ message: err?.message || 'Erro ao rejeitar.', type: 'error' });
+      }
+    },
+    [getToken, refresh]
+  );
+
+  const handleDelete = useCallback(
+    async (business: Business) => {
+      try {
+        const token = await getToken();
+        if (!token) throw new Error('Sem sessão');
+        await adminDelete(token, business.id);
+        setConfirmAction(null);
+        setDetailBusiness(null);
+        setToast({ message: `${business.name} excluído permanentemente.`, type: 'success' });
+        await refresh();
+      } catch (err: any) {
+        setToast({ message: err?.message || 'Erro ao excluir.', type: 'error' });
+      }
+    },
+    [getToken, refresh]
+  );
+
+  const handleBetaToggle = useCallback(async () => {
+    try {
+      const token = await getToken();
+      if (!token) throw new Error('Sem sessão');
+      const next = !betaMode;
+      const res = await adminSetBetaMode(token, next);
+      setBeta(res.betaMode);
+      setToast({
+        message: res.betaMode ? 'Modo Beta ativado 🟡' : 'Modo Produção ativado 🟢',
+        type: 'success',
+      });
+      await refresh();
+    } catch (err: any) {
+      setToast({ message: err?.message || 'Erro ao alterar modo beta.', type: 'error' });
+    }
+  }, [getToken, betaMode, refresh]);
+
+  const handleMigrate = useCallback(async () => {
+    try {
+      setMigrating(true);
+      const token = await getToken();
+      if (!token) throw new Error('Sem sessão');
+
+      // Read localStorage data (the keys used by localData.ts)
+      const read = (k: string) => {
+        try {
+          const raw = localStorage.getItem(k);
+          return raw ? JSON.parse(raw) : [];
+        } catch {
+          return [];
+        }
+      };
+      const businesses = read('diretorio_peruano_businesses');
+      const reviews = read('diretorio_peruano_reviews');
+      const conversations = read('diretorio_peruano_conversations');
+
+      const total = businesses.length + reviews.length + conversations.length;
+      if (total === 0) {
+        setToast({ message: 'Nenhum dado local para migrar.', type: 'error' });
+        return;
+      }
+
+      if (!window.confirm(`Migrar ${businesses.length} negócios, ${reviews.length} avaliações e ${conversations.length} conversas para a API?`)) {
+        return;
+      }
+
+      const res = await migrateLocalStorage(token, { businesses, reviews, conversations });
+      const m = res.report?.migrated;
+      setToast({
+        message: `Migração concluída: ${m?.businesses ?? 0} negócios, ${m?.reviews ?? 0} avaliações, ${m?.conversations ?? 0} conversas. ✅`,
+        type: 'success',
+      });
+      await refresh();
+    } catch (err: any) {
+      setToast({ message: err?.message || 'Erro ao migrar dados.', type: 'error' });
+    } finally {
+      setMigrating(false);
+    }
+  }, [getToken, refresh]);
+
 
   // Compute stats
   const stats = useMemo(() => {
@@ -482,52 +620,6 @@ export const SuperAdmin = () => {
   useEffect(() => {
     setPage(1);
   }, [statusFilter, search]);
-
-  // Actions
-  const handleApprove = useCallback(
-    (business: Business) => {
-      const now = new Date().toISOString();
-      const trialEnds = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-      updateBusiness(business.id, {
-        status: 'approved',
-        approvedAt: now,
-        subscriptionStatus: 'trial',
-        trialEndsAt: trialEnds,
-      });
-      refresh();
-      setConfirmAction(null);
-      setToast({ message: `${business.name} aprovado com sucesso! 🎉`, type: 'success' });
-    },
-    [refresh]
-  );
-
-  const handleReject = useCallback(
-    (business: Business, reason: string) => {
-      updateBusiness(business.id, { status: 'rejected', rejectionReason: reason });
-      refresh();
-      setRejectBusiness(null);
-      setToast({ message: `${business.name} rejeitado.`, type: 'success' });
-    },
-    [refresh]
-  );
-
-  const handleDelete = useCallback(
-    (business: Business) => {
-      deleteBusiness(business.id);
-      refresh();
-      setConfirmAction(null);
-      setDetailBusiness(null);
-      setToast({ message: `${business.name} excluído permanentemente.`, type: 'success' });
-    },
-    [refresh]
-  );
-
-  const handleBetaToggle = useCallback(() => {
-    const next = !betaMode;
-    setBeta(next);
-    setBetaMode(next);
-    setToast({ message: next ? 'Modo Beta ativado 🟡' : 'Modo Produção ativado 🟢', type: 'success' });
-  }, [betaMode]);
 
   // ── Render ──
 
@@ -584,6 +676,14 @@ export const SuperAdmin = () => {
         >
           <span className="text-lg">{betaMode ? '🟡' : '🟢'}</span>
           {betaMode ? 'Modo Beta' : 'Produção'}
+        </button>
+        <button
+          onClick={handleMigrate}
+          disabled={migrating}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+        >
+          <span className="text-lg">📦</span>
+          {migrating ? 'Migrando...' : 'Migrar Dados'}
         </button>
       </div>
 

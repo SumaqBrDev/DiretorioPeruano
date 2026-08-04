@@ -1,10 +1,9 @@
 // src/pages/Onboarding.tsx
 import { useState, useEffect, useCallback } from 'react';
-import { useUser } from '@clerk/clerk-react';
+import { useUser, useAuth } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import axios from 'axios';
-import { saveBusiness } from '../lib/localData';
+import { createBusiness } from '../lib/api';
 
 // --- Constantes ---
 
@@ -165,6 +164,7 @@ interface OnboardingFormData {
 
 export const Onboarding = () => {
   const { user, isLoaded } = useUser();
+  const { getToken } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<OnboardingFormData>({
@@ -291,30 +291,19 @@ export const Onboarding = () => {
       address: { ...formData.address, city: formData.address.city.trim() },
       tags: formData.tags,
       photos: photoDataUrls,
-      userId: user?.id || 'anonymous',
+      ownerId: user?.id || '',
     };
 
-    let apiSuccess = false;
-
     try {
-      await axios.post('/api/businesses', businessData, {
-        headers: { 'Content-Type': 'application/json' },
-        timeout: 10000,
-      });
-      apiSuccess = true;
-    } catch (apiError) {
-      console.warn('API fallback: salvando no localStorage', apiError);
-      // API failed, continue to localStorage fallback
-    }
-
-    // Always save to localStorage as fallback
-    try {
-      saveBusiness(businessData);
-      if (!apiSuccess) {
-        console.log('Negócio salvo no localStorage como fallback');
+      const token = await getToken();
+      if (!token) {
+        setSubmitting(false);
+        setToast({ message: 'Sessão expirada. Entre novamente.', type: 'error' });
+        return;
       }
-    } catch (localError) {
-      console.error('Erro ao salvar no localStorage:', localError);
+      await createBusiness(token, businessData);
+    } catch (err: any) {
+      console.error('Erro ao cadastrar negócio:', err);
       setSubmitting(false);
       setToast({ message: 'Erro ao salvar. Tente novamente.', type: 'error' });
       return;

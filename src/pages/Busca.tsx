@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { MagnifyingGlass, Star, Funnel } from '@phosphor-icons/react';
-import axios from 'axios';
+import { useAuth } from '@clerk/clerk-react';
 import { SkeletonCard } from '../components/SkeletonCard';
-import { getBusinesses, getReviews } from '../lib/localData';
+import { searchBusinesses } from '../lib/api';
 
 interface SearchResult {
   id: string;
@@ -18,8 +18,6 @@ interface SearchResult {
   coverImage: string;
   description: string;
 }
-
-const API_BASE = import.meta.env.VITE_API_URL || '';
 
 const CATEGORIES = [
   { value: '', labelKey: 'search.all_categories' },
@@ -65,26 +63,11 @@ const normalizeText = (text: string) =>
   text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
 /** Build fallback results from localStorage only */
-function getLocalFallbackResults(): SearchResult[] {
-  const localBizzes = getBusinesses();
-  return localBizzes.map((b) => ({
-    id: b.id,
-    name: b.name,
-    category: b.category,
-    city: b.address.city,
-    state: b.address.state,
-    rating: 4.5,
-    reviewsCount: getReviews(b.id).length,
-    tags: b.tags || [],
-    coverImage: b.photos?.[0] || '',
-    description: b.description || '',
-  }));
-}
-
 export const Busca = () => {
   const { t } = useTranslation();
+  const { getToken } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [results, setResults] = useState<SearchResult[]>(() => getLocalFallbackResults());
+  const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
@@ -147,28 +130,29 @@ export const Busca = () => {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams();
-      if (query) params.set('q', query);
-      if (category) params.set('category', category);
-      if (city) params.set('city', city);
-      if (minRating) params.set('minRating', minRating);
-
-      const { data } = await axios.get(`${API_BASE}/api/businesses?${params.toString()}`);
+      const token = await getToken();
+      if (!token) {
+        setError('Sessão expirada. Entre novamente.');
+        setResults([]);
+        setLoading(false);
+        return;
+      }
+      const data = await searchBusinesses(token, {
+        q: query || undefined,
+        category: category || undefined,
+        city: city || undefined,
+        minRating: minRating || undefined,
+      });
       setResults(data);
     } catch (err: any) {
-      if (err?.message?.includes('No API base URL') || err?.code === 'ERR_NETWORK') {
-        // Already populated by local fallback — keep it
-      } else {
-        setError(err?.message || 'Erro ao buscar resultados');
-        setResults([]);
-      }
+      setError(err?.message || 'Erro ao buscar resultados');
+      setResults([]);
     } finally {
       setLoading(false);
     }
-  }, [query, category, city, minRating]);
+  }, [getToken, query, category, city, minRating]);
 
   useEffect(() => {
-    if (!API_BASE) return;
     fetchResults();
   }, [fetchResults]);
 
@@ -250,15 +234,6 @@ export const Busca = () => {
           </button>
         </div>
       </form>
-
-      {/* API not configured notice */}
-      {!API_BASE && (
-        <div className="mb-6 p-4 bg-oro-inca/10 border border-oro-inca/30 rounded-xl text-center">
-          <p className="text-oro-inca text-sm font-medium">
-            Modo de desenvolvimento — exibindo dados locais
-          </p>
-        </div>
-      )}
 
       <div className="grid lg:grid-cols-4 gap-8">
         {/* Filters Sidebar */}

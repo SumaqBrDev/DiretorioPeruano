@@ -3,10 +3,10 @@ interface StarRatingProps {
   size?: 'sm' | 'md' | 'lg';
 }
 
-export const StarRating = ({ rating, size = 'md' }: { rating: number; size?: 'sm' | 'md' | 'lg' }) => {
+export const StarRating = ({ rating, size = 'md' }: StarRatingProps) => {
   const fullStars = Math.floor(rating);
   const hasHalfStar = rating % 1 >= 0.5;
-  const emptyStars = 5 - Math.floor(rating) - (rating % 1 >= 0.5 ? 1 : 0);
+  const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
 
   const sizeClasses = {
     sm: 'text-sm',
@@ -19,7 +19,10 @@ export const StarRating = ({ rating, size = 'md' }: { rating: number; size?: 'sm
       {Array.from({ length: fullStars }).map((_, i) => (
         <span key={`full-${i}`} className={`${sizeClasses[size] || 'text-lg'} text-oro-inca`}>★</span>
       ))}
-      {Array.from({ length: 5 - fullStars - (rating % 1 >= 0.5 ? 1 : 0) }).map((_, i) => (
+      {hasHalfStar && (
+        <span className={`${sizeClasses[size] || 'text-lg'} text-oro-inca/70`}>⯪</span>
+      )}
+      {Array.from({ length: emptyStars }).map((_, i) => (
         <span key={`empty-${i}`} className={`${sizeClasses[size] || 'text-lg'} text-gray-300 dark:text-gray-600`}>☆</span>
       ))}
     </div>

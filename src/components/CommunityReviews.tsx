@@ -1,13 +1,13 @@
 // src/components/CommunityReviews.tsx
-// "O que a comunidade diz" — mostrar reseñas aleatorias de 5 estrellas desde localStorage
+// "O que a comunidade diz" — mostrar reseñas aleatorias de 5 estrellas desde la API
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, useReducedMotion } from 'motion/react';
 import { Star } from '@phosphor-icons/react';
-import { getBusinesses, getReviews } from '../lib/localData';
+import { getCommunityReviews, type CommunityReview } from '../lib/api';
 
-interface CommunityReview {
+interface CommunityReviewView {
   id: string;
   author: string;
   businessName: string;
@@ -18,38 +18,41 @@ interface CommunityReview {
 export const CommunityReviews = () => {
   const { t } = useTranslation();
   const reduceMotion = useReducedMotion();
+  const [reviews, setReviews] = useState<CommunityReviewView[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
-  const reviews = useMemo<CommunityReview[]>(() => {
-    const all: CommunityReview[] = [];
-    const reviewIds = new Set<string>();
-
-    // From localStorage (reviews by users)
-    const businesses = getBusinesses();
-    businesses.forEach((biz) => {
-      const storedReviews = getReviews(biz.id);
-      storedReviews.forEach((r) => {
-        if (r.rating >= 4) { // Use 4+ for community section
-          const key = `${r.author}_${r.text}`;
-          if (!reviewIds.has(key)) {
-            reviewIds.add(key);
-            all.push({
-              id: r.id,
-              author: r.author,
-              businessName: biz.name,
-              rating: r.rating,
-              text: r.text,
-            });
-          }
-        }
-      });
-    });
-
-    // Shuffle for randomness each load
-    const shuffled = [...all].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, 6);
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        // Public endpoint — empty token is fine server-side
+        const data = await getCommunityReviews('');
+        if (cancelled) return;
+        const mapped: CommunityReviewView[] = data.map((r: CommunityReview) => ({
+          id: r.id,
+          author: r.author,
+          businessName: r.businessName || '',
+          rating: r.rating || 5,
+          text: r.comment || '',
+        }));
+        // Shuffle for randomness each load
+        const shuffled = [...mapped].sort(() => Math.random() - 0.5);
+        setReviews(shuffled.slice(0, 6));
+      } catch {
+        if (!cancelled) setReviews([]);
+      } finally {
+        if (!cancelled) setLoaded(true);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  if (reviews.length === 0) return null;
+  const visible = useMemo(() => reviews, [reviews]);
+
+  if (!loaded || visible.length === 0) return null;
 
   const fadeIn = (delay: number) =>
     reduceMotion
@@ -79,7 +82,7 @@ export const CommunityReviews = () => {
 
         {/* Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {reviews.map((review, i) => (
+          {visible.map((review, i) => (
             <motion.div key={review.id} {...fadeIn(0.1 + i * 0.08)}>
               <article className="bg-white dark:bg-zinc-800 rounded-2xl p-8 shadow-lg border border-oro-inca/20 hover:shadow-xl hover:border-aji-rojo/50 transition-all duration-300 h-full flex flex-col">
                 {/* Stars */}

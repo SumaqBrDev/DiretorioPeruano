@@ -35,3 +35,9 @@ dist-ssr
 
 # Local Netlify folder
 .netlify
+
+# Prisma local config (contains DATABASE_URL)
+prisma/migrations/config.env
+
+tsconfig.tsbuildinfo
+tsconfig.*.tsbuildinfo

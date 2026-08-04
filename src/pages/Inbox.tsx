@@ -1,19 +1,23 @@
 // src/pages/Inbox.tsx
 // B2B Chat Inbox — sidebar conversations + WhatsApp-style chat window
+// Migrated from localStorage (localData) to API (src/lib/api.ts)
 
-import { useState, useEffect, useRef, useMemo } from 'react'
-import { useUser } from '@clerk/clerk-react'
+import { useState, useEffect, useRef } from 'react'
+import { useUser, useAuth } from '@clerk/clerk-react'
 import { MessageList } from '@/components/MessageList'
 import { MessageForm } from '@/components/MessageForm'
 import {
-  getB2BConversations,
-  getB2BArchivedConversations,
-  saveB2BMessage,
-  toggleArchiveB2B,
-  softDeleteB2B,
-  getBusinesses,
-} from '@/lib/localData'
-import type { B2BConversation, Business } from '@/lib/localData'
+  getMyBusiness,
+  listConversations,
+  getConversationMessages,
+  sendMessage,
+  markMessageRead,
+  archiveConversation,
+  deleteConversation,
+  getBusinessesPublic,
+  type RawMessage,
+} from '@/lib/api'
+import type { B2BMessage } from '@/components/MessageList'
 
 // ─── Type for business options in autocomplete ───
 interface BusinessOption {
@@ -21,50 +25,107 @@ interface BusinessOption {
   name: string
 }
 
+// UI conversation model derived from backend summaries + message threads
+interface Conv {
+  id: string // partnerId (backend groups by partner)
+  partnerId: string
+  partnerName: string
+  archived: boolean
+  deletedAt: string | null
+  unread: number
+  lastMessage: string
+  lastMessageAt: string
+  messages: B2BMessage[]
+}
+
 export const Inbox = () => {
   const { user, isLoaded } = useUser()
+  const { getToken } = useAuth()
 
   // ── State ──
-  const [conversations, setConversations] = useState<B2BConversation[]>([])
-  const [archivedConvs, setArchivedConvs] = useState<B2BConversation[]>([])
+  const [conversations, setConversations] = useState<Conv[]>([])
+  const [archivedConvs, setArchivedConvs] = useState<Conv[]>([])
   const [selectedConvId, setSelectedConvId] = useState<string | null>(null)
   const [showArchived, setShowArchived] = useState(false)
   const [showMessageForm, setShowMessageForm] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [newMessage, setNewMessage] = useState('')
+  const [businessId, setBusinessId] = useState('')
+  const [businessName, setBusinessName] = useState('')
+  const [businessOptions, setBusinessOptions] = useState<BusinessOption[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // ── Find current user's business from localStorage ──
-  const currentBusiness = useMemo<Business | null>(() => {
-    if (!user) return null
-    const businesses = getBusinesses()
-    // Match by userId (the Clerk user owns businesses via Onboarding)
-    return businesses.find(b => b.userId === user.id) || null
-  }, [user])
+  const CURRENT_BUSINESS_ID = businessId
+  const CURRENT_BUSINESS_NAME = businessName || 'Meu Negócio'
 
-  const CURRENT_BUSINESS_ID = currentBusiness?.id || ''
-  const CURRENT_BUSINESS_NAME = currentBusiness?.name || 'Meu Negócio'
+  // ── Load current business + autocomplete options on mount ──
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      try {
+        const token = await getToken()
+        if (!token) return
+        const me = await getMyBusiness(token)
+        if (cancelled || !me) return
+        setBusinessId(me.id)
+        setBusinessName(me.name)
+        const list = await getBusinessesPublic(token)
+        if (cancelled) return
+        setBusinessOptions(
+          list
+            .filter((b) => b.id !== me.id)
+            .map((b) => ({ id: b.id, name: b.name }))
+            .sort((a, b) => a.name.localeCompare(b.name))
+        )
+      } catch (err: any) {
+        // 404 = user has no business yet → empty state below
+        if (err?.statusCode !== 404) {
+          console.error('Erro ao carregar Inbox:', err)
+        }
+      }
+    }
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [getToken])
 
-  // ── Derive business list for autocomplete ──
-  const businessOptions: BusinessOption[] = useMemo(() => {
-    if (!CURRENT_BUSINESS_ID) return []
-    return getBusinesses()
-      .filter((b) => b.id !== CURRENT_BUSINESS_ID && (b.status === 'approved' || b.status === 'pending' || !b.status))
-      .map((b) => ({ id: b.id, name: b.name }))
-      .sort((a, b) => a.name.localeCompare(b.name))
-  }, [CURRENT_BUSINESS_ID])
-
-  // ── Load data on mount ──
+  // ── Load data once we know the current business ──
   useEffect(() => {
     if (CURRENT_BUSINESS_ID) {
       loadConversations()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [CURRENT_BUSINESS_ID])
 
-  function loadConversations() {
+  async function loadConversations() {
     if (!CURRENT_BUSINESS_ID) return
-    setConversations(getB2BConversations(CURRENT_BUSINESS_ID))
-    setArchivedConvs(getB2BArchivedConversations(CURRENT_BUSINESS_ID))
+    try {
+      const token = await getToken()
+      if (!token) return
+      const summaries = await listConversations(token, CURRENT_BUSINESS_ID)
+      const active: Conv[] = []
+      const archived: Conv[] = []
+      for (const s of summaries) {
+        const conv: Conv = {
+          id: s.businessId,
+          partnerId: s.businessId,
+          partnerName: s.businessName,
+          archived: s.archived,
+          deletedAt: s.deletedAt,
+          unread: s.unread || 0,
+          lastMessage: s.lastMessage || '',
+          lastMessageAt: s.lastMessageAt || '',
+          messages: [],
+        }
+        if (s.archived) archived.push(conv)
+        else active.push(conv)
+      }
+      setConversations(active)
+      setArchivedConvs(archived)
+    } catch (err) {
+      console.error('Erro ao carregar conversas:', err)
+    }
   }
 
   // Selected conversation object
@@ -73,54 +134,129 @@ export const Inbox = () => {
     : null
 
   // Helper: get the "other" business info
-  function otherParticipant(conv: B2BConversation): { id: string; name: string } {
-    const idx = conv.participantIds[0] === CURRENT_BUSINESS_ID ? 1 : 0
-    return { id: conv.participantIds[idx], name: conv.participantNames[idx] }
+  function otherParticipant(conv: Conv): { id: string; name: string } {
+    return { id: conv.partnerId, name: conv.partnerName }
   }
 
-  function unreadCount(conv: B2BConversation): number {
+  function unreadCount(conv: Conv): number {
     return conv.messages.filter(
       (m) => m.fromBusinessId !== CURRENT_BUSINESS_ID && !m.read
     ).length
   }
 
-  // ── Handlers ──
-
-  function handleNewMessage(toBusinessId: string, body: string) {
-    const other = getBusinesses().find(b => b.id === toBusinessId)
-    const otherName = other?.name || toBusinessId
-    saveB2BMessage(CURRENT_BUSINESS_ID, CURRENT_BUSINESS_NAME, toBusinessId, otherName, body)
-    loadConversations()
-    setSelectedConvId([CURRENT_BUSINESS_ID, toBusinessId].sort().join('_'))
+  // ── Load message thread for a conversation (and mark inbound as read) ──
+  async function openConversation(convId: string) {
+    setSelectedConvId(convId)
+    if (!CURRENT_BUSINESS_ID) return
+    try {
+      const token = await getToken()
+      if (!token) return
+      const raw = await getConversationMessages(token, CURRENT_BUSINESS_ID, convId)
+      const messages: B2BMessage[] = raw.map((m: RawMessage) => ({
+        id: m.id,
+        fromBusinessId: m.fromBusinessId,
+        fromBusinessName:
+          m.fromBusinessId === CURRENT_BUSINESS_ID
+            ? CURRENT_BUSINESS_NAME
+            : m.fromBusiness?.name || m.toBusiness?.name || 'Desconhecido',
+        body: m.body,
+        createdAt: m.createdAt,
+        read: m.read,
+      }))
+      // Update the conversation's thread in state
+      setConversations((prev) =>
+        prev.map((c) => (c.id === convId ? { ...c, messages, unread: 0 } : c))
+      )
+      setArchivedConvs((prev) =>
+        prev.map((c) => (c.id === convId ? { ...c, messages, unread: 0 } : c))
+      )
+      // Mark inbound unread messages as read
+      const unreadIds = raw
+        .filter((m) => m.toBusinessId === CURRENT_BUSINESS_ID && !m.read)
+        .map((m) => m.id)
+      if (unreadIds.length > 0) {
+        await Promise.all(unreadIds.map((id) => markMessageRead(token, id)))
+      }
+    } catch (err) {
+      console.error('Erro ao carregar mensagens:', err)
+    }
   }
 
-  function handleSendMessage(e: React.FormEvent) {
+  // ── Handlers ──
+
+  async function handleNewMessage(toBusinessId: string, body: string) {
+    if (!CURRENT_BUSINESS_ID) return
+    try {
+      const token = await getToken()
+      if (!token) return
+      await sendMessage(token, CURRENT_BUSINESS_ID, toBusinessId, body)
+      await loadConversations()
+      await openConversation(toBusinessId)
+    } catch (err) {
+      console.error('Erro ao enviar mensagem:', err)
+    }
+  }
+
+  async function handleSendMessage(e: React.FormEvent) {
     e.preventDefault()
     if (!selectedConv || !newMessage.trim()) return
 
     const other = otherParticipant(selectedConv)
-    saveB2BMessage(CURRENT_BUSINESS_ID, CURRENT_BUSINESS_NAME, other.id, other.name, newMessage.trim())
-    setNewMessage('')
-    loadConversations()
+    try {
+      const token = await getToken()
+      if (!token) return
+      await sendMessage(token, CURRENT_BUSINESS_ID, other.id, newMessage.trim())
+      setNewMessage('')
+      await loadConversations()
+      await openConversation(other.id)
+    } catch (err) {
+      console.error('Erro ao enviar mensagem:', err)
+    }
   }
 
-  function handleArchive() {
-    if (!selectedConvId) return
-    toggleArchiveB2B(selectedConvId, CURRENT_BUSINESS_ID)
-    loadConversations()
-    setSelectedConvId(null)
+  async function handleArchive() {
+    if (!selectedConvId || !CURRENT_BUSINESS_ID) return
+    try {
+      const token = await getToken()
+      if (!token) return
+      await archiveConversation(token, CURRENT_BUSINESS_ID, selectedConvId, true)
+      await loadConversations()
+      setSelectedConvId(null)
+    } catch (err) {
+      console.error('Erro ao arquivar:', err)
+    }
   }
 
-  function handleDelete() {
-    if (!selectedConvId) return
-    softDeleteB2B(selectedConvId, CURRENT_BUSINESS_ID)
-    loadConversations()
-    setSelectedConvId(null)
-    setShowDeleteConfirm(false)
+  async function handleUnarchive() {
+    if (!selectedConvId || !CURRENT_BUSINESS_ID) return
+    try {
+      const token = await getToken()
+      if (!token) return
+      await archiveConversation(token, CURRENT_BUSINESS_ID, selectedConvId, false)
+      await loadConversations()
+      setSelectedConvId(null)
+      setShowArchived(false)
+    } catch (err) {
+      console.error('Erro ao desarquivar:', err)
+    }
+  }
+
+  async function handleDelete() {
+    if (!selectedConvId || !CURRENT_BUSINESS_ID) return
+    try {
+      const token = await getToken()
+      if (!token) return
+      await deleteConversation(token, CURRENT_BUSINESS_ID, selectedConvId)
+      await loadConversations()
+      setSelectedConvId(null)
+      setShowDeleteConfirm(false)
+    } catch (err) {
+      console.error('Erro ao excluir:', err)
+    }
   }
 
   function selectConversation(convId: string) {
-    setSelectedConvId(convId)
+    openConversation(convId)
   }
 
   // ── Loading / Auth guards ──
@@ -140,7 +276,7 @@ export const Inbox = () => {
     )
   }
 
-  if (!currentBusiness) {
+  if (!CURRENT_BUSINESS_ID) {
     return (
       <div className="container mx-auto px-4 py-20 text-center">
         <h2 className="font-playfair text-2xl font-bold text-aji-rojo mb-4">Nenhum negócio encontrado</h2>
@@ -204,6 +340,11 @@ export const Inbox = () => {
                       hour: '2-digit',
                       minute: '2-digit',
                     })
+                  : conv.lastMessageAt
+                  ? new Date(conv.lastMessageAt).toLocaleTimeString('pt-BR', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })
                   : ''
 
                 return (
@@ -255,7 +396,7 @@ export const Inbox = () => {
                               ? lastMsg.body.length > 50
                                 ? lastMsg.body.slice(0, 50) + '…'
                                 : lastMsg.body
-                              : ''}
+                              : conv.lastMessage || ''}
                           </p>
                         </div>
                       </div>
@@ -307,12 +448,10 @@ export const Inbox = () => {
 
                 <div className="flex gap-2">
                   <button
-                    onClick={handleArchive}
+                    onClick={selectedConv.archived ? handleUnarchive : handleArchive}
                     className="px-3 py-1.5 text-xs rounded-lg border border-oro-inca/30 text-noche-lima dark:text-white hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors"
                   >
-                    {selectedConv.archivedBy.includes(CURRENT_BUSINESS_ID)
-                      ? 'Desarquivar'
-                      : 'Arquivar'}
+                    {selectedConv.archived ? 'Desarquivar' : 'Arquivar'}
                   </button>
                   <button
                     onClick={() => setShowDeleteConfirm(true)}

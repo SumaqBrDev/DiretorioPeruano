@@ -9,7 +9,7 @@ interface RestaurantCardProps {
   category: string
 }
 
-export const RestaurantCard = ({ name, city, rating, reviews, tags, image, category }: RestaurantCardProps) => {
+export const RestaurantCard = ({ name: _name, city: _city, rating, reviews: _reviews, tags: _tags, image, category }: RestaurantCardProps) => {
   return (
     <article className="bg-white dark:bg-noche-lima rounded-2xl shadow-lg overflow-hidden border border-oro-inca/20 hover:shadow-xl hover:border-aji-rojo/50 hover:-translate-y-1 transition-all duration-300">
       <div className="relative aspect-video bg-gradient-to-br from-aji-rojo/20 to-oro-inca/20 flex items-center justify-center overflow-hidden">

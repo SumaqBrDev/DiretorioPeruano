@@ -69,7 +69,7 @@ export const SEO = ({
 
       {/* Hreflang */}
       {hreflangLinks.map((link) => (
-        <link key={link.hreflang} rel="alternate" hreflang={link.hreflang} href={link.href} />
+        <link key={link.hreflang} rel="alternate" hrefLang={link.hreflang} href={link.href} />
       ))}
 
       {/* Open Graph / Facebook */}

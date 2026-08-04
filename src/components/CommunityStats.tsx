@@ -6,7 +6,7 @@ import { SkeletonCard } from './SkeletonCard';
 
 function StatCard({ label, value, suffix }: { label: string; value: number; suffix?: string }) {
   const { t } = useTranslation();
-  const { count, ref, displayValue } = useAnimatedCounter({ end: value, suffix: suffix || '' });
+  const { ref, displayValue } = useAnimatedCounter({ end: value, suffix: suffix || '' });
 
   return (
     <div

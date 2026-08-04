@@ -2,11 +2,11 @@
 // Business reviews section with form to leave reviews, localStorage persistence, and API integration
 
 import { useState, useEffect } from 'react';
-import { useUser } from '@clerk/clerk-react';
+import { useUser, useAuth } from '@clerk/clerk-react';
 import type { DisplayBusiness } from '@/lib/localData';
 import { StarRating } from './StarRating';
 import { InteractiveStarRating } from './InteractiveStarRating';
-import { getReviews, saveReview } from '@/lib/localData';
+import { submitReview } from '@/lib/api';
 
 interface ReviewsSectionProps {
   business: DisplayBusiness;
@@ -25,6 +25,7 @@ interface ReviewDisplay {
 
 export const ReviewsSection = ({ business }: ReviewsSectionProps) => {
   const { user, isLoaded } = useUser();
+  const { getToken } = useAuth();
 
   // Form state
   const [userRating, setUserRating] = useState(0);
@@ -37,31 +38,23 @@ export const ReviewsSection = ({ business }: ReviewsSectionProps) => {
   const [localReviews, setLocalReviews] = useState<ReviewDisplay[]>([]);
 
   const businessId = String(business.id);
-  const localId = business.localId;
   const userId = user?.id || '';
 
   // Load local reviews and check if user already reviewed
+  // Initialize localReviews from the detail's reviews (loaded by parent via API)
   useEffect(() => {
-    const stored = getReviews(localId || businessId);
-    const mapped: ReviewDisplay[] = stored.map((r) => ({
+    const mapped: ReviewDisplay[] = (business.reviews || []).map((r) => ({
       id: r.id,
       author: r.author,
       rating: r.rating,
-      date: new Date(r.createdAt).toLocaleDateString('pt-BR'),
+      date: r.date,
       text: r.text,
-      tags: [],
-      isLocal: true,
+      tags: r.tags || [],
+      isLocal: false,
     }));
     setLocalReviews(mapped);
-
-    if (userId) {
-      const alreadyReviewed = stored.some((r) => r.userId === userId);
-      if (alreadyReviewed) {
-        setHasReviewed(true);
-      }
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localId || businessId, userId]);
+  }, [businessId]);
 
   const [hasReviewed, setHasReviewed] = useState(false);
 
@@ -122,39 +115,26 @@ export const ReviewsSection = ({ business }: ReviewsSectionProps) => {
     setErrors({});
     const userName = getUserName();
 
-    const newReviewPayload = {
-      author: userName,
-      rating: userRating,
-      text: userComment.trim(),
-      userId: userId || 'anonymous',
-    };
-
     try {
-      // 1. Save to localStorage immediately
-      const saved = saveReview(localId || businessId, newReviewPayload);
-
-      // 2. Try API POST (non-blocking)
-      try {
-        await fetch('/api/reviews', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            businessId,
-            ...newReviewPayload,
-          }),
-        });
-      } catch {
-        // API failure is non-blocking — local save succeeded
-        console.log('Review saved locally (API unavailable)');
+      const token = await getToken();
+      if (!token) {
+        setErrors({ comment: 'Sessão expirada. Entre novamente.' });
+        return;
       }
+      await submitReview(token, {
+        rating: userRating,
+        comment: userComment.trim(),
+        businessId,
+        consumerId: userId || 'anonymous',
+      });
 
-      // 3. Add to local reviews immediately for real-time display
+      // Add optimistically for real-time display
       const displayReview: ReviewDisplay = {
-        id: saved.id,
-        author: saved.author,
-        rating: saved.rating,
-        date: new Date(saved.createdAt).toLocaleDateString('pt-BR'),
-        text: saved.text,
+        id: `local-${Date.now()}`,
+        author: userName,
+        rating: userRating,
+        date: new Date().toLocaleDateString('pt-BR'),
+        text: userComment.trim(),
         tags: [],
         isLocal: true,
       };
@@ -167,8 +147,8 @@ export const ReviewsSection = ({ business }: ReviewsSectionProps) => {
 
       // Auto-dismiss success message after 4 seconds
       setTimeout(() => setSuccessMessage(''), 4000);
-    } catch (err) {
-      setErrors({ comment: 'Erro ao enviar avaliação. Tente novamente.' });
+    } catch (err: any) {
+      setErrors({ comment: err?.message || 'Erro ao enviar avaliação. Tente novamente.' });
     } finally {
       setIsSubmitting(false);
     }

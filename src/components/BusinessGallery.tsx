@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { updateBusinessPhotos } from '../lib/localData';
 
 interface BusinessGalleryProps {
   businessId: string;
   photos: string[];
   onPhotosChange: (photos: string[]) => void;
+  /** Optional callback to persist photos server-side (replaces localStorage). */
+  onPersistPhotos?: (businessId: string, photos: string[]) => Promise<void>;
 }
 
 interface FilePreview {
@@ -40,7 +41,7 @@ function nextFileId(): string {
   return `file-${Date.now()}-${fileIdCounter}`;
 }
 
-export const BusinessGallery = ({ businessId, photos, onPhotosChange }: BusinessGalleryProps) => {
+export const BusinessGallery = ({ businessId, photos, onPhotosChange, onPersistPhotos }: BusinessGalleryProps) => {
   const [uploading, setUploading] = useState(false);
   const [overallProgress, setOverallProgress] = useState(0);
   const [filePreviews, setFilePreviews] = useState<FilePreview[]>([]);
@@ -255,11 +256,13 @@ export const BusinessGallery = ({ businessId, photos, onPhotosChange }: Business
       setOverallProgress(Math.round((completedCount / totalFiles) * 100));
     }
 
-    // Update parent with new photos
+    // Update parent with new photos; persist server-side if a persister is provided
     if (uploadedUrls.length > 0) {
       const updatedPhotos = [...photos, ...uploadedUrls];
-      updateBusinessPhotos(businessId, updatedPhotos);
       onPhotosChange(updatedPhotos);
+      if (onPersistPhotos) {
+        await onPersistPhotos(businessId, updatedPhotos);
+      }
     }
 
     // Remove successful previews, keep errors for user to review
@@ -291,8 +294,10 @@ export const BusinessGallery = ({ businessId, photos, onPhotosChange }: Business
     const updated = [...photos];
     const [photo] = updated.splice(index, 1);
     updated.unshift(photo);
-    updateBusinessPhotos(businessId, updated);
     onPhotosChange(updated);
+    if (onPersistPhotos) {
+      void onPersistPhotos(businessId, updated);
+    }
     showToast('Foto definida como portada ⭐', 'success');
   };
 
@@ -311,8 +316,10 @@ export const BusinessGallery = ({ businessId, photos, onPhotosChange }: Business
     }
 
     const updated = photos.filter((p) => p !== url);
-    updateBusinessPhotos(businessId, updated);
     onPhotosChange(updated);
+    if (onPersistPhotos) {
+      void onPersistPhotos(businessId, updated);
+    }
     setConfirmDeleteUrl(null);
     showToast('Foto removida 🗑️', 'success');
   };

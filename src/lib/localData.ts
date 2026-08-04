@@ -57,6 +57,7 @@ export interface DisplayBusiness {
     rating: number;
     date: string;
     text: string;
+    tags?: string[];
   }>;
   localId?: string;
 }
