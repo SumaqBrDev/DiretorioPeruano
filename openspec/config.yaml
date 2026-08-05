@@ -8,8 +8,9 @@ context: |
   HTTP client: Axios.
   Styling: Tailwind CSS 4 (PostCSS plugin via @tailwindcss/postcss).
   Lint: ESLint 8 (main), Oxlint config present.
-  TypeScript strict mode: enabled.
-  No test framework installed. No code formatter detected in devDependencies.
+  TypeScript strict mode: enabled (tsconfig.json strict: true).
+  Test framework: Vitest ^4.1.10 (script: `vitest run tests`; 2 suites in tests/).
+  No code formatter detected in devDependencies.
   Multi-category business directory starting with restaurants.
   Content language: Portuguese (Brazil) for UI and business content.
   i18n planned (PT-BR / ES-PE) but not yet implemented.
@@ -34,11 +35,45 @@ rules:
       - Follow existing code patterns (React 18, TypeScript, Tailwind)
       - Maintain dark/light theme support
       - Keep responsive design (mobile|tablet|desktop)
-    tdd: false
-    test_command: ""
+    # Strict TDD: true (resolved 2026-08-05 by sdd-init). No project marker/config
+    # overrides it; test runner (Vitest) exists and `npm test` runs green -> default true.
+    tdd: true
+    test_command: "npm test"
   verify:
-    test_command: ""
+    test_command: "npm test"
     build_command: "npm run build"
     coverage_threshold: 0
   archive:
     - Warn before merging destructive deltas
+
+testing:
+  strict_tdd: true          # RED-GREEN-REFACTOR enabled (see rules.apply.tdd)
+  detected: "2026-08-05"
+  runner:
+    command: "npm test"
+    framework: "vitest"
+    version: "^4.1.10"
+  layers:
+    unit:
+      available: true
+      tool: "vitest"
+    integration:
+      available: false
+      tool: "—"
+    e2e:
+      available: false
+      tool: "—"
+  coverage:
+    available: false        # no @vitest/coverage-* provider installed
+    command: "—"
+  quality:
+    linter:
+      available: true
+      command: "npm run lint"
+    type_checker:
+      available: true
+      command: "npx tsc --noEmit"
+      note: "Installed and runnable; NOT green on 2026-08-05 (pre-existing errors in src/components/ReviewsSection.tsx, worker-draft.ts, r2-upload-worker/test/index.spec.ts)."
+    formatter:
+      available: false      # no prettier/dprint in devDependencies
+      command: "—"
