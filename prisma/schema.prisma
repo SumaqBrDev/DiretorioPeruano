@@ -45,7 +45,8 @@ model BusinessProfile {
   photos             String[]
   contact            Json?
 
-  status             String   @default("pending") // pending, approved(PENDING/APPROVED), rejected, disabled
+  status             String   @default("pending") // pending, approved, rejected, disabled
+  rating             Float?   // average rating, maintained from approved reviews
 
   // Owner (KYC + billing)
   ownerId            String?  @unique
@@ -80,7 +81,7 @@ model Review {
   id          String          @id @default(dbgenerated("gen_random_uuid()"))
   rating      Int?
   comment     String?
-  status      String          @default("pending") // pending, approved
+  status      String          @default("approved") // approved, pending
   business    BusinessProfile @relation(fields: [businessId], references: [id], onDelete: Cascade)
   businessId  String
   consumer    User            @relation(fields: [consumerId], references: [id], onDelete: Cascade)
@@ -114,4 +115,16 @@ model SiteConfig {
   updatedAt DateTime @updatedAt
 
   @@unique([id])
+}
+
+// Deduplicated Stripe webhook events for idempotent processing (no Redis).
+model WebhookEvent {
+  id            String    @id @default(dbgenerated("gen_random_uuid()"))
+  stripeEventId String    @unique
+  type          String
+  payload       Json?
+  processedAt   DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([type])
 }
