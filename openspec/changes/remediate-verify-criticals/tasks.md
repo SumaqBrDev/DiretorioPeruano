@@ -28,17 +28,17 @@ Chain strategy: pending
 - [x] 1.1 Update `prisma/schema.prisma`: add `rating Float?`, `WebhookEvent` model, rename `stripeSubscriptionId` to `subscriptionId`, remove old field, change Review.status default from `PENDING` to `APPROVED`.
 - [x] 1.2 Update `netlify.toml`: add `npx prisma generate` after `install`.
 - [ ] 1.3 Run `npx prisma migrate dev --name remediate-verify-criticals` locally to apply the schema changes.
-- [ ] 1.4 Run `npx prisma generate` locally to create updated client (automation already added to netlify). 
+- [x] 1.4 Run `npx prisma generate` locally to create updated client (automation already added to netlify). 
 
 ## Phase 2: Core Implementation
 
-- [ ] 2.1 Modify `netlify/functions/reviews.ts`: use `authenticateRequest` to derive Clerk `consumerId`, set status default to `APPROVED` in the Prisma create.
-- [ ] 2.2 Update `netlify/functions/businesses.ts`: add handling of `cnpj`, `ownerFullName`, `ownerBirthCity`; invoke `validateCnpj`, persist on success; reject with 400 on validation failure.
-- [ ] 2.3 Extend `netlify/functions/businesses.ts`: add `minRating` query param; filter `BusinessProfile` where `rating >= minRating` and exclude `rating == null`.
-- [ ] 2.4 Update `netlify/functions/stripe-webhook.ts`: create/update `WebhookEvent` table entry for each event, check for duplicate stripeEventId; set `disabledAt` and status `DISABLED` on subscription deletion; use new `subscriptionId` fields.
-- [ ] 2.5 Update all admin functions (`admin-approve.ts`, `admin-delete.ts`, `admin-business-detail.ts`, `admin-beta-mode.ts`, `stripe-portal.ts`) to use `subscriptionId` instead of `stripeSubscriptionId` and add guard `requireBusinessOwner` / `requireSuperAdmin` on portal.
-- [ ] 2.6 Modify `src/pages/MeuNegocio.tsx`: render read‑only UI, banner and portal link when `status === 'disabled'`; enforce 403 on non‑owner access.
-- [ ] 2.7 Ensure all imports of `stripeSubscriptionId` are renamed to `subscriptionId` across the codebase.
+- [x] 2.1 Modify `netlify/functions/reviews.ts`: use `authenticateRequest` to derive Clerk `consumerId`, set status default to `APPROVED` in the Prisma create.
+- [x] 2.2 Update `netlify/functions/businesses.ts`: add handling of `cnpj`, `ownerFullName`, `ownerBirthCity`; invoke `validateCnpj`, persist on success; reject with 400 on validation failure.
+- [x] 2.3 Extend `netlify/functions/businesses.ts`: add `minRating` query param; filter `BusinessProfile` where `rating >= minRating` and exclude `rating == null`.
+- [x] 2.4 Update `netlify/functions/stripe-webhook.ts`: create/update `WebhookEvent` table entry for each event, check for duplicate stripeEventId; set `disabledAt` and status `DISABLED` on subscription deletion; use new `subscriptionId` fields.
+- [x] 2.5 Update all admin functions (`admin-approve.ts`, `admin-delete.ts`, `admin-business-detail.ts`, `admin-beta-mode.ts`, `stripe-portal.ts`) to use `subscriptionId` instead of `stripeSubscriptionId` and add guard `requireBusinessOwner` / `requireSuperAdmin` on portal.
+- [x] 2.6 Modify `src/pages/MeuNegocio.tsx`: render read‑only UI, banner and portal link when `status === 'disabled'`; enforce 403 on non‑owner access.
+- [x] 2.7 Ensure all imports of `stripeSubscriptionId` are renamed to `subscriptionId` across the codebase.
 
 ## Phase 3: TypeScript Error Remediation
 
