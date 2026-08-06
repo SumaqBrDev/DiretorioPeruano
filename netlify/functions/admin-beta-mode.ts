@@ -81,7 +81,7 @@ export const handler = async (event: any) => {
         const approvedBusinesses = await prisma.businessProfile.findMany({
           where: {
             status: 'approved',
-            stripeSubscriptionId: null,
+            subscriptionId: null,
           },
           include: {
             owner: {
@@ -124,7 +124,7 @@ export const handler = async (event: any) => {
               where: { id: biz.id },
               data: {
                 stripeCustomerId: customer.id,
-                stripeSubscriptionId: subscription.id,
+                subscriptionId: subscription.id,
                 subscriptionStatus: 'trial',
                 trialEndsAt: trialEnd,
               },

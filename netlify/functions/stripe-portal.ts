@@ -1,5 +1,6 @@
 import prisma from './lib/prisma';
 import Stripe from 'stripe';
+import { requireBusinessOwner, requireSuperAdmin } from './lib/auth';
 
 const headers = {
   'Content-Type': 'application/json',
@@ -32,6 +33,20 @@ export const handler = async (event: any) => {
         headers,
         body: JSON.stringify({ error: 'businessId requerido' }),
       };
+    }
+
+    // Auth guard: require business owner OR superadmin
+    const ownerAuth = await requireBusinessOwner(event, businessId);
+    if (!ownerAuth.ok) {
+      // If not the owner, check if superadmin
+      const adminAuth = await requireSuperAdmin(event);
+      if (!adminAuth.ok) {
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({ error: 'Acceso denegado — debe ser propietario del negocio o superadmin.' }),
+        };
+      }
     }
 
     // Fetch the business to get the Stripe customer ID

@@ -59,7 +59,7 @@ export const handler = async (event: any) => {
       select: {
         id: true,
         stripeCustomerId: true,
-        stripeSubscriptionId: true,
+        subscriptionId: true,
         name: true,
       },
     });
@@ -73,17 +73,17 @@ export const handler = async (event: any) => {
     }
 
     // Cancel Stripe subscription if exists
-    if (business.stripeSubscriptionId) {
+    if (business.subscriptionId) {
       try {
         const stripe = getStripe();
-        await stripe.subscriptions.update(business.stripeSubscriptionId, {
+        await stripe.subscriptions.update(business.subscriptionId, {
           cancel_at_period_end: true,
           metadata: {
             cancelledBy: 'superadmin',
             businessId: businessId,
           },
         });
-        console.log(`Stripe subscription ${business.stripeSubscriptionId} marked for cancellation`);
+        console.log(`Stripe subscription ${business.subscriptionId} marked for cancellation`);
       } catch (stripeError: any) {
         console.error('Error cancelling Stripe subscription:', stripeError);
         // Don't block deletion if Stripe cancel fails

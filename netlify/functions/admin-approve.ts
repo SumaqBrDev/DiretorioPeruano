@@ -90,7 +90,7 @@ export const handler = async (event: any) => {
     const betaMode = siteConfig?.betaMode ?? true;
 
     let stripeCustomerId = business.stripeCustomerId;
-    let stripeSubscriptionId = business.stripeSubscriptionId;
+    let subscriptionId = business.subscriptionId;
     let trialEndsAt: Date | null = null;
 
     // Only create Stripe customer + subscription if NOT in beta mode
@@ -125,7 +125,7 @@ export const handler = async (event: any) => {
           },
         });
 
-        stripeSubscriptionId = subscription.id;
+        subscriptionId = subscription.id;
 
         // Calculate trial end date
         trialEndsAt = new Date();
@@ -146,7 +146,7 @@ export const handler = async (event: any) => {
         approvedAt: now,
         subscriptionStatus: betaMode ? 'none' : 'trial',
         ...(stripeCustomerId ? { stripeCustomerId } : {}),
-        ...(stripeSubscriptionId ? { stripeSubscriptionId } : {}),
+        ...(subscriptionId ? { subscriptionId } : {}),
         ...(trialEndsAt ? { trialEndsAt } : {}),
       },
       include: {
@@ -182,12 +182,12 @@ export const handler = async (event: any) => {
           approvedAt: updatedBusiness.approvedAt,
           subscriptionStatus: updatedBusiness.subscriptionStatus,
           stripeCustomerId: updatedBusiness.stripeCustomerId,
-          stripeSubscriptionId: updatedBusiness.stripeSubscriptionId,
+          subscriptionId: updatedBusiness.subscriptionId,
           trialEndsAt: updatedBusiness.trialEndsAt,
         },
-        subscription: stripeSubscriptionId
+        subscription: subscriptionId
           ? {
-              id: stripeSubscriptionId,
+              id: subscriptionId,
               customerId: stripeCustomerId,
               trialEndsAt: trialEndsAt,
               priceId: STRIPE_PRICE_ID,
