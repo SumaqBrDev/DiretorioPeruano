@@ -2,6 +2,7 @@ import prisma from './lib/prisma';
 import Stripe from 'stripe';
 import { mapSubscriptionStatus } from './lib/subscription';
 import { sendPaymentFailedEmail, sendTrialEndingEmail } from './lib/email';
+import { checkIdempotency, markEventProcessed } from './lib/webhook-events';
 
 const headers = {
   'Content-Type': 'application/json',
@@ -38,6 +39,7 @@ async function syncSubscriptionStatus(subscription: Stripe.Subscription): Promis
           where: { id: business.id },
           data: {
             subscriptionStatus: newStatus,
+            subscriptionId: subscription.id,
             trialEndsAt: subscription.trial_end
               ? new Date(subscription.trial_end * 1000)
               : undefined,
@@ -55,6 +57,7 @@ async function syncSubscriptionStatus(subscription: Stripe.Subscription): Promis
     where: { id: businessId },
     data: {
       subscriptionStatus: newStatus,
+      subscriptionId: subscription.id,
       trialEndsAt: subscription.trial_end
         ? new Date(subscription.trial_end * 1000)
         : undefined,
@@ -126,12 +129,14 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription): Pro
   await prisma.businessProfile.update({
     where: { id: business.id },
     data: {
+      status: 'disabled',
       subscriptionStatus: 'canceled',
-      stripeSubscriptionId: null,
+      subscriptionId: null,
+      disabledAt: new Date(),
     },
   });
 
-  console.log(`Business ${business.id} subscription canceled`);
+  console.log(`Business ${business.id} subscription deleted — status set to disabled`);
 }
 
 export const handler = async (event: any) => {
@@ -170,23 +175,37 @@ export const handler = async (event: any) => {
       };
     }
 
+    // Idempotency: skip if this event was already processed
+    const existing = await checkIdempotency(stripeEvent.id);
+    if (existing) {
+      console.log(`Skipping already-processed event ${stripeEvent.id} (${stripeEvent.type})`);
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ received: true, duplicate: true }),
+      };
+    }
+
     // Handle specific event types
     switch (stripeEvent.type) {
       case 'invoice.payment_failed': {
         const invoice = stripeEvent.data.object as Stripe.Invoice;
         await handleInvoicePaymentFailed(invoice);
+        await markEventProcessed(stripeEvent.id, stripeEvent.type, stripeEvent.data.object);
         break;
       }
 
       case 'customer.subscription.updated': {
         const subscription = stripeEvent.data.object as Stripe.Subscription;
         await syncSubscriptionStatus(subscription);
+        await markEventProcessed(stripeEvent.id, stripeEvent.type, stripeEvent.data.object);
         break;
       }
 
       case 'customer.subscription.deleted': {
         const subscription = stripeEvent.data.object as Stripe.Subscription;
         await handleSubscriptionDeleted(subscription);
+        await markEventProcessed(stripeEvent.id, stripeEvent.type, stripeEvent.data.object);
         break;
       }
 
@@ -213,6 +232,7 @@ export const handler = async (event: any) => {
             );
           }
         }
+        await markEventProcessed(stripeEvent.id, stripeEvent.type, stripeEvent.data.object);
         break;
       }
 
@@ -235,11 +255,14 @@ export const handler = async (event: any) => {
             console.log(`Payment succeeded for business ${business.id}, status set to active`);
           }
         }
+        await markEventProcessed(stripeEvent.id, stripeEvent.type, stripeEvent.data.object);
         break;
       }
 
       default:
         console.log(`Unhandled event type: ${stripeEvent.type}`);
+        // Still mark unhandled events as processed to avoid re-processing
+        await markEventProcessed(stripeEvent.id, stripeEvent.type, stripeEvent.data.object);
     }
 
     // Always return 200 to Stripe
