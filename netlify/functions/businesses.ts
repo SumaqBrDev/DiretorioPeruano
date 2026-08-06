@@ -1,4 +1,5 @@
 import prisma from './lib/prisma';
+import { validateCnpj } from './lib/cnpj';
 
 export const handler = async (event: any) => {
   const headers = {
@@ -11,7 +12,7 @@ export const handler = async (event: any) => {
   if (event.httpMethod === 'POST') {
     try {
       const body = JSON.parse(event.body || '{}');
-      const { name, description, category, address, tags, photos, ownerId, contact } = body;
+      const { name, description, category, address, tags, photos, ownerId, contact, cnpj, ownerFullName, ownerBirthCity } = body;
 
       if (!name || !description || !ownerId) {
         return {
@@ -19,6 +20,21 @@ export const handler = async (event: any) => {
           headers,
           body: JSON.stringify({ error: 'Campos obrigatórios: name, description, ownerId' }),
         };
+      }
+
+      // KYC: when a CNPJ is provided it must be valid; otherwise the KYC
+      // fields stay null (they MAY be null until the business is approved).
+      let normalizedCnpj: string | null = null;
+      if (cnpj) {
+        const result = await validateCnpj(cnpj);
+        if (!result.valid) {
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ error: 'CNPJ inválido' }),
+          };
+        }
+        normalizedCnpj = String(cnpj).replace(/\D/g, '');
       }
 
       const business = await prisma.businessProfile.create({
@@ -32,6 +48,9 @@ export const handler = async (event: any) => {
           contact: contact || {},
           ownerId,
           status: 'pending',
+          cnpj: normalizedCnpj,
+          ownerFullName: ownerFullName || null,
+          ownerBirthCity: ownerBirthCity || null,
         },
       });
 
@@ -74,6 +93,14 @@ export const handler = async (event: any) => {
         where.address = { path: ['city'], string_contains: city };
       }
 
+      if (minRating) {
+        const min = Number(minRating);
+        if (!Number.isNaN(min)) {
+          // gte excludes NULL ratings: businesses without reviews never match
+          where.rating = { gte: min };
+        }
+      }
+
       const businesses = await prisma.businessProfile.findMany({
         where,
         take: 50,
@@ -90,7 +117,7 @@ export const handler = async (event: any) => {
         city: (b.address as any)?.city || '',
         state: (b.address as any)?.state || '',
         address: (b.address as any)?.street || '',
-        rating: 0,
+        rating: b.rating ?? 0,
         reviewsCount: b._count.reviews,
         tags: b.tags || [],
         coverImage: b.photos?.[0] || '',
