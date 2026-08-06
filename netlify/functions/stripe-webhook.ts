@@ -176,9 +176,14 @@ export const handler = async (event: any) => {
     }
 
     // Idempotency: skip if this event was already processed
-    const existing = await checkIdempotency(stripeEvent.id);
+    const eventId = stripeEvent.id || '';
+    if (!eventId) {
+      console.warn('Stripe event has no id, cannot enforce idempotency — processing anyway');
+    }
+
+    const existing = eventId ? await checkIdempotency(eventId) : null;
     if (existing) {
-      console.log(`Skipping already-processed event ${stripeEvent.id} (${stripeEvent.type})`);
+      console.log(`Skipping already-processed event ${eventId} (${stripeEvent.type})`);
       return {
         statusCode: 200,
         headers,
@@ -191,21 +196,21 @@ export const handler = async (event: any) => {
       case 'invoice.payment_failed': {
         const invoice = stripeEvent.data.object as Stripe.Invoice;
         await handleInvoicePaymentFailed(invoice);
-        await markEventProcessed(stripeEvent.id, stripeEvent.type, stripeEvent.data.object);
+        await markEventProcessed(eventId, stripeEvent.type, stripeEvent.data.object);
         break;
       }
 
       case 'customer.subscription.updated': {
         const subscription = stripeEvent.data.object as Stripe.Subscription;
         await syncSubscriptionStatus(subscription);
-        await markEventProcessed(stripeEvent.id, stripeEvent.type, stripeEvent.data.object);
+        await markEventProcessed(eventId, stripeEvent.type, stripeEvent.data.object);
         break;
       }
 
       case 'customer.subscription.deleted': {
         const subscription = stripeEvent.data.object as Stripe.Subscription;
         await handleSubscriptionDeleted(subscription);
-        await markEventProcessed(stripeEvent.id, stripeEvent.type, stripeEvent.data.object);
+        await markEventProcessed(eventId, stripeEvent.type, stripeEvent.data.object);
         break;
       }
 
@@ -232,7 +237,7 @@ export const handler = async (event: any) => {
             );
           }
         }
-        await markEventProcessed(stripeEvent.id, stripeEvent.type, stripeEvent.data.object);
+        await markEventProcessed(eventId, stripeEvent.type, stripeEvent.data.object);
         break;
       }
 
@@ -255,14 +260,14 @@ export const handler = async (event: any) => {
             console.log(`Payment succeeded for business ${business.id}, status set to active`);
           }
         }
-        await markEventProcessed(stripeEvent.id, stripeEvent.type, stripeEvent.data.object);
+        await markEventProcessed(eventId, stripeEvent.type, stripeEvent.data.object);
         break;
       }
 
       default:
         console.log(`Unhandled event type: ${stripeEvent.type}`);
         // Still mark unhandled events as processed to avoid re-processing
-        await markEventProcessed(stripeEvent.id, stripeEvent.type, stripeEvent.data.object);
+        await markEventProcessed(eventId, stripeEvent.type, stripeEvent.data.object);
     }
 
     // Always return 200 to Stripe
