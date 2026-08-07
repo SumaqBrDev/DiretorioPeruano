@@ -67,6 +67,14 @@ export const handler = async (event: any) => {
 
     const data = Buffer.from(res);
     console.log(`[blob-image] key=${key} bytes=${data.length}`);
+    if (event.queryStringParameters?.raw === '1') {
+      // Raw body (no base64 flag) — diagnostic path for the serving issue.
+      return {
+        statusCode: 200,
+        headers: { ...baseHeaders, 'Content-Type': mimeFromKey(key), 'Cache-Control': 'public, max-age=3600' },
+        body: data.toString('latin1'),
+      };
+    }
     return {
       statusCode: 200,
       headers: {
