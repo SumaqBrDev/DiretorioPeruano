@@ -53,16 +53,9 @@ export const handler = async (event: any) => {
 
   try {
     const store = getStore(storeName);
-    const debug = event.queryStringParameters?.debug === '1';
-    let res: any;
-    try {
-      res = await store.get(key, { type: 'text' });
-    } catch (e: any) {
-      if (debug) {
-        return { statusCode: 200, headers: baseHeaders, body: JSON.stringify({ diag: 'get threw', message: e.message }) };
-      }
-      throw e;
-    }
+    // NOTE: only `type: 'text'` works reliably in this deployed runtime —
+    // 'arrayBuffer' and 'stream' came back empty (zip-it-and-ship-it bundling).
+    const res = await store.get(key, { type: 'text' });
 
     if (!res) {
       return {
@@ -73,10 +66,7 @@ export const handler = async (event: any) => {
     }
 
     const data = Buffer.from(res);
-    console.log(`[blob-image] key=${key} ctx=${!!process.env.NETLIFY_BLOBS_CONTEXT} bytes=${data.length}`);
-    if (debug) {
-      return { statusCode: 200, headers: baseHeaders, body: JSON.stringify({ diag: 'ok', bytes: data.length, typeofRes: typeof res, ctx: !!process.env.NETLIFY_BLOBS_CONTEXT }) };
-    }
+    console.log(`[blob-image] key=${key} bytes=${data.length}`);
     return {
       statusCode: 200,
       headers: {
