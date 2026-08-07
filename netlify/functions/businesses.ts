@@ -60,11 +60,19 @@ export const handler = async (event: any) => {
         body: JSON.stringify(business),
       };
     } catch (error: any) {
+      // cnpj is UNIQUE in the schema: duplicate → friendly 409, no leak.
+      if (error?.code === 'P2002') {
+        return {
+          statusCode: 409,
+          headers,
+          body: JSON.stringify({ error: 'CNPJ já cadastrado' }),
+        };
+      }
       console.error('Error creating business:', error);
       return {
         statusCode: 500,
         headers,
-        body: JSON.stringify({ error: 'Erro ao criar negócio', details: error.message }),
+        body: JSON.stringify({ error: 'Erro ao criar negócio' }),
       };
     }
   }
