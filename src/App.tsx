@@ -49,6 +49,9 @@ function AppRoutes() {
             <Route path="/cadastrar" element={<Login />} />
             <Route path="/privacidade" element={<Privacidade />} />
             <Route path="/termos" element={<Termos />} />
+            {/* Legacy billing link (older emails/portal return URLs) — the
+                subscription UI lives in the owner panel. */}
+            <Route path="/admin/facturacion" element={<Navigate to="/meu-negocio" replace />} />
           </Routes>
         </main>
         <CookieBanner />

@@ -49,7 +49,7 @@ export async function sendApprovalEmail(
               <p>No se realizará ningún cobro durante el período de prueba. Puedes cancelar en cualquier momento.</p>
             </div>
             <p>Accede a tu panel de administración para gestionar tu perfil, responder reseñas y más.</p>
-            <a href="${APP_URL}/admin" style="display: inline-block; background-color: #1a73e8; color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; margin-top: 10px;">
+            <a href="${APP_URL}/meu-negocio" style="display: inline-block; background-color: #1a73e8; color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; margin-top: 10px;">
               Ir al Panel
             </a>
           </div>
@@ -141,7 +141,7 @@ export async function sendTrialEndingEmail(
               <p><strong>Plan:</strong> Premium — R$ 59,00/mes</p>
               <p>Si no deseas continuar, puedes cancelar desde tu panel de administración.</p>
             </div>
-            <a href="${APP_URL}/admin/facturacion" style="display: inline-block; background-color: #c2410c; color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; margin-top: 10px;">
+            <a href="${APP_URL}/meu-negocio" style="display: inline-block; background-color: #c2410c; color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; margin-top: 10px;">
               Gestionar Suscripción
             </a>
           </div>
@@ -181,7 +181,7 @@ export async function sendPaymentFailedEmail(
             <p>Hola,</p>
             <p>Hemos tenido un problema al procesar el pago de tu suscripción para <strong>${businessName}</strong>.</p>
             <p>Por favor, actualiza tu método de pago para evitar la suspensión del servicio.</p>
-            <a href="${APP_URL}/admin/facturacion" style="display: inline-block; background-color: #dc2626; color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; margin-top: 10px;">
+            <a href="${APP_URL}/meu-negocio" style="display: inline-block; background-color: #dc2626; color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; margin-top: 10px;">
               Actualizar Método de Pago
             </a>
           </div>

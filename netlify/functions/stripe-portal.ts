@@ -77,7 +77,7 @@ export const handler = async (event: any) => {
     // Create Stripe Billing Portal session
     const session = await stripe.billingPortal.sessions.create({
       customer: business.stripeCustomerId,
-      return_url: `${event.headers?.origin || process.env.APP_URL || 'https://conectaperu.com'}/admin/facturacion`,
+      return_url: `${event.headers?.origin || process.env.APP_URL || 'https://conectaperu.com'}/meu-negocio`,
       flow_data: {
         type: 'subscription_cancel',
         subscription_cancel: {
