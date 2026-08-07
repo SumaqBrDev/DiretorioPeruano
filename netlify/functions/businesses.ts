@@ -1,5 +1,6 @@
 import prisma from './lib/prisma';
 import { validateCnpj } from './lib/cnpj';
+import { authenticateRequest } from './lib/auth';
 
 export const handler = async (event: any) => {
   const headers = {
@@ -8,13 +9,32 @@ export const handler = async (event: any) => {
     'X-Content-Type-Options': 'nosniff',
   };
 
-  // POST — Create a new business
+  // POST — Create a new business (authenticated owner; owner derived from token)
   if (event.httpMethod === 'POST') {
     try {
-      const body = JSON.parse(event.body || '{}');
-      const { name, description, category, address, tags, photos, ownerId, contact, cnpj, ownerFullName, ownerBirthCity } = body;
+      const auth = await authenticateRequest(event);
+      if (!auth.ok) {
+        return {
+          statusCode: auth.statusCode || 401,
+          headers,
+          body: JSON.stringify({ error: auth.error || 'No autorizado' }),
+        };
+      }
+      const owner = await prisma.user.findUnique({
+        where: { clerkId: auth.clerkId! },
+      });
+      if (!owner) {
+        return {
+          statusCode: 401,
+          headers,
+          body: JSON.stringify({ error: 'Usuário não encontrado' }),
+        };
+      }
 
-      if (!name || !description || !ownerId) {
+      const body = JSON.parse(event.body || '{}');
+      const { name, description, category, address, tags, photos, contact, cnpj, ownerFullName, ownerBirthCity } = body;
+
+      if (!name || !description) {
         return {
           statusCode: 400,
           headers,
@@ -46,7 +66,7 @@ export const handler = async (event: any) => {
           tags: tags || [],
           photos: photos || [],
           contact: contact || {},
-          ownerId,
+          ownerId: owner.id,
           status: 'pending',
           cnpj: normalizedCnpj,
           ownerFullName: ownerFullName || null,

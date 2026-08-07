@@ -8,6 +8,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('../netlify/functions/lib/prisma', () => ({
   default: {
     businessProfile: { create: vi.fn(), findMany: vi.fn() },
+    user: { findUnique: vi.fn() },
   },
 }));
 
@@ -15,10 +16,17 @@ vi.mock('../netlify/functions/lib/cnpj', () => ({
   validateCnpj: vi.fn(),
 }));
 
+vi.mock('../netlify/functions/lib/auth', () => ({
+  authenticateRequest: vi.fn(),
+}));
+
 import { handler } from '../netlify/functions/businesses';
 import prisma from '../netlify/functions/lib/prisma';
 import { validateCnpj } from '../netlify/functions/lib/cnpj';
+import { authenticateRequest } from '../netlify/functions/lib/auth';
 
+const authMock = vi.mocked(authenticateRequest);
+const userFindMock = vi.mocked(prisma.user.findUnique);
 const validateCnpjMock = vi.mocked(validateCnpj);
 const createMock = vi.mocked(prisma.businessProfile.create);
 const findManyMock = vi.mocked(prisma.businessProfile.findMany);
@@ -26,6 +34,8 @@ const findManyMock = vi.mocked(prisma.businessProfile.findMany);
 describe('POST /api/businesses — KYC wiring', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    authMock.mockResolvedValue({ ok: true, clerkId: 'user_clerk_1', claims: { clerkId: 'user_clerk_1' } } as any);
+    userFindMock.mockResolvedValue({ id: 'user-db-id' } as any);
     createMock.mockImplementation((args) =>
       Promise.resolve({ id: 'b1', createdAt: new Date(), ...args.data }) as any
     );
