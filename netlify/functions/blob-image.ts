@@ -53,7 +53,16 @@ export const handler = async (event: any) => {
 
   try {
     const store = getStore(storeName);
-    const res = await store.get(key, { type: 'stream' });
+    const debug = event.queryStringParameters?.debug === '1';
+    let res: any;
+    try {
+      res = await store.get(key, { type: 'text' });
+    } catch (e: any) {
+      if (debug) {
+        return { statusCode: 200, headers: baseHeaders, body: JSON.stringify({ diag: 'get threw', message: e.message }) };
+      }
+      throw e;
+    }
 
     if (!res) {
       return {
@@ -63,13 +72,11 @@ export const handler = async (event: any) => {
       };
     }
 
-    const chunks: Buffer[] = [];
-    // @ts-expect-error - ReadableStream of Uint8Array (Node 18+ web streams)
-    for await (const chunk of res.data) {
-      chunks.push(Buffer.from(chunk));
-    }
-    const data = Buffer.concat(chunks);
+    const data = Buffer.from(res);
     console.log(`[blob-image] key=${key} ctx=${!!process.env.NETLIFY_BLOBS_CONTEXT} bytes=${data.length}`);
+    if (debug) {
+      return { statusCode: 200, headers: baseHeaders, body: JSON.stringify({ diag: 'ok', bytes: data.length, typeofRes: typeof res, ctx: !!process.env.NETLIFY_BLOBS_CONTEXT }) };
+    }
     return {
       statusCode: 200,
       headers: {
