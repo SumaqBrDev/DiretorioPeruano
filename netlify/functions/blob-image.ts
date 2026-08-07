@@ -53,9 +53,9 @@ export const handler = async (event: any) => {
 
   try {
     const store = getStore(storeName);
-    const blob = await store.get(key, { type: 'arrayBuffer' });
+    const buf = await store.get(key, { type: 'arrayBuffer' });
 
-    if (!blob) {
+    if (!buf) {
       return {
         statusCode: 404,
         headers: baseHeaders,
@@ -63,7 +63,7 @@ export const handler = async (event: any) => {
       };
     }
 
-    const data = Buffer.from(blob.data as ArrayBuffer);
+    const data = Buffer.from(buf);
     return {
       statusCode: 200,
       headers: {
@@ -71,7 +71,6 @@ export const handler = async (event: any) => {
         'Content-Type': mimeFromKey(key),
         'Content-Length': String(data.length),
         'Cache-Control': 'public, max-age=3600',
-        ETag: blob.etag || undefined,
       },
       body: data.toString('base64'),
       isBase64Encoded: true,
