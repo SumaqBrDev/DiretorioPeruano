@@ -51,6 +51,7 @@ export const handler = async (event: any) => {
       select: {
         id: true,
         stripeCustomerId: true,
+        subscriptionId: true,
         name: true,
       },
     });
