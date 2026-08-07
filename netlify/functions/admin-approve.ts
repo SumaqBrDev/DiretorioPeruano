@@ -1,5 +1,5 @@
 import prisma from './lib/prisma';
-import Stripe from 'stripe';
+import { getStripe } from './lib/stripe';
 import { sendApprovalEmail } from './lib/email';
 import { requireSuperAdmin } from './lib/auth';
 
@@ -9,21 +9,8 @@ const headers = {
   'X-Content-Type-Options': 'nosniff',
 };
 
-const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const STRIPE_PRICE_ID = process.env.STRIPE_PRICE_ID || 'price_59_brl_monthly';
 const STRIPE_TRIAL_DAYS = parseInt(process.env.STRIPE_TRIAL_DAYS || '30', 10);
-
-let stripeInstance: Stripe | null = null;
-
-function getStripe(): Stripe {
-  if (!stripeInstance) {
-    stripeInstance = new Stripe(STRIPE_SECRET_KEY, {
-      apiVersion: '2025-03-01.basil',
-    });
-  }
-  return stripeInstance;
-}
-
 
 export const handler = async (event: any) => {
   if (event.httpMethod !== 'POST') {
@@ -75,6 +62,14 @@ export const handler = async (event: any) => {
       };
     }
 
+    if (!business.owner) {
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ error: 'Negocio sin propietario registrado' }),
+      };
+    }
+
     if (business.status === 'approved') {
       return {
         statusCode: 400,
@@ -101,8 +96,8 @@ export const handler = async (event: any) => {
         // Create Stripe Customer if not exists
         if (!stripeCustomerId) {
           const customer = await stripe.customers.create({
-            email: business.owner.email,
-            name: business.name,
+            email: business.owner.email ?? undefined,
+            name: business.name ?? undefined,
             metadata: {
               businessId: business.id,
               ownerId: business.ownerId,
@@ -157,7 +152,7 @@ export const handler = async (event: any) => {
     });
 
     // Send approval email
-    const ownerEmail = business.owner.email;
+    const ownerEmail = business.owner.email ?? '';
     const ownerName = business.owner.name || business.ownerFullName || 'Usuario';
     const formattedTrialEnd = trialEndsAt
       ? trialEndsAt.toLocaleDateString('es-PE', {
@@ -169,7 +164,7 @@ export const handler = async (event: any) => {
         ? 'No aplica (modo beta)'
         : '30 días desde ahora';
 
-    await sendApprovalEmail(ownerEmail, business.name, ownerName, formattedTrialEnd);
+    await sendApprovalEmail(ownerEmail, business.name ?? '', ownerName, formattedTrialEnd);
 
     return {
       statusCode: 200,

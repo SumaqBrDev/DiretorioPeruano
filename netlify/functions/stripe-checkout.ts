@@ -1,5 +1,5 @@
 import prisma from './lib/prisma';
-import Stripe from 'stripe';
+import { getStripe } from './lib/stripe';
 import { requireBusinessOwner } from './lib/auth';
 
 const headers = {
@@ -8,13 +8,10 @@ const headers = {
   'X-Content-Type-Options': 'nosniff',
 };
 
-const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const STRIPE_PRICE_ID = process.env.STRIPE_PRICE_ID || 'price_59_brl_monthly';
 const STRIPE_TRIAL_DAYS = parseInt(process.env.STRIPE_TRIAL_DAYS || '30', 10);
 
-const stripe = new Stripe(STRIPE_SECRET_KEY, {
-  apiVersion: '2025-03-01.basil',
-});
+const stripe = getStripe();
 
 export const handler = async (event: any) => {
   if (event.httpMethod !== 'POST') {
@@ -63,6 +60,14 @@ export const handler = async (event: any) => {
       };
     }
 
+    if (!business.owner) {
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ error: 'Negocio sin propietario registrado' }),
+      };
+    }
+
     if (business.status !== 'approved') {
       return {
         statusCode: 400,
@@ -100,8 +105,8 @@ export const handler = async (event: any) => {
     let customerId = business.stripeCustomerId;
     if (!customerId) {
       const customer = await stripe.customers.create({
-        email: business.owner.email,
-        name: business.name,
+        email: business.owner.email ?? undefined,
+        name: business.name ?? undefined,
         metadata: {
           businessId: business.id,
           ownerId: business.ownerId,
