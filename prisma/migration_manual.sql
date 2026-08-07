@@ -62,3 +62,7 @@ BEGIN
     ALTER TABLE "Review" ADD CONSTRAINT review_consumer_business_unique UNIQUE ("consumerId", "businessId");
   END IF;
 END $$;
+
+-- BUG-019 schema drift: Message table was missing archived/deletedAt columns.
+ALTER TABLE "Message" ADD COLUMN IF NOT EXISTS archived BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "Message" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP;
