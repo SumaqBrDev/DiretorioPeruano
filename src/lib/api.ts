@@ -144,17 +144,6 @@ export async function adminSetBetaMode(token: string, betaMode: boolean) {
   });
 }
 
-/** Migrate localStorage data (businesses/reviews/conversations) to the API. */
-export async function migrateLocalStorage(
-  token: string,
-  data: { businesses?: unknown[]; reviews?: unknown[]; conversations?: unknown[] }
-): Promise<{ report: { migrated: { businesses: number; reviews: number; conversations: number } } }> {
-  return request('migrate-localstorage', token, {
-    method: 'POST',
-    body: data,
-  });
-}
-
 export { ApiError };
 
 // ── "My business" (authenticated owner) ──

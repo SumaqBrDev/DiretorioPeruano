@@ -9,7 +9,6 @@ import {
   adminDelete,
   adminGetBetaMode,
   adminSetBetaMode,
-  migrateLocalStorage,
   type ApiBusiness as Business,
 } from '../lib/api';
 
@@ -437,7 +436,6 @@ export const SuperAdmin = () => {
 
   // Toast state
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-  const [migrating, setMigrating] = useState(false);
   const closeToast = useCallback(() => setToast(null), []);
 
   // Load data + beta mode from API (Clerk token verified server-side)
@@ -553,49 +551,6 @@ export const SuperAdmin = () => {
       setToast({ message: err?.message || 'Erro ao alterar modo beta.', type: 'error' });
     }
   }, [getToken, betaMode, refresh]);
-
-  const handleMigrate = useCallback(async () => {
-    try {
-      setMigrating(true);
-      const token = await getToken();
-      if (!token) throw new Error('Sem sessão');
-
-      // Read localStorage data (the keys used by localData.ts)
-      const read = (k: string) => {
-        try {
-          const raw = localStorage.getItem(k);
-          return raw ? JSON.parse(raw) : [];
-        } catch {
-          return [];
-        }
-      };
-      const businesses = read('diretorio_peruano_businesses');
-      const reviews = read('diretorio_peruano_reviews');
-      const conversations = read('diretorio_peruano_conversations');
-
-      const total = businesses.length + reviews.length + conversations.length;
-      if (total === 0) {
-        setToast({ message: 'Nenhum dado local para migrar.', type: 'error' });
-        return;
-      }
-
-      if (!window.confirm(`Migrar ${businesses.length} negócios, ${reviews.length} avaliações e ${conversations.length} conversas para a API?`)) {
-        return;
-      }
-
-      const res = await migrateLocalStorage(token, { businesses, reviews, conversations });
-      const m = res.report?.migrated;
-      setToast({
-        message: `Migração concluída: ${m?.businesses ?? 0} negócios, ${m?.reviews ?? 0} avaliações, ${m?.conversations ?? 0} conversas. ✅`,
-        type: 'success',
-      });
-      await refresh();
-    } catch (err: any) {
-      setToast({ message: err?.message || 'Erro ao migrar dados.', type: 'error' });
-    } finally {
-      setMigrating(false);
-    }
-  }, [getToken, refresh]);
 
 
   // Compute stats
@@ -722,14 +677,6 @@ export const SuperAdmin = () => {
         >
           <span className="text-lg">{betaMode ? '🟡' : '🟢'}</span>
           {betaMode ? 'Modo Beta' : 'Produção'}
-        </button>
-        <button
-          onClick={handleMigrate}
-          disabled={migrating}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-        >
-          <span className="text-lg">📦</span>
-          {migrating ? 'Migrando...' : 'Migrar Dados'}
         </button>
       </div>
 
