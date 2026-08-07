@@ -189,7 +189,7 @@ export const handler = async (event: any) => {
       await store.set(key, new Blob([new Uint8Array(file.data)], { type: file.contentType }));
 
       // Construct the blob URL
-      const url = `/.netlify/blobs/${STORE_NAME}/${key}`;
+      const url = `/api/blob-image?store=${encodeURIComponent(STORE_NAME)}&key=${encodeURIComponent(key)}`;
 
       results.push({ url, key });
       console.log(`✅ Image uploaded: ${key} (${file.data.length} bytes)`);
