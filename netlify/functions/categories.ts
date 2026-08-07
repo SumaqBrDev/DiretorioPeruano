@@ -16,7 +16,7 @@ export const handler = async (event: HandlerEvent) => {
 
   try {
     const businesses = await prisma.businessProfile.findMany({
-      where: { status: 'active' },
+      where: { status: 'approved' },
       select: { category: true },
     });
 

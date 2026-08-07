@@ -16,9 +16,9 @@ export const handler = async (event: HandlerEvent) => {
 
   try {
     const [businessCount, allBusinesses, reviewCount] = await Promise.all([
-      prisma.businessProfile.count({ where: { status: 'active' } }),
+      prisma.businessProfile.count({ where: { status: 'approved' } }),
       prisma.businessProfile.findMany({
-        where: { status: 'active' },
+        where: { status: 'approved' },
         select: { address: true, category: true },
       }),
       prisma.review.count({ where: { status: 'approved' } }),
