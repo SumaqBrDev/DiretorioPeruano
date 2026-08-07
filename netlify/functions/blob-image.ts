@@ -6,12 +6,16 @@
 // Blob writes/reads via the API (getStore) work fine — this proxy is the
 // serving layer: it reads the blob through the API and streams the bytes.
 //
+// Returns a fetch-style Response (Netlify Functions v2) so binary data is
+// streamed without the legacy {statusCode, body, isBase64Encoded} JSON
+// round-trip, which corrupted non-ASCII bytes (0x89 -> EF BF BD).
+//
 // Usage: GET /api/blob-image?store=business-images&key=<blob key>
 import { getStore } from '@netlify/blobs';
 
 const DEFAULT_STORE = 'business-images';
 
-const baseHeaders = {
+const baseHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
   'X-Frame-Options': 'DENY',
   'X-Content-Type-Options': 'nosniff',
@@ -33,22 +37,20 @@ function mimeFromKey(key: string): string {
 
 export const handler = async (event: any) => {
   if (event.httpMethod !== 'GET') {
-    return {
-      statusCode: 405,
+    return new Response(JSON.stringify({ error: 'Método não permitido' }), {
+      status: 405,
       headers: { ...baseHeaders, Allow: 'GET' },
-      body: JSON.stringify({ error: 'Método não permitido' }),
-    };
+    });
   }
 
   const key = (event.queryStringParameters?.key || '').trim();
   const storeName = (event.queryStringParameters?.store || DEFAULT_STORE).trim();
 
   if (!key) {
-    return {
-      statusCode: 400,
+    return new Response(JSON.stringify({ error: 'Parâmetro "key" é obrigatório' }), {
+      status: 400,
       headers: baseHeaders,
-      body: JSON.stringify({ error: 'Parâmetro "key" é obrigatório' }),
-    };
+    });
   }
 
   try {
@@ -58,39 +60,27 @@ export const handler = async (event: any) => {
     const res = await store.get(key, { type: 'text' });
 
     if (!res) {
-      return {
-        statusCode: 404,
+      return new Response(JSON.stringify({ error: 'Imagem não encontrada' }), {
+        status: 404,
         headers: baseHeaders,
-        body: JSON.stringify({ error: 'Imagem não encontrada' }),
-      };
+      });
     }
 
     const data = Buffer.from(res);
     console.log(`[blob-image] key=${key} bytes=${data.length}`);
-    if (event.queryStringParameters?.raw === '1') {
-      // Raw body (no base64 flag) — diagnostic path for the serving issue.
-      return {
-        statusCode: 200,
-        headers: { ...baseHeaders, 'Content-Type': mimeFromKey(key), 'Cache-Control': 'public, max-age=3600' },
-        body: data.toString('latin1'),
-      };
-    }
-    return {
-      statusCode: 200,
+    return new Response(data, {
+      status: 200,
       headers: {
         ...baseHeaders,
         'Content-Type': mimeFromKey(key),
         'Cache-Control': 'public, max-age=3600',
       },
-      body: data.toString('base64'),
-      isBase64Encoded: true,
-    };
+    });
   } catch (error: any) {
     console.error('[blob-image] read failed:', error);
-    return {
-      statusCode: 500,
+    return new Response(JSON.stringify({ error: 'Erro ao ler a imagem' }), {
+      status: 500,
       headers: baseHeaders,
-      body: JSON.stringify({ error: 'Erro ao ler a imagem' }),
-    };
+    });
   }
 };
