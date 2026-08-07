@@ -36,21 +36,21 @@ function mimeFromKey(key: string): string {
 }
 
 export const handler = async (event: any) => {
+  const json = (statusCode: number, obj: Record<string, unknown>) => ({
+    statusCode,
+    headers: baseHeaders,
+    body: JSON.stringify(obj),
+  });
+
   if (event.httpMethod !== 'GET') {
-    return new Response(JSON.stringify({ error: 'Método não permitido' }), {
-      status: 405,
-      headers: { ...baseHeaders, Allow: 'GET' },
-    });
+    return json(405, { error: 'Método não permitido' });
   }
 
   const key = (event.queryStringParameters?.key || '').trim();
   const storeName = (event.queryStringParameters?.store || DEFAULT_STORE).trim();
 
   if (!key) {
-    return new Response(JSON.stringify({ error: 'Parâmetro "key" é obrigatório' }), {
-      status: 400,
-      headers: baseHeaders,
-    });
+    return json(400, { error: 'Parâmetro "key" é obrigatório' });
   }
 
   try {
@@ -60,32 +60,34 @@ export const handler = async (event: any) => {
     const res = await store.get(key, { type: 'text' });
 
     if (!res) {
-      return new Response(JSON.stringify({ error: 'Imagem não encontrada' }), {
-        status: 404,
-        headers: baseHeaders,
-      });
+      return json(404, { error: 'Imagem não encontrada' });
     }
 
     // Stored payload is base64 (see upload-image: the token-based blob API
     // mangles raw non-UTF8 bytes, so we store ASCII and decode here).
     const data = Buffer.from(res, 'base64');
     console.log(`[blob-asset] key=${key} bytes=${data.length}`);
-    return new Response(data, {
-      status: 200,
+    // Legacy response shape: the deployed runtime rejects `new Response(Buffer)`
+    // ("error decoding lambda response") and mangles raw non-UTF8 strings, but
+    // isBase64Encoded + base64 body decodes byte-exact.
+    return {
+      statusCode: 200,
       headers: {
         ...baseHeaders,
         'Content-Type': mimeFromKey(key),
         // NO caching: the edge (Netlify Durable) cache mismatched bodies across
-        // keys for this function (observed: key A served key B's bytes). Each
-        // request must hit the function.
+        // keys for this function. Each request must hit the function.
         'Cache-Control': 'no-store',
       },
-    });
+      body: data.toString('base64'),
+      isBase64Encoded: true,
+    };
   } catch (error: any) {
     console.error('[blob-asset] read failed:', error);
-    return new Response(JSON.stringify({ error: 'Erro ao ler a imagem' }), {
-      status: 500,
+    return {
+      statusCode: 500,
       headers: baseHeaders,
-    });
+      body: JSON.stringify({ error: 'Erro ao ler a imagem' }),
+    };
   }
 };
