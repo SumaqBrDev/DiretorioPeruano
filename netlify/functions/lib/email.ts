@@ -1,7 +1,9 @@
 import { Resend } from 'resend';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
-const FROM_EMAIL = 'ConectaPerú <noreply@conectaperu.com>';
+// QA override: Resend's sandbox only delivers from onboarding@resend.dev to
+// the account owner email. Production keeps the branded sender.
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'ConectaPerú <noreply@conectaperu.com>';
 
 let resendInstance: Resend | null = null;
 
