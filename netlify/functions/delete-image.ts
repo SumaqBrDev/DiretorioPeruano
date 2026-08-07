@@ -46,7 +46,7 @@ export const handler = async (event: any) => {
     const store = getStore(STORE_NAME);
 
     // Check if the blob exists before deleting
-    const exists = await store.get(key, { type: 'metadata' }).catch(() => null);
+    const exists = await store.getMetadata(key).catch(() => null);
     if (!exists) {
       return {
         statusCode: 404,

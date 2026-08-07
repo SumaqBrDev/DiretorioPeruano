@@ -1,5 +1,6 @@
 // netlify/functions/lib/reviews.ts
 // Pure helpers for the reviews endpoint. No DB/network imports — unit-testable.
+import type { Prisma } from '@prisma/client';
 
 export interface ReviewInput {
   rating?: unknown;
@@ -32,12 +33,12 @@ export function validateReviewInput(body: ReviewInput): string | null {
 export function buildReviewCreateData(
   body: ReviewInput,
   consumerId: string
-): Record<string, unknown> {
+): Prisma.ReviewUncheckedCreateInput {
   return {
-    rating: body.rating,
-    comment: body.comment,
+    rating: body.rating as number,
+    comment: body.comment as string,
     status: 'approved',
-    businessId: body.businessId,
+    businessId: body.businessId as string,
     consumerId,
   };
 }
