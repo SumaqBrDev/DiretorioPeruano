@@ -41,3 +41,4 @@ prisma/migrations/config.env
 
 tsconfig.tsbuildinfo
 tsconfig.*.tsbuildinfo
+tsconfig.tsbuildinfo
