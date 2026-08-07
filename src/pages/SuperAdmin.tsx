@@ -140,6 +140,8 @@ function ConfirmModal({
   message,
   confirmLabel,
   danger,
+  loading,
+  loadingLabel,
   onConfirm,
   onCancel,
 }: {
@@ -148,6 +150,8 @@ function ConfirmModal({
   message: string;
   confirmLabel?: string;
   danger?: boolean;
+  loading?: boolean;
+  loadingLabel?: string;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -164,19 +168,21 @@ function ConfirmModal({
         <div className="flex gap-3">
           <button
             onClick={onCancel}
-            className="flex-1 py-2.5 rounded-xl border border-oro-inca/30 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
+            disabled={loading}
+            className="flex-1 py-2.5 rounded-xl border border-oro-inca/30 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Cancelar
           </button>
           <button
             onClick={onConfirm}
-            className={`flex-1 py-2.5 rounded-xl font-semibold text-white transition-colors ${
+            disabled={loading}
+            className={`flex-1 py-2.5 rounded-xl font-semibold text-white transition-colors disabled:opacity-60 disabled:cursor-wait ${
               danger
                 ? 'bg-red-600 hover:bg-red-700'
                 : 'bg-aji-rojo hover:bg-aji-rojo/90'
             }`}
           >
-            {confirmLabel || 'Confirmar'}
+            {loading ? `⏳ ${loadingLabel || 'Aguarde...'}` : (confirmLabel || 'Confirmar')}
           </button>
         </div>
       </motion.div>
@@ -188,10 +194,12 @@ function ConfirmModal({
 
 function RejectModal({
   open,
+  loading,
   onConfirm,
   onCancel,
 }: {
   open: boolean;
+  loading?: boolean;
   onConfirm: (reason: string) => void;
   onCancel: () => void;
 }) {
@@ -203,9 +211,8 @@ function RejectModal({
       setError('O motivo da rejeição é obrigatório.');
       return;
     }
+    // Keep the reason visible while the request is in flight (BUG-020).
     onConfirm(reason.trim());
-    setReason('');
-    setError('');
   };
 
   const handleCancel = () => {
@@ -232,19 +239,20 @@ function RejectModal({
             setReason(e.target.value);
             if (error) setError('');
           }}
+          disabled={loading}
           rows={4}
           placeholder="Ex: Documentos incompletos, informações inconsistentes..."
-          className={`w-full p-3 rounded-lg border bg-white dark:bg-noche-lima text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-aji-rojo transition-colors resize-none ${
+          className={`w-full p-3 rounded-lg border bg-white dark:bg-noche-lima text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-aji-rojo transition-colors resize-none disabled:opacity-60 ${
             error ? 'border-red-400' : 'border-oro-inca/30'
           }`}
         />
         {error && <p className="text-red-500 text-xs mt-1">⚠ {error}</p>}
         <div className="flex gap-3 mt-4">
-          <button onClick={handleCancel} className="flex-1 py-2.5 rounded-xl border border-oro-inca/30 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors">
+          <button onClick={handleCancel} disabled={loading} className="flex-1 py-2.5 rounded-xl border border-oro-inca/30 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
             Cancelar
           </button>
-          <button onClick={handleConfirm} className="flex-1 py-2.5 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors">
-            Rejeitar
+          <button onClick={handleConfirm} disabled={loading} className="flex-1 py-2.5 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors disabled:opacity-60 disabled:cursor-wait">
+            {loading ? '⏳ Rejeitando...' : 'Rejeitar'}
           </button>
         </div>
       </motion.div>
@@ -413,6 +421,7 @@ export const SuperAdmin = () => {
 
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [search, setSearch] = useState('');
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('todos');
   const [page, setPage] = useState(1);
   const [betaMode, setBeta] = useState<boolean>(true);
@@ -472,6 +481,7 @@ export const SuperAdmin = () => {
   // Actions (via API)
   const handleApprove = useCallback(
     async (business: Business) => {
+      setPendingAction('approve');
       try {
         const token = await getToken();
         if (!token) throw new Error('Sem sessão');
@@ -481,6 +491,8 @@ export const SuperAdmin = () => {
         await refresh();
       } catch (err: any) {
         setToast({ message: err?.message || 'Erro ao aprovar.', type: 'error' });
+      } finally {
+        setPendingAction(null);
       }
     },
     [getToken, refresh]
@@ -488,6 +500,7 @@ export const SuperAdmin = () => {
 
   const handleReject = useCallback(
     async (business: Business, reason: string) => {
+      setPendingAction('reject');
       try {
         const token = await getToken();
         if (!token) throw new Error('Sem sessão');
@@ -497,6 +510,8 @@ export const SuperAdmin = () => {
         await refresh();
       } catch (err: any) {
         setToast({ message: err?.message || 'Erro ao rejeitar.', type: 'error' });
+      } finally {
+        setPendingAction(null);
       }
     },
     [getToken, refresh]
@@ -504,6 +519,7 @@ export const SuperAdmin = () => {
 
   const handleDelete = useCallback(
     async (business: Business) => {
+      setPendingAction('delete');
       try {
         const token = await getToken();
         if (!token) throw new Error('Sem sessão');
@@ -514,6 +530,8 @@ export const SuperAdmin = () => {
         await refresh();
       } catch (err: any) {
         setToast({ message: err?.message || 'Erro ao excluir.', type: 'error' });
+      } finally {
+        setPendingAction(null);
       }
     },
     [getToken, refresh]
@@ -665,6 +683,8 @@ export const SuperAdmin = () => {
         title="✅ Aprovar Negócio"
         message={`Tem certeza que deseja aprovar "${confirmAction?.business?.name}"? O proprietário receberá acesso trial de 30 dias.`}
         confirmLabel="Aprovar"
+        loading={pendingAction === 'approve'}
+        loadingLabel="Aprovando..."
         onConfirm={() => confirmAction && handleApprove(confirmAction.business)}
         onCancel={() => setConfirmAction(null)}
       />
@@ -674,11 +694,14 @@ export const SuperAdmin = () => {
         message={`Tem certeza que deseja excluir permanentemente "${confirmAction?.business?.name}"? Esta ação não pode ser desfeita.`}
         confirmLabel="Excluir"
         danger
+        loading={pendingAction === 'delete'}
+        loadingLabel="Excluindo..."
         onConfirm={() => confirmAction && handleDelete(confirmAction.business)}
         onCancel={() => setConfirmAction(null)}
       />
       <RejectModal
         open={!!rejectBusiness}
+        loading={pendingAction === 'reject'}
         onConfirm={(reason) => rejectBusiness && handleReject(rejectBusiness, reason)}
         onCancel={() => setRejectBusiness(null)}
       />
