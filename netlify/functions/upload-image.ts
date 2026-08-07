@@ -191,7 +191,7 @@ export const handler = async (event: any) => {
       await store.set(key, new Blob([file.data.toString('base64')], { type: 'text/plain' }));
 
       // Construct the blob URL
-      const url = `/api/blob-image?store=${encodeURIComponent(STORE_NAME)}&key=${encodeURIComponent(key)}`;
+      const url = `/api/blob-asset?store=${encodeURIComponent(STORE_NAME)}&key=${encodeURIComponent(key)}`;
 
       results.push({ url, key });
       console.log(`✅ Image uploaded: ${key} (${file.data.length} bytes)`);

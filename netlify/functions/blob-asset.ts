@@ -1,4 +1,4 @@
-// netlify/functions/blob-image.ts
+// netlify/functions/blob-asset.ts
 // Serves Netlify Blobs through the functions API.
 //
 // WHY: the conectaperu site does not have the platform Netlify Blobs feature
@@ -10,7 +10,7 @@
 // streamed without the legacy {statusCode, body, isBase64Encoded} JSON
 // round-trip, which corrupted non-ASCII bytes (0x89 -> EF BF BD).
 //
-// Usage: GET /api/blob-image?store=business-images&key=<blob key>
+// Usage: GET /api/blob-asset?store=business-images&key=<blob key>
 import { getStore } from '@netlify/blobs';
 
 const DEFAULT_STORE = 'business-images';
@@ -69,7 +69,7 @@ export const handler = async (event: any) => {
     // Stored payload is base64 (see upload-image: the token-based blob API
     // mangles raw non-UTF8 bytes, so we store ASCII and decode here).
     const data = Buffer.from(res, 'base64');
-    console.log(`[blob-image] key=${key} bytes=${data.length}`);
+    console.log(`[blob-asset] key=${key} bytes=${data.length}`);
     return new Response(data, {
       status: 200,
       headers: {
@@ -82,7 +82,7 @@ export const handler = async (event: any) => {
       },
     });
   } catch (error: any) {
-    console.error('[blob-image] read failed:', error);
+    console.error('[blob-asset] read failed:', error);
     return new Response(JSON.stringify({ error: 'Erro ao ler a imagem' }), {
       status: 500,
       headers: baseHeaders,
