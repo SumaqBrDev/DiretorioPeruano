@@ -1,7 +1,7 @@
 // src/pages/SuperAdmin.tsx
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useAuth } from '@clerk/clerk-react';
+import { useAuth, useUser } from '@clerk/clerk-react';
 import {
   adminListBusinesses,
   adminApprove,
@@ -622,6 +622,25 @@ export const SuperAdmin = () => {
   }, [statusFilter, search]);
 
   // ── Render ──
+
+  // Route guard: only the hardcoded superadmin Clerk account may see the panel.
+  // (Same check as Navbar; the server enforces it via requireSuperAdmin.)
+  const { user } = useUser();
+  const SUPERADMIN_CLERK_ID = 'user_3GsBXtg23VQOhHPN3HCF1oCN4Eq';
+
+  if (!user || user.id !== SUPERADMIN_CLERK_ID) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-creme-andino dark:bg-zinc-950">
+        <div className="text-center px-4">
+          <div className="text-5xl mb-4">❌</div>
+          <h1 className="font-playfair text-2xl font-bold text-noche-lima dark:text-white mb-2">
+            Acesso negado
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400">Se requiere rol superadmin.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
