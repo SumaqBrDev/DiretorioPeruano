@@ -129,8 +129,8 @@ export const handler = async (event: any) => {
         metadata: { businessId: business.id },
       },
       metadata: { businessId: business.id },
-      success_url: `${event.headers?.origin || 'https://conectaperu.com'}/admin?checkout=success`,
-      cancel_url: `${event.headers?.origin || 'https://conectaperu.com'}/admin?checkout=cancel`,
+      success_url: `${event.headers?.origin || process.env.APP_URL || 'https://conectaperu.com'}/admin?checkout=success`,
+      cancel_url: `${event.headers?.origin || process.env.APP_URL || 'https://conectaperu.com'}/admin?checkout=cancel`,
     });
 
     return {
