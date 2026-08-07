@@ -66,7 +66,9 @@ export const handler = async (event: any) => {
       });
     }
 
-    const data = Buffer.from(res);
+    // Stored payload is base64 (see upload-image: the token-based blob API
+    // mangles raw non-UTF8 bytes, so we store ASCII and decode here).
+    const data = Buffer.from(res, 'base64');
     console.log(`[blob-image] key=${key} bytes=${data.length}`);
     return new Response(data, {
       status: 200,

@@ -186,7 +186,9 @@ export const handler = async (event: any) => {
 
       // Upload to Netlify Blobs — the Blob carries the content type (the v10
       // SDK has no contentType option on set(); Blob.type is used when serving).
-      await store.set(key, new Blob([new Uint8Array(file.data)], { type: file.contentType }));
+      // Store base64 (ASCII) — the token-based blob API mangles raw non-UTF8
+      // bytes (0x89 -> EF BF BD); base64 survives the round-trip byte-exact.
+      await store.set(key, new Blob([file.data.toString('base64')], { type: 'text/plain' }));
 
       // Construct the blob URL
       const url = `/api/blob-image?store=${encodeURIComponent(STORE_NAME)}&key=${encodeURIComponent(key)}`;
