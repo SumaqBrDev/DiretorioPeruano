@@ -45,9 +45,11 @@ export const handler = async (event: any) => {
     }
 
     if (search) {
+      // CNPJ is stored digits-only; normalize so formatted input matches.
+      const cnpjDigits = search.replace(/\D/g, '');
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
-        { cnpj: { contains: search, mode: 'insensitive' } },
+        { cnpj: { contains: cnpjDigits, mode: 'insensitive' } },
         { owner: { name: { contains: search, mode: 'insensitive' } } },
       ];
     }

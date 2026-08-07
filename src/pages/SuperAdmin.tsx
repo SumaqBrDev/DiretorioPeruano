@@ -603,10 +603,14 @@ export const SuperAdmin = () => {
     }
     if (search.trim()) {
       const q = search.toLowerCase().trim();
+      // CNPJ is stored as digits-only but displayed formatted; normalize the
+      // query so '11.222.333/0001-81' and '11222333000181' both match.
+      const qDigits = q.replace(/\D/g, '');
       list = list.filter(
         (b) =>
           b.name.toLowerCase().includes(q) ||
-          (b.cnpj || '').includes(q)
+          (b.cnpj || '').toLowerCase().includes(q) ||
+          (qDigits && (b.cnpj || '').includes(qDigits))
       );
     }
     return list;
