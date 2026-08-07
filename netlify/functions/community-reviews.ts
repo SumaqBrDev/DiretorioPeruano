@@ -74,8 +74,8 @@ export const handler = async (event: any) => {
       result.push({
         id: r.id,
         author: r.consumer?.name || 'Anônimo',
-        comment: r.comment,
-        rating: r.rating,
+        comment: r.comment ?? '',
+        rating: r.rating ?? 0,
         businessName: r.business?.name || '',
         date: r.createdAt.toISOString().split('T')[0],
       });

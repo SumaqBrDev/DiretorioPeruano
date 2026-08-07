@@ -1,5 +1,5 @@
 import prisma from './lib/prisma';
-import Stripe from 'stripe';
+import { getStripe } from './lib/stripe';
 import { requireSuperAdmin } from './lib/auth';
 
 const headers = {
@@ -8,21 +8,8 @@ const headers = {
   'X-Content-Type-Options': 'nosniff',
 };
 
-const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const STRIPE_PRICE_ID = process.env.STRIPE_PRICE_ID || 'price_59_brl_monthly';
 const STRIPE_TRIAL_DAYS = parseInt(process.env.STRIPE_TRIAL_DAYS || '30', 10);
-
-let stripeInstance: Stripe | null = null;
-
-function getStripe(): Stripe {
-  if (!stripeInstance) {
-    stripeInstance = new Stripe(STRIPE_SECRET_KEY, {
-      apiVersion: '2025-03-01.basil',
-    });
-  }
-  return stripeInstance;
-}
-
 
 export const handler = async (event: any) => {
   try {
@@ -93,12 +80,17 @@ export const handler = async (event: any) => {
         // For each business, create Stripe customer + subscription with trial
         for (const biz of approvedBusinesses) {
           try {
+            if (!biz.owner) {
+              console.warn(`Business ${biz.id} has no owner — skipping Stripe provisioning`);
+              continue;
+            }
+
             const stripe = getStripe();
 
             // Create Stripe customer
             const customer = await stripe.customers.create({
-              email: biz.owner.email,
-              name: biz.name,
+              email: biz.owner.email ?? undefined,
+              name: biz.name ?? undefined,
               metadata: {
                 businessId: biz.id,
                 ownerId: biz.ownerId,

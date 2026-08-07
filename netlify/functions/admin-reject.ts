@@ -66,6 +66,14 @@ export const handler = async (event: any) => {
       };
     }
 
+    if (!business.owner) {
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ error: 'Negocio sin propietario registrado' }),
+      };
+    }
+
     if (business.status === 'rejected') {
       return {
         statusCode: 400,
@@ -91,10 +99,10 @@ export const handler = async (event: any) => {
     });
 
     // Send rejection email
-    const ownerEmail = business.owner.email;
+    const ownerEmail = business.owner.email ?? '';
     const ownerName = business.owner.name || business.ownerFullName || 'Usuario';
 
-    await sendRejectionEmail(ownerEmail, business.name, ownerName, reason);
+    await sendRejectionEmail(ownerEmail, business.name ?? '', ownerName, reason);
 
     return {
       statusCode: 200,

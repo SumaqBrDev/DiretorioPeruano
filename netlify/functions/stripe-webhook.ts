@@ -1,5 +1,6 @@
 import prisma from './lib/prisma';
 import Stripe from 'stripe';
+import { getStripe } from './lib/stripe';
 import { mapSubscriptionStatus } from './lib/subscription';
 import { sendPaymentFailedEmail, sendTrialEndingEmail } from './lib/email';
 import { checkIdempotency, markEventProcessed } from './lib/webhook-events';
@@ -10,12 +11,9 @@ const headers = {
   'X-Content-Type-Options': 'nosniff',
 };
 
-const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
 
-const stripe = new Stripe(STRIPE_SECRET_KEY, {
-  apiVersion: '2025-03-01.basil',
-});
+const stripe = getStripe();
 
 /**
  * Sync subscription status to database
@@ -99,7 +97,7 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice): Promise<void
 
   // Send email notification
   if (business.owner?.email) {
-    await sendPaymentFailedEmail(business.owner.email, business.name);
+    await sendPaymentFailedEmail(business.owner.email, business.name ?? '');
   }
 }
 
@@ -232,7 +230,7 @@ export const handler = async (event: any) => {
             const daysLeft = 3; // Stripe sends this 3 days before trial ends
             await sendTrialEndingEmail(
               business.owner.email,
-              business.name,
+              business.name ?? '',
               daysLeft
             );
           }

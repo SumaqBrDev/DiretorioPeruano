@@ -1,5 +1,5 @@
 import prisma from './lib/prisma';
-import Stripe from 'stripe';
+import { getStripe } from './lib/stripe';
 import { requireBusinessOwner, requireSuperAdmin } from './lib/auth';
 
 const headers = {
@@ -8,11 +8,7 @@ const headers = {
   'X-Content-Type-Options': 'nosniff',
 };
 
-const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
-
-const stripe = new Stripe(STRIPE_SECRET_KEY, {
-  apiVersion: '2025-03-01.basil',
-});
+const stripe = getStripe();
 
 export const handler = async (event: any) => {
   if (event.httpMethod !== 'POST') {

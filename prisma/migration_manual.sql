@@ -12,7 +12,21 @@ ALTER TABLE "BusinessProfile" ADD COLUMN IF NOT EXISTS "trialEndsAt" TIMESTAMP;
 ALTER TABLE "BusinessProfile" ADD COLUMN IF NOT EXISTS "disabledAt" TIMESTAMP;
 
 -- Add status to Review
-ALTER TABLE "Review" ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'APPROVED';
+ALTER TABLE "Review" ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'approved';
+
+-- Average rating on BusinessProfile (minRating filter)
+ALTER TABLE "BusinessProfile" ADD COLUMN IF NOT EXISTS rating DOUBLE PRECISION;
+
+-- WebhookEvent table for Stripe webhook idempotency (no Redis)
+CREATE TABLE IF NOT EXISTS "WebhookEvent" (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  "stripeEventId" TEXT UNIQUE,
+  type TEXT,
+  payload JSONB,
+  "processedAt" TIMESTAMP,
+  "createdAt" TIMESTAMP DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_webhook_event_type ON "WebhookEvent"(type);
 
 -- Create SiteConfig table for beta mode
 CREATE TABLE IF NOT EXISTS "SiteConfig" (

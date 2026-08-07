@@ -103,8 +103,8 @@ describe('GET /api/businesses — minRating filter', () => {
     });
 
     expect(res.statusCode).toBe(200);
-    const where = findManyMock.mock.calls[0][0].where;
-    expect(where.rating).toEqual({ gte: 4 });
+    const where = (findManyMock.mock.calls[0]?.[0] as { where?: any })?.where;
+    expect(where?.rating).toEqual({ gte: 4 });
     const body = JSON.parse(res.body);
     expect(body[0].rating).toBe(4.5);
   });
@@ -112,14 +112,14 @@ describe('GET /api/businesses — minRating filter', () => {
   it('does not add a rating filter when minRating is absent', async () => {
     findManyMock.mockResolvedValue([] as any);
     await handler({ httpMethod: 'GET', queryStringParameters: {} });
-    const where = findManyMock.mock.calls[0][0].where;
-    expect(where.rating).toBeUndefined();
+    const where = (findManyMock.mock.calls[0]?.[0] as { where?: any })?.where;
+    expect(where?.rating).toBeUndefined();
   });
 
   it('ignores non-numeric minRating', async () => {
     findManyMock.mockResolvedValue([] as any);
     await handler({ httpMethod: 'GET', queryStringParameters: { minRating: 'abc' } });
-    const where = findManyMock.mock.calls[0][0].where;
-    expect(where.rating).toBeUndefined();
+    const where = (findManyMock.mock.calls[0]?.[0] as { where?: any })?.where;
+    expect(where?.rating).toBeUndefined();
   });
 });
