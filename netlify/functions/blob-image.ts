@@ -53,9 +53,9 @@ export const handler = async (event: any) => {
 
   try {
     const store = getStore(storeName);
-    const buf = await store.get(key, { type: 'arrayBuffer' });
+    const res = await store.get(key, { type: 'stream' });
 
-    if (!buf) {
+    if (!res) {
       return {
         statusCode: 404,
         headers: baseHeaders,
@@ -63,7 +63,13 @@ export const handler = async (event: any) => {
       };
     }
 
-    const data = Buffer.from(buf);
+    const chunks: Buffer[] = [];
+    // @ts-expect-error - ReadableStream of Uint8Array (Node 18+ web streams)
+    for await (const chunk of res.data) {
+      chunks.push(Buffer.from(chunk));
+    }
+    const data = Buffer.concat(chunks);
+    console.log(`[blob-image] key=${key} ctx=${!!process.env.NETLIFY_BLOBS_CONTEXT} bytes=${data.length}`);
     return {
       statusCode: 200,
       headers: {
