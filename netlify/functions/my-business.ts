@@ -98,6 +98,13 @@ export const handler = async (event: any) => {
     if (body.ownerBirthCity !== undefined) data.ownerBirthCity = body.ownerBirthCity;
     if (body.photos !== undefined) data.photos = body.photos;
 
+    // Rejected businesses that are edited resubmit for review (BUG-024: the
+    // owner's corrected submission must return to the admin pending queue).
+    if (user.business.status === 'rejected') {
+      data.status = 'pending';
+      data.rejectionReason = null;
+    }
+
     const updated = await prisma.businessProfile.update({
       where: { id: user.business.id },
       data,
