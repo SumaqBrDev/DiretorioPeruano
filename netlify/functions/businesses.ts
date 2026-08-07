@@ -81,7 +81,8 @@ export const handler = async (event: any) => {
         where.OR = [
           { name: { contains: q, mode: 'insensitive' } },
           { description: { contains: q, mode: 'insensitive' } },
-          { tags: { hasSome: [q] } },
+          { address: { path: ['street'], string_contains: q } },
+          { tags: { hasSome: [q, q.toLowerCase()] } },
         ];
       }
 

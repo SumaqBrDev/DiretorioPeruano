@@ -4,6 +4,11 @@
     "subtitle": "Conectando peruanos no Brasil",
     "tagline": "O maior diretório de negócios peruanos no Brasil"
   },
+  "community": {
+    "subtitle": "Comunidade",
+    "title": "O que a comunidade diz",
+    "subtitle_text": "Veja o que os usuários estão falando sobre os negócios peruanos cadastrados"
+  },
   "nav": {
     "home": "Início",
     "search": "Buscar",

@@ -72,11 +72,11 @@ export const Busca = () => {
   const [error, setError] = useState<string | null>(null);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
-  // Read URL params using the CORRECT keys: q, category, city, rating
+  // Read URL params using the CORRECT keys: q, category, city, minRating (back-compat: rating)
   const query = searchParams.get('q') || '';
   const category = searchParams.get('category') || '';
   const city = searchParams.get('city') || '';
-  const minRating = searchParams.get('rating') || '';
+  const minRating = searchParams.get('minRating') || searchParams.get('rating') || '';
 
   const [searchInput, setSearchInput] = useState(query);
 
@@ -130,14 +130,8 @@ export const Busca = () => {
     setLoading(true);
     setError(null);
     try {
-      const token = await getToken();
-      if (!token) {
-        setError('Sessão expirada. Entre novamente.');
-        setResults([]);
-        setLoading(false);
-        return;
-      }
-      const data = await searchBusinesses(token, {
+      const token = await getToken().catch(() => null);
+      const data = await searchBusinesses(token || '', {
         q: query || undefined,
         category: category || undefined,
         city: city || undefined,
@@ -164,7 +158,7 @@ export const Busca = () => {
     if (searchInput.trim()) params.set('q', searchInput.trim());
     if (category) params.set('category', category);
     if (city) params.set('city', city);
-    if (minRating) params.set('rating', minRating);
+    if (minRating) params.set('minRating', minRating);
     setSearchParams(params);
   };
 
@@ -295,7 +289,7 @@ export const Busca = () => {
               </label>
               <select
                 value={minRating}
-                onChange={(e) => updateFilter('rating', e.target.value)}
+                onChange={(e) => updateFilter('minRating', e.target.value)}
                 className="w-full p-3 rounded-xl border border-oro-inca/30 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-aji-rojo/30 focus:border-aji-rojo/50 transition-all text-sm"
               >
                 {RATINGS.map((r) => (

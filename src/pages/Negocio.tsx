@@ -56,13 +56,9 @@ export const Negocio = () => {
     async function load() {
       setBizLoading(true);
       try {
-        const token = await getToken();
-        if (!token) {
-          if (!cancelled) setBusiness(null);
-          return;
-        }
-        const detail = await getBusinessDetail(token, businessId);
-        const reviews = await getReviewsForBusiness(token, businessId);
+        const token = await getToken().catch(() => null);
+        const detail = await getBusinessDetail(token || '', businessId);
+        const reviews = await getReviewsForBusiness(token || '', businessId);
         if (cancelled) return;
         setBusiness({
           id: parseInt(detail.id.replace(/\D/g, '').slice(0, 9), 10) || 0,
