@@ -13,6 +13,8 @@ ALTER TABLE "BusinessProfile" ADD COLUMN IF NOT EXISTS "disabledAt" TIMESTAMP;
 
 -- Add status to Review
 ALTER TABLE "Review" ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'approved';
+-- Align the default on existing databases (ADD COLUMN IF NOT EXISTS is a no-op there)
+ALTER TABLE "Review" ALTER COLUMN status SET DEFAULT 'approved';
 
 -- Average rating on BusinessProfile (minRating filter)
 ALTER TABLE "BusinessProfile" ADD COLUMN IF NOT EXISTS rating DOUBLE PRECISION;
@@ -42,4 +44,6 @@ ON CONFLICT (id) DO NOTHING;
 -- Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_business_status ON "BusinessProfile"(status);
 CREATE INDEX IF NOT EXISTS idx_business_approved_at ON "BusinessProfile"("approvedAt");
-CREATE INDEX IF NOT EXISTS idx_review_business ON "Review"("businessId");
+-- NOTE: base columns created by apply_schema.sql are UNQUOTED, so Postgres stores
+-- them lowercased (businessid, consumerid, ownerid, createdat, updatedat).
+CREATE INDEX IF NOT EXISTS idx_review_business ON "Review"(businessid);
