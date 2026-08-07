@@ -79,6 +79,9 @@ export const handler = async (event: any) => {
       return_url: `${event.headers?.origin || 'https://conectaperu.com'}/admin/facturacion`,
       flow_data: {
         type: 'subscription_cancel',
+        subscription_cancel: {
+          subscription: business.subscriptionId!,
+        },
       },
     });
 
@@ -92,7 +95,7 @@ export const handler = async (event: any) => {
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: 'Error al crear portal de facturación', details: error.message }),
+      body: JSON.stringify({ error: 'Error al crear portal de facturación' }),
     };
   }
 };
