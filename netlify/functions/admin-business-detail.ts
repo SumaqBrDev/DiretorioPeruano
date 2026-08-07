@@ -99,7 +99,7 @@ export const handler = async (event: any) => {
           rejectionReason: business.rejectionReason,
           approvedAt: business.approvedAt,
           stripeCustomerId: business.stripeCustomerId,
-          stripeSubscriptionId: business.stripeSubscriptionId,
+          subscriptionId: business.subscriptionId,
           subscriptionStatus: business.subscriptionStatus,
           trialEndsAt: business.trialEndsAt,
           ownerFullName: business.ownerFullName,

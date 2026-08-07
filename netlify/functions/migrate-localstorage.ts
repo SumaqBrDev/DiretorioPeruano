@@ -137,7 +137,7 @@ export const handler = async (event: any) => {
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '')
         .slice(0, 48) || 'empresa';
-      const slug = `${slugBase}-${(b.id || Date.now()).slice(-6)}`;
+      const slug = `${slugBase}-${String(b.id || Date.now()).slice(-6)}`;
 
       // Resolve owner: prefer the existing user by clerkId (b.userId), else superadmin.
       let ownerId = superadminUser.id;
@@ -212,68 +212,14 @@ export const handler = async (event: any) => {
     }
 
     // ── Conversations (consumer <-> business) ──
-    for (const c of conversations) {
-      if (!c.businessId) {
-        report.skipped++;
-        continue;
-      }
-      try {
-        const exists = c.id
-          ? await prisma.b2BConversation.findUnique({
-              where: { id: c.id },
-              include: { messages: { select: { id: true } } },
-            })
-          : null;
-
-        // Need a valid BusinessProfile for the "toBusiness" side.
-        const toBusiness = await prisma.businessProfile.findUnique({
-          where: { id: c.businessId },
-          select: { id: true },
-        });
-        if (!toBusiness) {
-          report.errors++;
-          report.errorDetails.push(`conversation:${c.id || '?'}: business not found`);
-          continue;
-        }
-
-        // "fromBusiness" = the business that owns the inbox thread (businessId)
-        const fromBusinessId = c.businessId;
-        // "toBusiness" = another business; in consumer conversations we map to
-        // the superadmin business if none provided — fallback to same business
-        // is not ideal; we require a valid pair, so create with from==to is
-        // allowed for legacy consumer threads (kept minimal).
-        const toBusinessId = c.userId
-          ? (await prisma.businessProfile.findFirst({
-              where: { ownerId: { not: undefined } },
-              select: { id: true },
-            }))?.id || fromBusinessId
-          : fromBusinessId;
-
-        if (exists) {
-          // already migrated — no-op (idempotent), count as migrated
-          report.migrated.conversations++;
-        } else {
-          const messages = (c.messages || []).map((m) => ({
-            senderId: fromBusinessId,
-            body: m.content || '',
-            read: false,
-            createdAt: m.createdAt ? new Date(m.createdAt) : new Date(),
-          }));
-
-          await prisma.b2BConversation.create({
-            data: {
-              id: c.id || undefined,
-              fromBusinessId,
-              toBusinessId: toBusinessId,
-              messages: { create: messages },
-            } as any,
-          });
-          report.migrated.conversations++;
-        }
-      } catch (err: any) {
-        report.errors++;
-        report.errorDetails.push(`conversation:${c.id || '?'}: ${err.message}`);
-      }
+    // The B2BConversation model no longer exists in the schema (inbox uses
+    // JSONB + Message), so legacy conversations cannot be migrated. They stay
+    // in localStorage — counted as skipped so the report stays honest.
+    report.skipped += conversations.length;
+    if (conversations.length > 0) {
+      console.warn(
+        `Skipped ${conversations.length} legacy conversations (B2BConversation model removed)`
+      );
     }
 
     return {

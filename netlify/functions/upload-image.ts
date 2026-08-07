@@ -184,8 +184,9 @@ export const handler = async (event: any) => {
       const random = crypto.randomBytes(6).toString('hex');
       const key = `${businessId}/${timestamp}-${random}.${ext}`;
 
-      // Upload to Netlify Blobs
-      await store.set(key, file.data, { contentType: file.contentType });
+      // Upload to Netlify Blobs — the Blob carries the content type (the v10
+      // SDK has no contentType option on set(); Blob.type is used when serving).
+      await store.set(key, new Blob([new Uint8Array(file.data)], { type: file.contentType }));
 
       // Construct the blob URL
       const url = `/.netlify/blobs/${STORE_NAME}/${key}`;

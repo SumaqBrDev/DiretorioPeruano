@@ -1,4 +1,6 @@
 import prisma from './lib/prisma';
+import { authenticateRequest } from './lib/auth';
+import { validateReviewInput, buildReviewCreateData } from './lib/reviews';
 
 export const handler = async (event: any) => {
   const headers = {
@@ -7,36 +9,46 @@ export const handler = async (event: any) => {
     'X-Content-Type-Options': 'nosniff',
   };
 
-  // POST — Create a new review
+  // POST — Create a new review (Clerk-authenticated, auto-approved)
   if (event.httpMethod === 'POST') {
     try {
-      const body = JSON.parse(event.body || '{}');
-      const { rating, comment, businessId, consumerId } = body;
-
-      if (!rating || !comment || !businessId || !consumerId) {
+      // Verify the Clerk session — the consumerId is derived server-side and
+      // never trusted from the request body.
+      const auth = await authenticateRequest(event);
+      if (!auth.ok) {
         return {
-          statusCode: 400,
+          statusCode: auth.statusCode,
           headers,
-          body: JSON.stringify({ error: 'Campos obrigatórios: rating, comment, businessId, consumerId' }),
+          body: JSON.stringify({ error: auth.error }),
         };
       }
 
-      if (rating < 1 || rating > 5) {
+      const body = JSON.parse(event.body || '{}');
+
+      const validationError = validateReviewInput(body);
+      if (validationError) {
         return {
           statusCode: 400,
           headers,
-          body: JSON.stringify({ error: 'Rating deve ser entre 1 e 5' }),
+          body: JSON.stringify({ error: validationError }),
+        };
+      }
+
+      // Resolve the internal user id for the verified Clerk id.
+      const user = await prisma.user.findUnique({
+        where: { clerkId: auth.clerkId! },
+      });
+
+      if (!user) {
+        return {
+          statusCode: 401,
+          headers,
+          body: JSON.stringify({ error: 'Usuário não encontrado' }),
         };
       }
 
       const review = await prisma.review.create({
-        data: {
-          rating,
-          comment,
-          status: 'pending',
-          businessId,
-          consumerId,
-        },
+        data: buildReviewCreateData(body, user.id),
       });
 
       return {

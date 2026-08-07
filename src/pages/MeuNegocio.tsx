@@ -119,6 +119,11 @@ export const MeuNegocio = () => {
 
   const handleSave = async () => {
     if (!business || !user) return;
+    if (business.status === 'disabled') {
+      setToast({ message: 'Negócio desabilitado — edição não permitida.', type: 'error' });
+      setIsEditing(false);
+      return;
+    }
     setSaving(true);
 
     try {
@@ -154,6 +159,10 @@ export const MeuNegocio = () => {
 
   const handleManageSubscription = async () => {
     if (!business) return;
+    if (business.status === 'disabled') {
+      setToast({ message: 'Negócio desabilitado — gerencie sua assinatura no Portal Stripe.', type: 'error' });
+      return;
+    }
     try {
       const token = await getToken();
       if (!token) throw new Error('Sem sessão');
@@ -281,7 +290,16 @@ export const MeuNegocio = () => {
             <span className="text-2xl">🚫</span>
             <div>
               <h3 className="font-semibold text-gray-700 dark:text-gray-300">Negócio Desabilitado</h3>
-              <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Seu negócio foi desabilitado. Entre em contato com o suporte para mais informações.</p>
+              <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+                Seu negócio foi desabilitado. Gerencie sua assinatura no{' '}
+                <button
+                  onClick={handleManageSubscription}
+                  className="underline text-oro-inca hover:text-oro-inca/80 font-medium"
+                >
+                  Portal Stripe
+                </button>{' '}
+                para reativá-lo.
+              </p>
             </div>
           </div>
         </div>
@@ -332,12 +350,14 @@ export const MeuNegocio = () => {
                   {CATEGORIES.find(c => c.value === business.category)?.label || business.category}
                 </span>
               </div>
-              <button
-                onClick={() => setIsEditing(true)}
-                className="px-5 py-2 bg-oro-inca text-noche-lima rounded-xl font-semibold hover:bg-oro-inca/90 transition-colors text-sm"
-              >
-                ✏️ Editar
-              </button>
+              {business.status !== 'disabled' && (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="px-5 py-2 bg-oro-inca text-noche-lima rounded-xl font-semibold hover:bg-oro-inca/90 transition-colors text-sm"
+                >
+                  ✏️ Editar
+                </button>
+              )}
             </div>
 
             <div>
