@@ -193,14 +193,16 @@ export const handler = async (event: any) => {
   }
 
   // PUT — Update message (mark as read, archive conversation)
+  // businessId comes from the authenticated token (BUG-022: the body value
+  // used to shadow it, letting callers archive/delete other businesses' chats).
   if (event.httpMethod === 'PUT') {
     try {
       const body = JSON.parse(event.body || '{}');
-      const { action, messageId, businessId, partnerBusinessId } = body;
+      const { action, messageId, partnerBusinessId } = body;
 
       if (action === 'mark-read' && messageId) {
         await prisma.message.update({
-          where: { id: messageId },
+          where: { id: messageId, toBusinessId: businessId },
           data: { read: true },
         });
 
@@ -263,17 +265,17 @@ export const handler = async (event: any) => {
     }
   }
 
-  // DELETE — Soft delete a conversation
+  // DELETE — Soft delete a conversation (businessId derived from the token)
   if (event.httpMethod === 'DELETE') {
     try {
       const body = JSON.parse(event.body || '{}');
-      const { businessId, partnerBusinessId } = body;
+      const { partnerBusinessId } = body;
 
-      if (!businessId || !partnerBusinessId) {
+      if (!partnerBusinessId) {
         return {
           statusCode: 400,
           headers,
-          body: JSON.stringify({ error: 'businessId e partnerBusinessId são obrigatórios' }),
+          body: JSON.stringify({ error: 'partnerBusinessId é obrigatório' }),
         };
       }
 
