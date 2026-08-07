@@ -16,7 +16,7 @@ export interface ReviewInput {
  */
 export function validateReviewInput(body: ReviewInput): string | null {
   const { rating, comment, businessId } = body;
-  if (!comment || !comment.trim() || !businessId) {
+  if (typeof comment !== 'string' || !comment.trim() || !businessId) {
     return 'Campos obrigatórios: rating, comment, businessId';
   }
   if (typeof rating !== 'number' || rating < 1 || rating > 5) {
