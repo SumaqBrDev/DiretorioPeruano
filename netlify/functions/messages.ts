@@ -1,4 +1,5 @@
 import prisma from './lib/prisma';
+import { authenticateRequest } from './lib/auth';
 
 export const handler = async (event: any) => {
   const headers = {
@@ -7,23 +8,52 @@ export const handler = async (event: any) => {
     'X-Content-Type-Options': 'nosniff',
   };
 
-  // POST — Send a new message
+  // Authenticate + resolve the caller's own business ONCE for POST and GET.
+  // (BUG-019: the endpoint previously trusted client-supplied business ids,
+  // so anyone could spoof messages as any business or read any inbox.)
+  const auth = await authenticateRequest(event);
+  if (!auth.ok) {
+    return {
+      statusCode: auth.statusCode || 401,
+      headers,
+      body: JSON.stringify({ error: auth.error || 'No autorizado' }),
+    };
+  }
+  const user = await prisma.user.findUnique({ where: { clerkId: auth.clerkId! } });
+  if (!user) {
+    return {
+      statusCode: 401,
+      headers,
+      body: JSON.stringify({ error: 'Usuário não encontrado' }),
+    };
+  }
+  const business = await prisma.businessProfile.findUnique({ where: { ownerId: user.id } });
+  if (!business) {
+    return {
+      statusCode: 403,
+      headers,
+      body: JSON.stringify({ error: 'Este usuário não possui um negócio' }),
+    };
+  }
+  const businessId = business.id;
+
+  // POST — Send a new message (fromBusinessId derived from the token)
   if (event.httpMethod === 'POST') {
     try {
       const body = JSON.parse(event.body || '{}');
-      const { fromBusinessId, toBusinessId, body: messageBody } = body;
+      const { toBusinessId, body: messageBody } = body;
 
-      if (!fromBusinessId || !toBusinessId || !messageBody) {
+      if (!toBusinessId || !messageBody) {
         return {
           statusCode: 400,
           headers,
-          body: JSON.stringify({ error: 'Campos obrigatórios: fromBusinessId, toBusinessId, body' }),
+          body: JSON.stringify({ error: 'Campos obrigatórios: toBusinessId, body' }),
         };
       }
 
       const message = await prisma.message.create({
         data: {
-          fromBusinessId,
+          fromBusinessId: businessId,
           toBusinessId,
           body: messageBody,
           read: false,
@@ -40,24 +70,16 @@ export const handler = async (event: any) => {
       return {
         statusCode: 500,
         headers,
-        body: JSON.stringify({ error: 'Erro ao enviar mensagem', details: error.message }),
+        body: JSON.stringify({ error: 'Erro ao enviar mensagem' }),
       };
     }
   }
 
-  // GET — List messages / conversations
+  // GET — List messages / conversations (businessId derived from the token)
   if (event.httpMethod === 'GET') {
     try {
       const params = event.queryStringParameters || {};
-      const { businessId, conversationWith, archived, includeDeleted } = params;
-
-      if (!businessId) {
-        return {
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ error: 'businessId é obrigatório' }),
-        };
-      }
+      const { conversationWith, archived, includeDeleted } = params;
 
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
