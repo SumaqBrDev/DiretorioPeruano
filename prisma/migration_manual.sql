@@ -66,3 +66,9 @@ END $$;
 -- BUG-019 schema drift: Message table was missing archived/deletedAt columns.
 ALTER TABLE "Message" ADD COLUMN IF NOT EXISTS archived BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE "Message" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP;
+
+-- BUG-025 schema drift: BusinessProfile.ownerId is @unique in Prisma but the
+-- column lacked the constraint, letting one user own multiple businesses
+-- (broke my-business resolution). Dedupe QA artifacts, then constrain.
+-- (Postgres UNIQUE allows multiple NULLs, so ownerless rows are fine.)
+ALTER TABLE "BusinessProfile" ADD CONSTRAINT businessprofile_ownerid_key UNIQUE ("ownerId");
