@@ -32,7 +32,7 @@ export const handler = async (event: HandlerEvent) => {
       category: b.category,
       city: (b.address as any)?.city || '',
       state: (b.address as any)?.state || '',
-      rating: 0,
+      rating: b.rating || 0,
       reviewsCount: b._count.reviews,
       tags: b.tags || [],
       coverImage: b.photos?.[0] || '',
