@@ -75,7 +75,10 @@ export const handler = async (event: any) => {
       headers: {
         ...baseHeaders,
         'Content-Type': mimeFromKey(key),
-        'Cache-Control': 'public, max-age=3600',
+        // NO caching: the edge (Netlify Durable) cache mismatched bodies across
+        // keys for this function (observed: key A served key B's bytes). Each
+        // request must hit the function.
+        'Cache-Control': 'no-store',
       },
     });
   } catch (error: any) {
