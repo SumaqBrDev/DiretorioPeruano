@@ -72,7 +72,6 @@ export const handler = async (event: any) => {
       headers: {
         ...baseHeaders,
         'Content-Type': mimeFromKey(key),
-        'Content-Length': String(data.length),
         'Cache-Control': 'public, max-age=3600',
       },
       body: data.toString('base64'),
