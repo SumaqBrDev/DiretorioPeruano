@@ -66,7 +66,7 @@ export const handler = async (event: any) => {
       tags: business.tags || [],
       photos: business.photos || [],
       contact: business.contact || {},
-      rating: 0,
+      rating: business.rating || 0,
       reviewsCount: business._count.reviews,
       email: contact.email || '',
       phone: contact.phone || '',
