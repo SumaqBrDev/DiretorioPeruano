@@ -44,6 +44,5 @@ ON CONFLICT (id) DO NOTHING;
 -- Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_business_status ON "BusinessProfile"(status);
 CREATE INDEX IF NOT EXISTS idx_business_approved_at ON "BusinessProfile"("approvedAt");
--- NOTE: base columns created by apply_schema.sql are UNQUOTED, so Postgres stores
--- them lowercased (businessid, consumerid, ownerid, createdat, updatedat).
-CREATE INDEX IF NOT EXISTS idx_review_business ON "Review"(businessid);
+-- Column names are canonical camelCase (apply_schema.sql quotes identifiers)
+CREATE INDEX IF NOT EXISTS idx_review_business ON "Review"("businessId");
