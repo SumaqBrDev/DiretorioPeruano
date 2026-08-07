@@ -148,9 +148,14 @@ npx prisma db seed       # Popula dados iniciais
 
 **Schema principal:** `prisma/schema.prisma`
 - `User` - Usuários Clerk sincronizados
-- `BusinessProfile` - Perfis de negócios
-- `Review` - Avaliações com moderação
+- `BusinessProfile` - Perfis de negócios (KYC: `cnpj`, `ownerFullName`, `ownerBirthCity`; billing: `stripeCustomerId`, `subscriptionId`, `subscriptionStatus`, `trialEndsAt`, `disabledAt`; média: `rating`)
+- `Review` - Avaliações com moderação (auto-aprovadas; `status` default `approved`)
+- `WebhookEvent` - Idempotência de webhooks Stripe (sem Redis; `stripeEventId` único)
 - `Message` - Mensagens B2B
+
+> **Migrações:** este projeto não usa `prisma migrate dev` (sem `DATABASE_URL` local).
+> Aplicar SQL manual idempotente: `apply_schema.sql` (base) + `prisma/migration_manual.sql`
+> (billing/KYC/rating/WebhookEvent) + `supabase_migration.sql` (archive).
 
 ## 🎨 Design System
 
