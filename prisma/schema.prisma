@@ -90,6 +90,7 @@ model Review {
 
   @@index([businessId])
   @@index([status])
+  @@unique([consumerId, businessId])
 }
 
 model Message {

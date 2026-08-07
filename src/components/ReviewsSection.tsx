@@ -171,7 +171,7 @@ export const ReviewsSection = ({ business }: ReviewsSectionProps) => {
                 {averageRating.toFixed(1)}
               </span>
               <span className="text-gray-600 dark:text-gray-400">
-                ({allReviews.length} avaliação{allReviews.length !== 1 ? 'ões' : ''})
+                ({allReviews.length} {allReviews.length === 1 ? 'avaliação' : 'avaliações'})
               </span>
             </div>
           </div>

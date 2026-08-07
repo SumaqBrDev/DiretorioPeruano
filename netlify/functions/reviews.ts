@@ -47,6 +47,27 @@ export const handler = async (event: any) => {
         };
       }
 
+      // Hard rule: business accounts cannot publish consumer reviews.
+      if (user.role === 'business') {
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({ error: 'Negócios não podem publicar avaliações' }),
+        };
+      }
+
+      // Hard rule: one review per consumer per business (see @@unique below).
+      const existing = await prisma.review.findFirst({
+        where: { consumerId: user.id, businessId: body.businessId },
+      });
+      if (existing) {
+        return {
+          statusCode: 409,
+          headers,
+          body: JSON.stringify({ error: 'Você já avaliou este negócio' }),
+        };
+      }
+
       const review = await prisma.review.create({
         data: buildReviewCreateData(body, user.id),
       });
@@ -57,6 +78,14 @@ export const handler = async (event: any) => {
         body: JSON.stringify(review),
       };
     } catch (error: any) {
+      // Race-safe backstop: the unique constraint (consumerId, businessId).
+      if (error?.code === 'P2002') {
+        return {
+          statusCode: 409,
+          headers,
+          body: JSON.stringify({ error: 'Você já avaliou este negócio' }),
+        };
+      }
       console.error('Error creating review:', error);
       return {
         statusCode: 500,

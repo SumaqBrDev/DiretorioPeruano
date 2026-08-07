@@ -8,7 +8,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('../netlify/functions/lib/prisma', () => ({
   default: {
     user: { findUnique: vi.fn() },
-    review: { create: vi.fn() },
+    review: { create: vi.fn(), findFirst: vi.fn() },
   },
 }));
 
@@ -24,6 +24,7 @@ import { authenticateRequest } from '../netlify/functions/lib/auth';
 const authMock = vi.mocked(authenticateRequest);
 const userFindMock = vi.mocked(prisma.user.findUnique);
 const reviewCreateMock = vi.mocked(prisma.review.create);
+const reviewFindMock = vi.mocked(prisma.review.findFirst);
 
 const headers = {
   'Content-Type': 'application/json',
@@ -79,6 +80,7 @@ describe('reviews handler POST', () => {
     vi.clearAllMocks();
     authMock.mockResolvedValue({ ok: true, clerkId: 'user_clerk_1', claims: { clerkId: 'user_clerk_1' } });
     userFindMock.mockResolvedValue({ id: 'user-db-id' } as any);
+    reviewFindMock.mockResolvedValue(null);
     reviewCreateMock.mockImplementation((args) => Promise.resolve({ id: 'r1', ...args.data }) as any);
   });
 
@@ -128,5 +130,27 @@ describe('reviews handler POST', () => {
       body: JSON.stringify({ rating: 4, comment: 'bom', businessId: 'b1' }),
     });
     expect(res.headers).toEqual(headers);
+  });
+
+  it('rejects a duplicate review with 409 and does not create a second one', async () => {
+    reviewFindMock.mockResolvedValue({ id: 'existing-review' } as any);
+    const res = await handler({
+      httpMethod: 'POST',
+      headers: { authorization: 'Bearer token' },
+      body: JSON.stringify({ rating: 5, comment: 'duplicado', businessId: 'b1' }),
+    });
+    expect(res.statusCode).toBe(409);
+    expect(reviewCreateMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects business accounts with 403 and does not create a review', async () => {
+    userFindMock.mockResolvedValue({ id: 'user-db-id', role: 'business' } as any);
+    const res = await handler({
+      httpMethod: 'POST',
+      headers: { authorization: 'Bearer token' },
+      body: JSON.stringify({ rating: 5, comment: 'review de business', businessId: 'b1' }),
+    });
+    expect(res.statusCode).toBe(403);
+    expect(reviewCreateMock).not.toHaveBeenCalled();
   });
 });

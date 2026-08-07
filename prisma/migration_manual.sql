@@ -46,3 +46,19 @@ CREATE INDEX IF NOT EXISTS idx_business_status ON "BusinessProfile"(status);
 CREATE INDEX IF NOT EXISTS idx_business_approved_at ON "BusinessProfile"("approvedAt");
 -- Column names are canonical camelCase (apply_schema.sql quotes identifiers)
 CREATE INDEX IF NOT EXISTS idx_review_business ON "Review"("businessId");
+-- Review hard rules (BUG-010/BUG-011): one review per consumer per business.
+-- Dedupe existing data first (keep one review per consumer+business; id as
+-- tiebreaker because now() is constant within a transaction, so createdAt
+-- ties are common).
+DELETE FROM "Review" r USING (
+  SELECT "consumerId", "businessId", MAX(id) AS keep_id
+  FROM "Review" GROUP BY "consumerId", "businessId" HAVING COUNT(*) > 1
+) d
+WHERE r."consumerId" = d."consumerId" AND r."businessId" = d."businessId" AND r.id <> d.keep_id;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'review_consumer_business_unique') THEN
+    ALTER TABLE "Review" ADD CONSTRAINT review_consumer_business_unique UNIQUE ("consumerId", "businessId");
+  END IF;
+END $$;
