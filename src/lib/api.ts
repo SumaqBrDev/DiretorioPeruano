@@ -128,7 +128,7 @@ export async function adminReject(token: string, businessId: string, reason: str
 
 export async function adminDelete(token: string, businessId: string) {
   return request<{ success: boolean }>('admin-delete', token, {
-    method: 'POST',
+    method: 'DELETE',
     body: { businessId },
   });
 }
