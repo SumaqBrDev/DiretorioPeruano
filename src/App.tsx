@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ClerkProvider, useUser } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
 import { HelmetProvider } from 'react-helmet-async';
