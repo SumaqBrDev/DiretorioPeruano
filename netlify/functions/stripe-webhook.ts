@@ -1,7 +1,9 @@
 import prisma from './lib/prisma';
 import Stripe from 'stripe';
+import { getStripe } from './lib/stripe';
 import { mapSubscriptionStatus } from './lib/subscription';
 import { sendPaymentFailedEmail, sendTrialEndingEmail } from './lib/email';
+import { checkIdempotency, markEventProcessed } from './lib/webhook-events';
 
 const headers = {
   'Content-Type': 'application/json',
@@ -9,12 +11,9 @@ const headers = {
   'X-Content-Type-Options': 'nosniff',
 };
 
-const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
 
-const stripe = new Stripe(STRIPE_SECRET_KEY, {
-  apiVersion: '2025-03-01.basil',
-});
+const stripe = getStripe();
 
 /**
  * Sync subscription status to database
@@ -38,6 +37,7 @@ async function syncSubscriptionStatus(subscription: Stripe.Subscription): Promis
           where: { id: business.id },
           data: {
             subscriptionStatus: newStatus,
+            subscriptionId: subscription.id,
             trialEndsAt: subscription.trial_end
               ? new Date(subscription.trial_end * 1000)
               : undefined,
@@ -55,6 +55,7 @@ async function syncSubscriptionStatus(subscription: Stripe.Subscription): Promis
     where: { id: businessId },
     data: {
       subscriptionStatus: newStatus,
+      subscriptionId: subscription.id,
       trialEndsAt: subscription.trial_end
         ? new Date(subscription.trial_end * 1000)
         : undefined,
@@ -96,7 +97,7 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice): Promise<void
 
   // Send email notification
   if (business.owner?.email) {
-    await sendPaymentFailedEmail(business.owner.email, business.name);
+    await sendPaymentFailedEmail(business.owner.email, business.name ?? '');
   }
 }
 
@@ -126,12 +127,14 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription): Pro
   await prisma.businessProfile.update({
     where: { id: business.id },
     data: {
+      status: 'disabled',
       subscriptionStatus: 'canceled',
-      stripeSubscriptionId: null,
+      subscriptionId: null,
+      disabledAt: new Date(),
     },
   });
 
-  console.log(`Business ${business.id} subscription canceled`);
+  console.log(`Business ${business.id} subscription deleted — status set to disabled`);
 }
 
 export const handler = async (event: any) => {
@@ -170,23 +173,42 @@ export const handler = async (event: any) => {
       };
     }
 
+    // Idempotency: skip if this event was already processed
+    const eventId = stripeEvent.id || '';
+    if (!eventId) {
+      console.warn('Stripe event has no id, cannot enforce idempotency — processing anyway');
+    }
+
+    const existing = eventId ? await checkIdempotency(eventId) : null;
+    if (existing) {
+      console.log(`Skipping already-processed event ${eventId} (${stripeEvent.type})`);
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ received: true, duplicate: true }),
+      };
+    }
+
     // Handle specific event types
     switch (stripeEvent.type) {
       case 'invoice.payment_failed': {
         const invoice = stripeEvent.data.object as Stripe.Invoice;
         await handleInvoicePaymentFailed(invoice);
+        await markEventProcessed(eventId, stripeEvent.type, stripeEvent.data.object);
         break;
       }
 
       case 'customer.subscription.updated': {
         const subscription = stripeEvent.data.object as Stripe.Subscription;
         await syncSubscriptionStatus(subscription);
+        await markEventProcessed(eventId, stripeEvent.type, stripeEvent.data.object);
         break;
       }
 
       case 'customer.subscription.deleted': {
         const subscription = stripeEvent.data.object as Stripe.Subscription;
         await handleSubscriptionDeleted(subscription);
+        await markEventProcessed(eventId, stripeEvent.type, stripeEvent.data.object);
         break;
       }
 
@@ -208,11 +230,12 @@ export const handler = async (event: any) => {
             const daysLeft = 3; // Stripe sends this 3 days before trial ends
             await sendTrialEndingEmail(
               business.owner.email,
-              business.name,
+              business.name ?? '',
               daysLeft
             );
           }
         }
+        await markEventProcessed(eventId, stripeEvent.type, stripeEvent.data.object);
         break;
       }
 
@@ -235,11 +258,14 @@ export const handler = async (event: any) => {
             console.log(`Payment succeeded for business ${business.id}, status set to active`);
           }
         }
+        await markEventProcessed(eventId, stripeEvent.type, stripeEvent.data.object);
         break;
       }
 
       default:
         console.log(`Unhandled event type: ${stripeEvent.type}`);
+        // Still mark unhandled events as processed to avoid re-processing
+        await markEventProcessed(eventId, stripeEvent.type, stripeEvent.data.object);
     }
 
     // Always return 200 to Stripe

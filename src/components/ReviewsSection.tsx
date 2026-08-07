@@ -76,7 +76,7 @@ export const ReviewsSection = ({ business }: ReviewsSectionProps) => {
     rating: r.rating,
     date: r.date,
     text: r.text,
-    tags: r.tags,
+    tags: r.tags || [],
     isLocal: false,
   }));
 
