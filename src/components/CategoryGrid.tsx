@@ -141,7 +141,7 @@ export const CategoryGrid = () => {
                   className={`${isLarge ? 'md:col-span-2 md:row-span-2' : ''}`}
                 >
                   <Link
-                    to={`/busca?categoria=${cat.slug}`}
+                    to={`/busca?category=${cat.slug}`}
                     className="group relative block w-full h-full rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500"
                   >
                     {/* Background image */}
