@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useUser, useAuth } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
+import { Flask, XCircle, Prohibit } from '@phosphor-icons/react';
 import { getMyBusiness, updateMyBusiness, openStripeCheckout, openStripePortal, type ApiBusiness as Business } from '../lib/api';
 import { BusinessGallery } from '../components/BusinessGallery';
 
@@ -274,22 +275,22 @@ export const MeuNegocio = () => {
 
       {/* Status badge — mais visível */}
       {business.status === 'rejected' && (
-        <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
+        <div className="mb-6 p-4 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-xl">
           <div className="flex items-start gap-3">
-            <span className="text-2xl">❌</span>
+            <span className="p-2 rounded-lg bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-300"><XCircle size={20} weight="bold" /></span>
             <div>
-              <h3 className="font-semibold text-red-700 dark:text-red-300">Negócio Rejeitado</h3>
-              <p className="text-red-600 dark:text-red-400 text-sm mt-1">{business.rejectionReason}</p>
+              <h3 className="font-semibold text-rose-700 dark:text-rose-300">Negócio Rejeitado</h3>
+              <p className="text-rose-600 dark:text-rose-400 text-sm mt-1">{business.rejectionReason}</p>
             </div>
           </div>
         </div>
       )}
       {business.status === 'disabled' && (
-        <div className="mb-6 p-4 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl">
+        <div className="mb-6 p-4 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl">
           <div className="flex items-start gap-3">
-            <span className="text-2xl">🚫</span>
+            <span className="p-2 rounded-lg bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300"><Prohibit size={20} weight="bold" /></span>
             <div>
-              <h3 className="font-semibold text-gray-700 dark:text-gray-300">Negócio Desabilitado</h3>
+              <h3 className="font-semibold text-zinc-700 dark:text-zinc-300">Negócio Desabilitado</h3>
               <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
                 Seu negócio foi desabilitado. Gerencie sua assinatura no{' '}
                 <button
@@ -305,23 +306,30 @@ export const MeuNegocio = () => {
         </div>
       )}
 
-      <div className="mb-8 flex items-center gap-3">
-        <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-semibold ${
+      <div className="mb-8 flex items-center gap-3 flex-wrap">
+        <span className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold ring-1 ring-inset ${
           business.status === 'approved'
-            ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300 border border-green-300 dark:border-green-700'
+            ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/40 dark:text-emerald-300 dark:ring-emerald-400/20'
             : business.status === 'pending' || !business.status
-            ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300 border border-yellow-300 dark:border-yellow-700'
+            ? 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-900/40 dark:text-amber-300 dark:ring-amber-400/20'
             : business.status === 'rejected'
-            ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300 border border-red-300 dark:border-red-700'
+            ? 'bg-rose-50 text-rose-700 ring-rose-600/20 dark:bg-rose-900/40 dark:text-rose-300 dark:ring-rose-400/20'
             : business.status === 'disabled'
-            ? 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600'
-            : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+            ? 'bg-zinc-100 text-zinc-600 ring-zinc-500/20 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-400/20'
+            : 'bg-zinc-100 text-zinc-600 ring-zinc-500/20 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-400/20'
         }`}>
-          {business.status === 'approved' ? '✅ Aprovado' : business.status === 'pending' || !business.status ? '⏳ Pendente de Aprovação' : business.status === 'rejected' ? '❌ Rejeitado' : business.status === 'disabled' ? '🚫 Desabilitado' : business.status}
+          <span className={`h-2 w-2 rounded-full ${
+            business.status === 'approved' ? 'bg-emerald-500'
+            : business.status === 'pending' || !business.status ? 'bg-amber-500'
+            : business.status === 'rejected' ? 'bg-rose-500'
+            : 'bg-zinc-400'
+          }`} />
+          {business.status === 'approved' ? 'Aprovado' : business.status === 'pending' || !business.status ? 'Pendente de Aprovação' : business.status === 'rejected' ? 'Rejeitado' : business.status === 'disabled' ? 'Desabilitado' : business.status}
         </span>
         {business.subscriptionStatus === 'trial' && business.trialEndsAt && (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-700">
-            🧪 Trial até {new Date(business.trialEndsAt).toLocaleDateString('pt-BR')}
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 ring-sky-600/20 dark:bg-sky-900/40 dark:text-sky-300 dark:ring-sky-400/20 ring-1 ring-inset">
+            <Flask size={12} weight="fill" />
+            Trial até {new Date(business.trialEndsAt).toLocaleDateString('pt-BR')}
           </span>
         )}
         {business.status === 'approved' && (

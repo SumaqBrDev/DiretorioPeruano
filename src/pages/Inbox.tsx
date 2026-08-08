@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useUser, useAuth } from '@clerk/clerk-react'
+import { PaperPlaneTilt } from '@phosphor-icons/react'
 import { MessageList } from '@/components/MessageList'
 import { MessageForm } from '@/components/MessageForm'
 import {
@@ -305,9 +306,10 @@ export const Inbox = () => {
         </h1>
         <button
           onClick={() => setShowMessageForm(true)}
-          className="bg-aji-rojo text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-aji-rojo/90 transition-colors text-sm md:text-base shadow-sm"
+          className="inline-flex items-center gap-2 bg-aji-rojo text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-aji-rojo/90 hover:shadow-lg hover:shadow-aji-rojo/25 active:scale-[0.98] transition-all text-sm md:text-base"
         >
-          + Novo Mensagem
+          <PaperPlaneTilt size={16} weight="fill" />
+          Novo Mensagem
         </button>
       </div>
 
@@ -351,15 +353,23 @@ export const Inbox = () => {
                   <button
                     key={conv.id}
                     onClick={() => selectConversation(conv.id)}
-                    className={`w-full text-left p-3.5 transition-colors border-b border-oro-inca/5 ${
+                    className={`relative w-full text-left p-3.5 transition-all border-b border-oro-inca/5 ${
                       selectedConvId === conv.id
-                        ? 'bg-aji-rojo/10 dark:bg-aji-rojo/20'
+                        ? 'bg-aji-rojo/[0.08] dark:bg-aji-rojo/15'
                         : 'hover:bg-gray-50 dark:hover:bg-zinc-800/50'
                     }`}
                   >
+                    {/* Active accent bar */}
+                    {selectedConvId === conv.id && (
+                      <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-aji-rojo rounded-r-full" />
+                    )}
                     <div className="flex items-center gap-3">
                       {/* Avatar */}
-                      <div className="w-10 h-10 rounded-full bg-oro-inca/20 dark:bg-oro-inca/30 flex items-center justify-center text-sm font-bold text-oro-inca flex-shrink-0">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 transition-colors ${
+                        selectedConvId === conv.id
+                          ? 'bg-aji-rojo text-white'
+                          : 'bg-oro-inca/20 dark:bg-oro-inca/30 text-oro-inca'
+                      }`}>
                         {other.name.charAt(0).toUpperCase()}
                       </div>
 

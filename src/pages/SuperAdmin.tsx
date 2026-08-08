@@ -3,6 +3,19 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import {
+  Eye,
+  Check,
+  X,
+  Trash,
+  MagnifyingGlass,
+  Storefront,
+  Hourglass,
+  CheckCircle,
+  XCircle,
+  Prohibit,
+  Flask,
+} from '@phosphor-icons/react';
+import {
   adminListBusinesses,
   adminApprove,
   adminReject,
@@ -51,16 +64,17 @@ const ITEMS_PER_PAGE = 10;
 // ── Status Badge ──
 
 function StatusBadge({ status }: { status: string | undefined }) {
-  const cfg: Record<string, { bg: string; text: string; label: string }> = {
-    pending: { bg: 'bg-yellow-100 dark:bg-yellow-900/40', text: 'text-yellow-700 dark:text-yellow-300', label: '⏳ Pendente' },
-    approved: { bg: 'bg-green-100 dark:bg-green-900/40', text: 'text-green-700 dark:text-green-300', label: '✅ Aprovado' },
-    rejected: { bg: 'bg-red-100 dark:bg-red-900/40', text: 'text-red-700 dark:text-red-300', label: '❌ Rejeitado' },
-    disabled: { bg: 'bg-gray-200 dark:bg-gray-700', text: 'text-gray-600 dark:text-gray-400', label: '🚫 Desabilitado' },
+  const cfg: Record<string, { dot: string; pill: string; label: string }> = {
+    pending: { dot: 'bg-amber-500', pill: 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-300 dark:ring-amber-400/20', label: 'Pendente' },
+    approved: { dot: 'bg-emerald-500', pill: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-300 dark:ring-emerald-400/20', label: 'Aprovado' },
+    rejected: { dot: 'bg-rose-500', pill: 'bg-rose-50 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-300 dark:ring-rose-400/20', label: 'Rejeitado' },
+    disabled: { dot: 'bg-zinc-400', pill: 'bg-zinc-100 text-zinc-600 ring-zinc-500/20 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-400/20', label: 'Desabilitado' },
   };
   const s = status || 'pending';
   const c = cfg[s] || cfg.pending;
   return (
-    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${c.bg} ${c.text}`}>
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ring-1 ring-inset ${c.pill}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${c.dot}`} />
       {c.label}
     </span>
   );
@@ -75,14 +89,15 @@ function SubBadge({ business }: { business: Business }) {
       ? ` até ${new Date(business.trialEndsAt).toLocaleDateString('pt-BR')}`
       : '';
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-        🧪 Trial{ends}
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ring-1 ring-inset bg-sky-50 text-sky-700 ring-sky-600/20 dark:bg-sky-900/30 dark:text-sky-300 dark:ring-sky-400/20">
+        <Flask size={12} weight="fill" />
+        Trial{ends}
       </span>
     );
   }
-  if (sub === 'active') return <span className="text-xs text-green-600 dark:text-green-400">● Ativo</span>;
-  if (sub === 'past_due') return <span className="text-xs text-orange-600 dark:text-orange-400">⚠ Past Due</span>;
-  if (sub === 'canceled') return <span className="text-xs text-gray-500">✕ Cancelado</span>;
+  if (sub === 'active') return <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400"><span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 mr-1.5" />Ativo</span>;
+  if (sub === 'past_due') return <span className="text-xs font-medium text-orange-600 dark:text-orange-400"><span className="inline-block h-1.5 w-1.5 rounded-full bg-orange-500 mr-1.5" />Past Due</span>;
+  if (sub === 'canceled') return <span className="text-xs font-medium text-zinc-500"><span className="inline-block h-1.5 w-1.5 rounded-full bg-zinc-400 mr-1.5" />Cancelado</span>;
   return null;
 }
 
@@ -399,16 +414,23 @@ function DetailModal({
 function StatsCard({
   label,
   value,
+  icon,
   color,
 }: {
   label: string;
   value: number;
+  icon: React.ReactNode;
   color: string;
 }) {
   return (
-    <div className={`rounded-xl border p-5 ${color}`}>
-      <p className="text-3xl font-bold">{value}</p>
-      <p className="text-sm opacity-80 mt-1">{label}</p>
+    <div className={`relative overflow-hidden rounded-2xl border p-5 ${color}`}>
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-wider opacity-70">{label}</p>
+          <p className="text-3xl font-bold mt-1.5 tabular-nums leading-none">{value}</p>
+        </div>
+        <span className="p-2 rounded-xl bg-white/60 dark:bg-black/20 shadow-sm">{icon}</span>
+      </div>
     </div>
   );
 }
@@ -682,12 +704,12 @@ export const SuperAdmin = () => {
 
       {/* Stats Row */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
-        <StatsCard label="Total" value={stats.total} color="bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-200" />
-        <StatsCard label="Pendentes" value={stats.pendentes} color="bg-yellow-50 border-yellow-200 text-yellow-800 dark:bg-yellow-900/20 dark:border-yellow-800 dark:text-yellow-200" />
-        <StatsCard label="Aprovados" value={stats.aprovados} color="bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-200" />
-        <StatsCard label="Rejeitados" value={stats.rejeitados} color="bg-red-50 border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800 dark:text-red-200" />
-        <StatsCard label="Desabilitados" value={stats.desabilitados} color="bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300" />
-        <StatsCard label="Em Trial" value={stats.emTrial} color="bg-purple-50 border-purple-200 text-purple-800 dark:bg-purple-900/20 dark:border-purple-800 dark:text-purple-200" />
+        <StatsCard label="Total" value={stats.total} icon={<Storefront size={20} weight="duotone" />} color="bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-200" />
+        <StatsCard label="Pendentes" value={stats.pendentes} icon={<Hourglass size={20} weight="duotone" />} color="bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-200" />
+        <StatsCard label="Aprovados" value={stats.aprovados} icon={<CheckCircle size={20} weight="duotone" />} color="bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-200" />
+        <StatsCard label="Rejeitados" value={stats.rejeitados} icon={<XCircle size={20} weight="duotone" />} color="bg-rose-50 border-rose-200 text-rose-800 dark:bg-rose-900/20 dark:border-rose-800 dark:text-rose-200" />
+        <StatsCard label="Desabilitados" value={stats.desabilitados} icon={<Prohibit size={20} weight="duotone" />} color="bg-zinc-100 border-zinc-300 text-zinc-700 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-300" />
+        <StatsCard label="Em Trial" value={stats.emTrial} icon={<Flask size={20} weight="duotone" />} color="bg-purple-50 border-purple-200 text-purple-800 dark:bg-purple-900/20 dark:border-purple-800 dark:text-purple-200" />
       </div>
 
       {/* Empty State */}
@@ -705,42 +727,45 @@ export const SuperAdmin = () => {
         <>
           {/* Search + Filters */}
           <div className="flex flex-col sm:flex-row gap-4 mb-6">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="🔍 Buscar por nome ou CNPJ..."
-              className="flex-1 p-3 rounded-xl border border-oro-inca/30 bg-white dark:bg-noche-lima text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-aji-rojo"
-            />
+            <div className="relative flex-1">
+              <MagnifyingGlass size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar por nome ou CNPJ..."
+                className="w-full pl-10 p-3 rounded-xl border border-oro-inca/30 bg-white dark:bg-noche-lima text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-aji-rojo transition-shadow"
+              />
+            </div>
           </div>
 
           {/* Status Tabs */}
           <div className="flex flex-wrap gap-2 mb-6">
             {[
-              { key: 'todos', label: '📋 Todos' },
-              { key: 'pending', label: '⏳ Pendentes' },
-              { key: 'approved', label: '✅ Aprovados' },
-              { key: 'rejected', label: '❌ Rejeitados' },
-              { key: 'disabled', label: '🚫 Desabilitados' },
-              { key: 'trial', label: '🧪 Trial' },
+              { key: 'todos', label: 'Todos' },
+              { key: 'pending', label: 'Pendentes' },
+              { key: 'approved', label: 'Aprovados' },
+              { key: 'rejected', label: 'Rejeitados' },
+              { key: 'disabled', label: 'Desabilitados' },
+              { key: 'trial', label: 'Trial' },
             ].map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setStatusFilter(tab.key)}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-all active:scale-[0.98] ${
                   statusFilter === tab.key
-                    ? 'bg-aji-rojo text-white shadow-md'
-                    : 'bg-white dark:bg-noche-lima text-gray-600 dark:text-gray-400 border border-oro-inca/20 hover:border-aji-rojo/50'
+                    ? 'bg-aji-rojo text-white shadow-md shadow-aji-rojo/25'
+                    : 'bg-white dark:bg-noche-lima text-gray-600 dark:text-gray-400 border border-oro-inca/20 hover:border-aji-rojo/50 hover:text-aji-rojo'
                 }`}
               >
                 {tab.label}
                 {tab.key !== 'todos' && (
-                  <span className="ml-1.5 opacity-70">
-                    (
+                  <span className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold tabular-nums ${
+                    statusFilter === tab.key ? 'bg-white/20' : 'bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-gray-400'
+                  }`}>
                     {tab.key === 'trial'
                       ? businesses.filter((b) => b.subscriptionStatus === 'trial').length
                       : businesses.filter((b) => (b.status || 'pending') === tab.key).length}
-                    )
                   </span>
                 )}
               </button>
@@ -751,14 +776,14 @@ export const SuperAdmin = () => {
           <div className="bg-white dark:bg-noche-lima rounded-2xl shadow-lg border border-oro-inca/20 overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-oro-inca/20 bg-gray-50 dark:bg-zinc-800/50">
-                  <th className="text-left p-4 font-semibold text-noche-lima dark:text-white">Nome</th>
-                  <th className="text-left p-4 font-semibold text-noche-lima dark:text-white hidden md:table-cell">Dono</th>
-                  <th className="text-left p-4 font-semibold text-noche-lima dark:text-white hidden lg:table-cell">CNPJ</th>
-                  <th className="text-left p-4 font-semibold text-noche-lima dark:text-white hidden xl:table-cell">Cidade</th>
-                  <th className="text-left p-4 font-semibold text-noche-lima dark:text-white">Status</th>
-                  <th className="text-left p-4 font-semibold text-noche-lima dark:text-white hidden sm:table-cell">Data</th>
-                  <th className="text-left p-4 font-semibold text-noche-lima dark:text-white">Ações</th>
+                <tr className="border-b border-oro-inca/20 bg-gray-50/80 dark:bg-zinc-800/50">
+                  <th className="text-left p-4 text-[11px] font-semibold uppercase tracking-wider text-noche-lima/60 dark:text-white/60">Nome</th>
+                  <th className="text-left p-4 text-[11px] font-semibold uppercase tracking-wider text-noche-lima/60 dark:text-white/60 hidden md:table-cell">Dono</th>
+                  <th className="text-left p-4 text-[11px] font-semibold uppercase tracking-wider text-noche-lima/60 dark:text-white/60 hidden lg:table-cell">CNPJ</th>
+                  <th className="text-left p-4 text-[11px] font-semibold uppercase tracking-wider text-noche-lima/60 dark:text-white/60 hidden xl:table-cell">Cidade</th>
+                  <th className="text-left p-4 text-[11px] font-semibold uppercase tracking-wider text-noche-lima/60 dark:text-white/60">Status</th>
+                  <th className="text-left p-4 text-[11px] font-semibold uppercase tracking-wider text-noche-lima/60 dark:text-white/60 hidden sm:table-cell">Data</th>
+                  <th className="text-left p-4 text-[11px] font-semibold uppercase tracking-wider text-noche-lima/60 dark:text-white/60">Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -793,38 +818,38 @@ export const SuperAdmin = () => {
                       {formatDate(biz.createdAt)}
                     </td>
                     <td className="p-4">
-                      <div className="flex items-center gap-1.5 flex-wrap">
+                      <div className="flex items-center gap-1 flex-wrap">
                         <button
                           onClick={() => setDetailBusiness(biz)}
-                          className="p-1.5 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400 transition-colors"
+                          className="p-2 rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/30 transition-all active:scale-95"
                           title="Ver detalhes"
                         >
-                          👁️
+                          <Eye size={16} />
                         </button>
                         {(biz.status || 'pending') !== 'approved' && (
                           <button
                             onClick={() => setConfirmAction({ type: 'approve', business: biz })}
-                            className="p-1.5 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 text-green-600 dark:text-green-400 transition-colors"
+                            className="p-2 rounded-lg border border-emerald-200 text-emerald-600 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-900/30 transition-all active:scale-95"
                             title="Aprovar"
                           >
-                            ✅
+                            <Check size={16} weight="bold" />
                           </button>
                         )}
                         {(biz.status || 'pending') !== 'rejected' && (biz.status || 'pending') !== 'disabled' && (
                           <button
                             onClick={() => setRejectBusiness(biz)}
-                            className="p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 transition-colors"
+                            className="p-2 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-900/30 transition-all active:scale-95"
                             title="Rejeitar"
                           >
-                            ❌
+                            <X size={16} weight="bold" />
                           </button>
                         )}
                         <button
                           onClick={() => setConfirmAction({ type: 'delete', business: biz })}
-                          className="p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 transition-colors"
+                          className="p-2 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-900/30 transition-all active:scale-95"
                           title="Excluir"
                         >
-                          🗑️
+                          <Trash size={16} />
                         </button>
                       </div>
                     </td>
