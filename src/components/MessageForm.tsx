@@ -18,9 +18,10 @@ interface MessageFormProps {
   onClose: () => void
   onSend: (toBusinessId: string, body: string) => void
   businesses: BusinessOption[]
+  businessesLoading?: boolean
 }
 
-export const MessageForm = ({ isOpen, onClose, onSend, businesses }: MessageFormProps) => {
+export const MessageForm = ({ isOpen, onClose, onSend, businesses, businessesLoading }: MessageFormProps) => {
   const [selectedBusinessId, setSelectedBusinessId] = useState('')
   const [body, setBody] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
@@ -219,13 +220,20 @@ export const MessageForm = ({ isOpen, onClose, onSend, businesses }: MessageForm
                 </div>
               )}
 
-              {showDropdown && filteredBusinesses.length === 0 && searchQuery && (
+              {showDropdown && businessesLoading && (
+                <div className="absolute z-10 w-full mt-1 bg-white dark:bg-noche-lima rounded-xl border border-oro-inca/30 shadow-xl p-3 text-center text-sm text-gray-500 dark:text-gray-400">
+                  <span className="inline-block w-4 h-4 border-2 border-aji-rojo border-t-transparent rounded-full animate-spin align-middle mr-2" />
+                  Carregando negócios...
+                </div>
+              )}
+
+              {showDropdown && !businessesLoading && filteredBusinesses.length === 0 && searchQuery && (
                 <div className="absolute z-10 w-full mt-1 bg-white dark:bg-noche-lima rounded-xl border border-oro-inca/30 shadow-xl p-3 text-center text-sm text-gray-500 dark:text-gray-400">
                   Nenhum negócio encontrado
                 </div>
               )}
             </div>
-            {!selectedBusiness && searchQuery && filteredBusinesses.length === 0 && (
+            {!selectedBusiness && !businessesLoading && searchQuery && filteredBusinesses.length === 0 && (
               <p className="mt-1.5 text-sm text-red-500">Nenhum negócio encontrado</p>
             )}
           </div>

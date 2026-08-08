@@ -54,6 +54,7 @@ export const Inbox = () => {
   const [businessId, setBusinessId] = useState('')
   const [businessName, setBusinessName] = useState('')
   const [businessOptions, setBusinessOptions] = useState<BusinessOption[]>([])
+  const [loading, setLoading] = useState(true)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const CURRENT_BUSINESS_ID = businessId
@@ -67,7 +68,12 @@ export const Inbox = () => {
         const token = await getToken()
         if (!token) return
         const me = await getMyBusiness(token)
-        if (cancelled || !me) return
+        if (cancelled) return
+        if (!me) {
+          // No business yet → empty state, stop loading.
+          setLoading(false)
+          return
+        }
         setBusinessId(me.id)
         setBusinessName(me.name)
         const list = await getBusinessesPublic(token)
@@ -83,6 +89,7 @@ export const Inbox = () => {
         if (err?.statusCode !== 404) {
           console.error('Erro ao carregar Inbox:', err)
         }
+        if (!cancelled) setLoading(false)
       }
     }
     load()
@@ -94,7 +101,7 @@ export const Inbox = () => {
   // ── Load data once we know the current business ──
   useEffect(() => {
     if (CURRENT_BUSINESS_ID) {
-      loadConversations()
+      loadConversations().finally(() => setLoading(false))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [CURRENT_BUSINESS_ID])
@@ -326,7 +333,20 @@ export const Inbox = () => {
 
           {/* Conversation items */}
           <div className="flex-1 overflow-y-auto">
-            {displayConvs.length === 0 ? (
+            {loading ? (
+              // Skeleton while conversations load — never flash "empty" states.
+              <div className="p-3 space-y-2">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="flex items-center gap-3 p-3 rounded-xl animate-pulse">
+                    <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-zinc-700 flex-shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-3.5 w-2/3 rounded bg-gray-200 dark:bg-zinc-700" />
+                      <div className="h-3 w-1/2 rounded bg-gray-100 dark:bg-zinc-800" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : displayConvs.length === 0 ? (
               <div className="p-6 text-center text-sm text-gray-500 dark:text-gray-400">
                 {showArchived
                   ? 'Nenhuma conversa arquivada'
@@ -523,6 +543,7 @@ export const Inbox = () => {
           onClose={() => setShowMessageForm(false)}
           onSend={handleNewMessage}
           businesses={businessOptions}
+          businessesLoading={loading}
         />
       )}
 
