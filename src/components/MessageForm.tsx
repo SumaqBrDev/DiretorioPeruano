@@ -213,7 +213,8 @@ export const MessageForm = ({ isOpen, onClose, onSend, businesses }: MessageForm
                           : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800'
                       )}
                     >
-                      </button>
+                      <span className="font-medium">{biz.name}</span>
+                    </button>
                   ))}
                 </div>
               )}
