@@ -8,6 +8,28 @@
 
 ---
 
+## 0. Cuentas de prueba (ambiente QA)
+
+**Password común:** `ConectaQA!2026` (todas las cuentas QA, creadas por email; verificación desactivada en Clerk test).  
+**Superadmin:** cuenta personal `jarhkof.apps@gmail.com` ("José Roca Apps") — panel `/admin/super` (dashboard, aprobar/rechazar, beta mode, eliminar).
+
+| Email (`jose.rocah.pe+conectaqua.<cuenta>@gmail.com`) | Rol | Empresa | Estado | Sub |
+|---|---|---|---|---|
+| `consumidor01` | consumer | Throwaway Reject QA *(artefacto QA)* | rejected | — |
+| `consumidor02` | consumer | — | — | — |
+| `negocionuevo01` | owner | Chicheria Qhapaq QA v2 | approved | active |
+| `owneraprobado01` | owner | Cantina Don José | approved | active (trial) |
+| `ownerb01` | owner | Serviços Técnicos Andino | approved | active |
+| `ownerdisabled01` | owner | Restaurante Wiracocha | disabled | past_due |
+| `ownerpending01` | owner | Mercado Andino Gourmet | approved | active |
+| `ownerrejected01` | owner | Hostal Miraflores | rejected | — |
+
+**Notas:**
+- El nombre de la cuenta refleja el estado original del seed; el estado real puede haber cambiado durante el QA (ej. Mercado Andino quedó `approved` tras aprobación manual en el panel).
+- Un mismo usuario puede tener rol `consumer` y poseer una empresa: el alta de negocios no restringe roles (el guard de reviews es por `role`, no por propiedad — un consumer con empresa sigue pudiendo evaluar).
+
+---
+
 ## 1. Instrucciones para el ejecutor
 
 Ejecutar primero todos los casos P0, luego P1 y finalmente P2. No ejecutar casos de pagos, webhooks, eliminación o migración en producción sin autorización explícita. Para cada caso:
