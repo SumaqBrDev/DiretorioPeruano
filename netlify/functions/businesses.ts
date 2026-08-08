@@ -31,6 +31,18 @@ export const handler = async (event: any) => {
         };
       }
 
+      // Business rule (payment model): consumer accounts cannot register
+      // businesses — revenue comes from businesses paying for internal
+      // resources. A consumer that registers would get owner benefits
+      // without entering the subscription funnel.
+      if (owner.role === 'consumer') {
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({ error: 'Apenas contas empresariais podem cadastrar negócios' }),
+        };
+      }
+
       const body = JSON.parse(event.body || '{}');
       const { name, description, category, address, tags, photos, contact, cnpj, ownerFullName, ownerBirthCity } = body;
 
