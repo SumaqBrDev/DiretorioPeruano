@@ -24,12 +24,32 @@ const CATEGORIES = [
   { value: 'restaurante', label: 'Restaurantes' },
   { value: 'mercado', label: 'Mercados' },
   { value: 'salon', label: 'Salões de Beleza' },
-  { value: 'servicios', label: 'Serviços Profissionais' },
+  { value: 'servicos', label: 'Serviços Profissionais' },
   { value: 'salud', label: 'Saúde' },
   { value: 'juridico', label: 'Jurídico' },
   { value: 'financiero', label: 'Financeiro' },
-  { value: 'inmuebles', label: 'Imóveis' },
+  { value: 'imuebles', label: 'Imóveis' },
 ];
+
+// Canonical category vocabulary = the values stored in BusinessProfile.category.
+// The home grid and /api/categories expose display slugs (plurals / ES variants);
+// normalize any variant here so the sidebar select reflects the URL filter and
+// the API filter matches the DB (BUG-030b).
+const CATEGORY_ALIASES: Record<string, string> = {
+  restaurante: 'restaurante',
+  restaurantes: 'restaurante',
+  mercado: 'mercado',
+  mercados: 'mercado',
+  cafe: 'cafe',
+  salon: 'salon',
+  servicos: 'servicos',
+  servicios: 'servicos',
+  salud: 'salud',
+  juridico: 'juridico',
+  financiero: 'financiero',
+  imuebles: 'imuebles',
+  inmuebles: 'imuebles',
+};
 
 const CITIES = [
   { value: '', label: 'Todas as cidades' },
@@ -74,7 +94,10 @@ export const Busca = () => {
 
   // Read URL params using the CORRECT keys: q, category, city, minRating (back-compat: rating)
   const query = searchParams.get('q') || '';
-  const category = searchParams.get('category') || '';
+  // Normalize the category param to the canonical DB vocabulary (BUG-030b):
+  // home links and shared URLs may carry 'mercados'/'servicios'/'inmuebles'.
+  const categoryParam = searchParams.get('category') || '';
+  const category = CATEGORY_ALIASES[categoryParam.toLowerCase()] || '';
   const city = searchParams.get('city') || '';
   const minRating = searchParams.get('minRating') || searchParams.get('rating') || '';
 
