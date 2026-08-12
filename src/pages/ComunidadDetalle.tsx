@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { getCommunityTopic, createCommunityPost, toggleCommunityVote, reportCommunityContent } from '@/lib/api';
 import type { CommunityTopicDetailResult } from '@/lib/api';
 import { SEO } from '@/components/SEO';
+import { CommunityAds } from '@/components/CommunityAds';
 
 export const ComunidadDetalle = () => {
   const { id } = useParams<{ id: string }>();
@@ -117,11 +118,13 @@ export const ComunidadDetalle = () => {
   const replies = posts.filter((p) => p.parentAuthor);
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-3xl">
+    <div className="container mx-auto px-4 py-8 max-w-6xl">
       <SEO title={topic.title} description={topic.body.slice(0, 150)} />
-      <Link to="/comunidad" className="text-sm text-aji-rojo hover:underline mb-4 inline-block">
-        ← {t('forum.backToList')}
-      </Link>
+      <div className="lg:grid lg:grid-cols-[1fr_300px] lg:gap-8">
+        <div className="min-w-0 max-w-3xl">
+          <Link to="/comunidad" className="text-sm text-aji-rojo hover:underline mb-4 inline-block">
+            ← {t('forum.backToList')}
+          </Link>
 
       {/* Topic */}
       <div className="p-6 rounded-xl border border-oro-inca/20 bg-white dark:bg-noche-lima shadow-sm mb-8">
@@ -256,6 +259,11 @@ export const ComunidadDetalle = () => {
           ))}
         </div>
       )}
+        </div>
+
+        {/* Sidebar ads (Opción A) — desktop only */}
+        <CommunityAds variant="sidebar" limit={4} />
+      </div>
     </div>
   );
 };

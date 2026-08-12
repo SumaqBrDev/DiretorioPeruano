@@ -67,6 +67,9 @@ model BusinessProfile {
   subscriptionStatus String?  // none, trial, active, past_due, canceled
   trialEndsAt        DateTime?
 
+  // Paid community ads (Opción A+B: sidebar + featured)
+  ads                BusinessAd[]
+
   // Relations
   reviews            Review[]
   sentMessages       Message[] @relation("BusinessSentMessages")
@@ -195,4 +198,27 @@ model CommunityVote {
   @@unique([targetType, targetId, userId])
   @@index([targetId])
   @@index([userId])
+}
+
+// ── Paid community ads (anuncios en Comunidad) ───────────────────────────────
+// Opción A (sidebar 300x250) + Opción B (featured card arriba del listado).
+// Solo negocios aprobados CON suscripción activa pueden comprar un anuncio.
+// Pago: PaymentIntent one-time R$30 por 30 días (stripe-checkout pattern).
+model BusinessAd {
+  id              String           @id @default(dbgenerated("gen_random_uuid()"))
+  business        BusinessProfile  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  businessId      String
+  title           String
+  imageUrl        String?          // opcional — si falta, usa photos[0] del negocio
+  targetUrl       String?          // opcional — si falta, enlaza a /negocio/:id
+  status          String           @default("pending") // pending, active, expired, cancelled
+  stripePaymentId String?          @unique
+  startsAt        DateTime?
+  endsAt          DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([status])
+  @@index([endsAt])
+  @@index([businessId])
 }

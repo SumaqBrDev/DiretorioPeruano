@@ -432,6 +432,38 @@ export async function openStripePortal(
   });
 }
 
+// ── Community ads (anuncios pagos en Comunidad) ──
+
+export interface CommunityAd {
+  id: string;
+  businessId: string;
+  businessName: string;
+  category: string;
+  rating: number;
+  title: string;
+  imageUrl: string;
+  targetUrl: string | null;
+  startsAt: string | null;
+  endsAt: string | null;
+}
+
+/** POST /api/ad-checkout — create a paid ad (one-time R$30/30 days, active subscription required). */
+export async function createBusinessAdCheckout(
+  token: string,
+  data: { businessId: string; title: string; imageUrl?: string; targetUrl?: string }
+): Promise<{ adId: string; url?: string; clientSecret?: string; betaMode?: boolean; message?: string; endsAt?: string }> {
+  return request<{ adId: string; url?: string; clientSecret?: string; betaMode?: boolean; message?: string; endsAt?: string }>(
+    'ad-checkout',
+    token,
+    { method: 'POST', body: data }
+  );
+}
+
+/** GET /api/ads — public active ads (sidebar + featured). */
+export async function getActiveAds(): Promise<CommunityAd[]> {
+  return request<CommunityAd[]>('ads', '', { method: 'GET' });
+}
+
 // ── Home (useHomeStore, public read endpoints) ──
 
 export interface HomeCategory {

@@ -137,6 +137,42 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription): Pro
   console.log(`Business ${business.id} subscription deleted — status set to disabled`);
 }
 
+/**
+ * Handle one-time ad payment (checkout.session.completed): activates the
+ * BusinessAd (pending → active, endsAt = now + AD_DAYS).
+ * Exported for unit tests.
+ */
+export async function handleAdCheckoutCompleted(session: Stripe.Checkout.Session): Promise<void> {
+  const adId = session.metadata?.adId;
+  if (!adId) {
+    console.warn('checkout.session.completed without adId metadata — not an ad payment, skipping');
+    return;
+  }
+
+  const ad = await prisma.businessAd.findUnique({
+    where: { id: adId },
+    select: { id: true, status: true },
+  });
+  if (!ad) {
+    console.warn(`BusinessAd ${adId} not found for session ${session.id}`);
+    return;
+  }
+  if (ad.status === 'active') {
+    console.log(`BusinessAd ${adId} already active, skipping activation`);
+    return;
+  }
+
+  const adDays = parseInt(process.env.AD_DAYS || '30', 10);
+  const now = new Date();
+  const endsAt = new Date(now.getTime() + adDays * 24 * 60 * 60 * 1000);
+
+  await prisma.businessAd.update({
+    where: { id: ad.id },
+    data: { status: 'active', startsAt: now, endsAt },
+  });
+  console.log(`BusinessAd ${adId} activated (${adDays} days) via session ${session.id}`);
+}
+
 export const handler = async (event: any) => {
   if (event.httpMethod !== 'POST') {
     return {
@@ -191,6 +227,13 @@ export const handler = async (event: any) => {
 
     // Handle specific event types
     switch (stripeEvent.type) {
+      case 'checkout.session.completed': {
+        const session = stripeEvent.data.object as Stripe.Checkout.Session;
+        await handleAdCheckoutCompleted(session);
+        await markEventProcessed(eventId, stripeEvent.type, stripeEvent.data.object);
+        break;
+      }
+
       case 'invoice.payment_failed': {
         const invoice = stripeEvent.data.object as Stripe.Invoice;
         await handleInvoicePaymentFailed(invoice);

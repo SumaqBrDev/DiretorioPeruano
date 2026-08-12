@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { listCommunityTopics, createCommunityTopic } from '@/lib/api';
 import type { CommunityTopicListResult } from '@/lib/api';
 import { SEO } from '@/components/SEO';
+import { CommunityAds } from '@/components/CommunityAds';
 
 export const Comunidad = () => {
   const { t } = useTranslation();
@@ -91,7 +92,12 @@ export const Comunidad = () => {
         )}
       </div>
 
-      {/* Search */}
+      {/* Featured ads (Opción B) — above the topic list, desktop + mobile */}
+      <CommunityAds variant="featured" limit={2} />
+
+      <div className="lg:grid lg:grid-cols-[1fr_300px] lg:gap-8">
+        <div className="min-w-0">
+          {/* Search */}
       <div className="flex gap-2 mb-6">
         <input
           type="text"
@@ -203,6 +209,11 @@ export const Comunidad = () => {
           )}
         </div>
       )}
+        </div>
+
+        {/* Sidebar ads (Opción A) — desktop only */}
+        <CommunityAds variant="sidebar" limit={4} />
+      </div>
     </div>
   );
 };

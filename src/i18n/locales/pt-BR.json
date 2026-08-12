@@ -134,5 +134,13 @@
     "delete": "Remover",
     "confirmDelete": "Tem certeza que deseja remover este conteúdo?",
     "queueEmpty": "Nenhum conteúdo aguardando moderação."
+  },
+  "ads": {
+    "sidebarTitle": "Anúncios",
+    "badge": "Patrocinado",
+    "featuredTitle": "Patrocinado",
+    "cta": "Impulsionar anúncio",
+    "price": "R$30/mês",
+    "onlySubscribers": "Disponível para negócios com assinatura ativa"
   }
 }

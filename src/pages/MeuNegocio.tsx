@@ -4,7 +4,7 @@ import { useUser, useAuth } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Flask, XCircle, Prohibit } from '@phosphor-icons/react';
-import { getMyBusiness, updateMyBusiness, openStripeCheckout, openStripePortal, type ApiBusiness as Business } from '../lib/api';
+import { getMyBusiness, updateMyBusiness, openStripeCheckout, openStripePortal, createBusinessAdCheckout, type ApiBusiness as Business } from '../lib/api';
 import { BusinessGallery } from '../components/BusinessGallery';
 
 const CATEGORIES = [
@@ -45,6 +45,11 @@ export const MeuNegocio = () => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  // Ad purchase state (Opción A+B: sidebar + featured en Comunidad)
+  const [showAdForm, setShowAdForm] = useState(false);
+  const [adTitle, setAdTitle] = useState('');
+  const [adTargetUrl, setAdTargetUrl] = useState('');
+  const [buyingAd, setBuyingAd] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -107,6 +112,18 @@ export const MeuNegocio = () => {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  // Stripe redirect back from ad checkout (?ad=success) — confirm + clean URL.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('ad') === 'success') {
+      setToast({ message: 'Pagamento confirmado! Seu anúncio está ativo por 30 dias. 🎉', type: 'success' });
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (params.get('ad') === 'cancel') {
+      setToast({ message: 'Pagamento cancelado. Você pode tentar novamente quando quiser.', type: 'error' });
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
 
   const persistPhotos = useCallback(
     async (_businessId: string, newPhotos: string[]) => {
@@ -182,6 +199,35 @@ export const MeuNegocio = () => {
       if (url) window.open(url, '_blank', 'noopener,noreferrer');
     } catch (err: any) {
       setToast({ message: err?.message || 'Erro ao abrir assinatura.', type: 'error' });
+    }
+  };
+
+  const handleBuyAd = async () => {
+    if (!business || !adTitle.trim()) return;
+    setBuyingAd(true);
+    try {
+      const token = await getToken();
+      if (!token) throw new Error('Sem sessão');
+      const res = await createBusinessAdCheckout(token, {
+        businessId: business.id,
+        title: adTitle.trim(),
+        targetUrl: adTargetUrl.trim() || undefined,
+      });
+      if (res.betaMode) {
+        setToast({ message: res.message || 'Modo Beta ativo — anúncio de teste ativado por 30 dias. 🧪', type: 'success' });
+        setShowAdForm(false);
+        setAdTitle('');
+        setAdTargetUrl('');
+      } else if (res.url) {
+        window.open(res.url, '_blank', 'noopener,noreferrer');
+        setShowAdForm(false);
+        setAdTitle('');
+        setAdTargetUrl('');
+      }
+    } catch (err: any) {
+      setToast({ message: err?.message || 'Erro ao criar o anúncio.', type: 'error' });
+    } finally {
+      setBuyingAd(false);
     }
   };
 
@@ -340,10 +386,60 @@ export const MeuNegocio = () => {
             🔑 {business.subscriptionStatus === 'active' || business.subscriptionStatus === 'past_due' ? 'Gerenciar Assinatura' : 'Assinar / Ativar'}
           </button>
         )}
+        {business.status === 'approved' && business.subscriptionStatus === 'active' && (
+          <button
+            onClick={() => setShowAdForm(!showAdForm)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-aji-rojo/10 text-aji-rojo hover:bg-aji-rojo/20 border border-aji-rojo/30 transition-colors"
+          >
+            📢 {showAdForm ? 'Cancelar' : 'Impulsionar anúncio R$30/mês'}
+          </button>
+        )}
         <span className="text-sm text-gray-500 dark:text-gray-400">
           Cadastrado em {new Date(business.createdAt).toLocaleDateString('pt-BR')}
         </span>
       </div>
+
+      {/* Ad purchase form (Opción A+B) — only for active subscribers */}
+      {showAdForm && business.subscriptionStatus === 'active' && (
+        <div className="mb-8 p-5 rounded-xl border border-aji-rojo/30 bg-aji-rojo/5 dark:bg-aji-rojo/10">
+          <h3 className="font-semibold text-noche-lima dark:text-white mb-1 flex items-center gap-2">
+            <span className="text-lg">📢</span> Anúncio na Comunidade — R$30 / 30 dias
+          </h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            Seu anúncio aparece no sidebar da Comunidade e como card patrocinado acima da lista de temas (desktop e mobile).
+          </p>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Título do anúncio *</label>
+              <input
+                type="text"
+                value={adTitle}
+                onChange={(e) => setAdTitle(e.target.value)}
+                maxLength={120}
+                placeholder="Ex: Promoção de ceviche no nosso restaurante"
+                className="w-full p-3 rounded-lg border border-oro-inca/30 bg-white dark:bg-noche-lima text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-aji-rojo"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Link de destino (opcional)</label>
+              <input
+                type="url"
+                value={adTargetUrl}
+                onChange={(e) => setAdTargetUrl(e.target.value)}
+                placeholder="https://... (se vazio, vai para a página do seu negócio)"
+                className="w-full p-3 rounded-lg border border-oro-inca/30 bg-white dark:bg-noche-lima text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-aji-rojo"
+              />
+            </div>
+            <button
+              onClick={handleBuyAd}
+              disabled={buyingAd || !adTitle.trim()}
+              className="px-5 py-2.5 bg-aji-rojo hover:bg-aji-rojo/90 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {buyingAd ? 'Processando...' : 'Pagar R$30 e ativar anúncio'}
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white dark:bg-noche-lima rounded-2xl shadow-lg border border-oro-inca/20 p-8">
         {!isEditing ? (
