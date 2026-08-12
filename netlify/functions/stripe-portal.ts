@@ -1,7 +1,6 @@
 import prisma from './lib/prisma';
 import { getStripe } from './lib/stripe';
 import { requireBusinessOwner, requireSuperAdmin } from './lib/auth';
-import type Stripe from 'stripe';
 
 const headers = {
   'Content-Type': 'application/json',
@@ -75,24 +74,18 @@ export const handler = async (event: any) => {
       };
     }
 
-    // Create Stripe Billing Portal session.
-    // flow_data.subscription_cancel REQUIRES a real subscription id — passing
-    // null (trial granted in beta mode, or sub not yet created) makes Stripe
-    // reject the request with a 400 and we surface a misleading 500. Fall back
-    // to a plain portal session (no pre-filled cancel flow) when absent.
-    const sessionParams: Stripe.BillingPortal.SessionCreateParams = {
+    // Create Stripe Billing Portal session — NO flow_data.
+    //
+    // flow_data.subscription_cancel fails with a 400 whenever the subscription
+    // is already set to cancel at period end ("already set to be canceled"),
+    // and also when there's no real subscriptionId (beta trial). The portal
+    // itself already shows the subscription with manage/cancel actions, so we
+    // skip the pre-filled cancel flow entirely — this removes the whole class
+    // of state-dependent errors.
+    const session = await stripe.billingPortal.sessions.create({
       customer: business.stripeCustomerId,
       return_url: `${event.headers?.origin || process.env.APP_URL || 'https://conectaperu.com'}/meu-negocio`,
-    };
-    if (business.subscriptionId) {
-      sessionParams.flow_data = {
-        type: 'subscription_cancel',
-        subscription_cancel: {
-          subscription: business.subscriptionId,
-        },
-      };
-    }
-    const session = await stripe.billingPortal.sessions.create(sessionParams);
+    });
 
     return {
       statusCode: 200,
@@ -100,11 +93,18 @@ export const handler = async (event: any) => {
       body: JSON.stringify({ url: session.url }),
     };
   } catch (error: any) {
-    console.error('Error in stripe-portal:', error);
+    // Surface the REAL Stripe message — the generic text hides the cause and
+    // makes QA look like a black box. Distinguish Stripe API errors (client's
+    // fault, 4xx) from unexpected failures (5xx).
+    const stripeMsg: string =
+      error?.type === 'StripeInvalidRequestError' || error?.raw?.message
+        ? (error?.message || error?.raw?.message || 'Stripe error')
+        : 'Error al crear portal de facturación';
+    console.error('Error in stripe-portal:', error?.message || error);
     return {
-      statusCode: 500,
+      statusCode: error?.statusCode || 500,
       headers,
-      body: JSON.stringify({ error: 'Error al crear portal de facturación' }),
+      body: JSON.stringify({ error: stripeMsg }),
     };
   }
 };

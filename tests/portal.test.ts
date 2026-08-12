@@ -101,4 +101,17 @@ describe('stripe-portal auth guard', () => {
     expect(res.statusCode).toBe(405);
     expect(ownerAuthMock).not.toHaveBeenCalled();
   });
+
+  it('creates the portal session WITHOUT flow_data (regression: sub set to cancel fails with flow_data)', async () => {
+    ownerAuthMock.mockResolvedValue({ ok: true, ownerBusinessId: 'biz-1', userId: 'user-1' });
+
+    const res = await handler(makeEvent());
+
+    expect(res.statusCode).toBe(200);
+    const stripe = (await import('stripe')).default as any;
+    const createMock = stripe().billingPortal.sessions.create;
+    const createArgs = createMock.mock.calls[0][0];
+    expect(createArgs.flow_data).toBeUndefined();
+    expect(createArgs.customer).toBe('cus_123');
+  });
 });
