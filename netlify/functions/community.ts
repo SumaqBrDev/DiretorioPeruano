@@ -232,8 +232,10 @@ export const handler = async (event: any) => {
       return { statusCode: 201, headers, body: JSON.stringify({ post }) };
     }
 
-    // Toggle vote (like/dislike) — applies to topics AND posts
-    if (body.action === 'vote' || (body.targetType && body.targetId)) {
+    // Toggle vote (like/dislike) — applies to topics AND posts.
+    // Explicit `action === 'vote'` only: the bare `(targetType && targetId)`
+    // fallback would swallow the `report` action below.
+    if (body.action === 'vote') {
       const targetType = body.targetType;
       const targetId = body.targetId;
       const value = body.value;
