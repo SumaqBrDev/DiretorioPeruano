@@ -58,9 +58,9 @@ export const CommunityAds = ({ variant = 'sidebar', limit = 4 }: CommunityAdsPro
 
   if (variant === 'featured') {
     return (
-      <div className="mb-6 space-y-3">
-        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-oro-inca">
-          <Megaphone size={14} weight="fill" />
+      <div className="mb-6 space-y-3 max-w-3xl">
+        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+          <Megaphone size={14} weight="fill" className="text-oro-inca" />
           {t('ads.sidebarTitle')}
         </div>
         {ads.slice(0, 2).map((ad) => (
@@ -90,13 +90,43 @@ const AdCard = ({ ad, variant }: { ad: CommunityAd; variant: 'sidebar' | 'featur
   const target = ad.targetUrl || `/negocio/${ad.businessId}`;
   const isExternal = Boolean(ad.targetUrl);
 
-  const card = (
-    <article
-      className={`group relative overflow-hidden border border-oro-inca/20 bg-white dark:bg-noche-lima shadow-sm hover:shadow-md hover:border-aji-rojo/40 transition-all ${
-        variant === 'sidebar' ? 'rounded-xl' : 'rounded-xl'
-      }`}
-    >
-      <div className={`relative overflow-hidden ${variant === 'sidebar' ? 'aspect-[6/5]' : 'aspect-[4/3]'} bg-gradient-to-br from-aji-rojo/10 to-oro-inca/5`}>
+  // Featured: compact horizontal banner (thumb + text) — commercial standard
+  // for sponsored rows in lists (Google Ads / native ad pattern).
+  const featuredCard = (
+    <article className="group flex items-center gap-4 overflow-hidden rounded-xl border border-oro-inca/20 bg-white dark:bg-noche-lima shadow-sm hover:shadow-md hover:border-aji-rojo/40 transition-all p-3">
+      <div className="relative w-24 h-16 shrink-0 overflow-hidden rounded-lg bg-gradient-to-br from-aji-rojo/10 to-oro-inca/5">
+        <img
+          src={ad.imageUrl || getFallbackImage(ad.category)}
+          alt={ad.title}
+          loading="lazy"
+          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+        />
+      </div>
+      <div className="min-w-0 flex-1">
+        <h3 className="font-semibold text-noche-lima dark:text-white text-sm leading-snug group-hover:text-aji-rojo transition-colors truncate">
+          {ad.title}
+        </h3>
+        <div className="flex items-center gap-2 mt-1 text-xs text-gray-500 dark:text-gray-400">
+          <span className="truncate">{ad.businessName}</span>
+          {ad.rating > 0 && (
+            <span className="inline-flex items-center gap-0.5 shrink-0">
+              <Star size={11} weight="fill" className="text-oro-inca" />
+              {ad.rating.toFixed(1)}
+            </span>
+          )}
+        </div>
+      </div>
+      <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-noche-lima/90 dark:bg-zinc-900/90 text-[10px] font-bold uppercase tracking-wider text-oro-inca shadow-sm">
+        <Megaphone size={10} weight="fill" />
+        {t('ads.badge')}
+      </span>
+    </article>
+  );
+
+  // Sidebar: 300x250 Medium Rectangle (IAB standard) — 6:5 image + text block.
+  const sidebarCard = (
+    <article className="group overflow-hidden rounded-xl border border-oro-inca/20 bg-white dark:bg-noche-lima shadow-sm hover:shadow-md hover:border-aji-rojo/40 transition-all">
+      <div className="relative aspect-[6/5] bg-gradient-to-br from-aji-rojo/10 to-oro-inca/5">
         <img
           src={ad.imageUrl || getFallbackImage(ad.category)}
           alt={ad.title}
@@ -124,6 +154,8 @@ const AdCard = ({ ad, variant }: { ad: CommunityAd; variant: 'sidebar' | 'featur
       </div>
     </article>
   );
+
+  const card = variant === 'featured' ? featuredCard : sidebarCard;
 
   if (isExternal) {
     return (
