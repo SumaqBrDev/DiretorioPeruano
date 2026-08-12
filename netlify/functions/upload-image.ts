@@ -230,7 +230,21 @@ export const handler = async (event: any) => {
       select: { photos: true },
     });
     const currentCount = current?.photos?.length ?? 0;
-    const remaining = MAX_PHOTOS_PER_BUSINESS - currentCount;
+
+    // BUG-032b: the DB `photos` array only updates AFTER the frontend persists
+    // the upload (PUT /api/my-business), so an attacker hitting this endpoint
+    // directly could exceed the cap without ever touching the DB. Count the
+    // REAL blobs already stored for this business and enforce the cap on that.
+    const store = getStore(STORE_NAME);
+    let storedCount = 0;
+    try {
+      const listing = await store.list({ prefix: `${businessId}/` });
+      storedCount = listing?.blobs?.length ?? 0;
+    } catch (err) {
+      console.warn('[upload-image] blob list failed, falling back to DB count:', (err as Error).message);
+    }
+    const effectiveCount = Math.max(currentCount, storedCount);
+    const remaining = MAX_PHOTOS_PER_BUSINESS - effectiveCount;
     const acceptedFiles = uploadedFiles.slice(0, Math.max(0, remaining));
     const overLimit = uploadedFiles.length - acceptedFiles.length;
 
@@ -253,9 +267,7 @@ export const handler = async (event: any) => {
       });
     }
 
-    // Get the store once
-    const store = getStore(STORE_NAME);
-
+    // Get the store once (declared above for the blob-count cap)
     for (const file of acceptedFiles) {
       // Validate content type (declared)
       if (!ALLOWED_TYPES.includes(file.contentType)) {
