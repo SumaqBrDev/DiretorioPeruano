@@ -376,13 +376,19 @@ model SiteConfig {
 ### Stripe Webhook
 | Método | Endpoint | Eventos |
 |--------|----------|---------|
-| POST | `/api/stripe-webhook` | `invoice.payment_failed`, `customer.subscription.updated`, `customer.subscription.deleted`, `customer.subscription.trial_will_end`, `invoice.payment_succeeded` |
+| POST | `/api/stripe-webhook` | `checkout.session.completed` (ads one-time), `invoice.payment_failed`, `customer.subscription.updated`, `customer.subscription.deleted`, `customer.subscription.trial_will_end`, `invoice.payment_succeeded` |
+
+### Anúncios pagos na Comunidade (Opción A+B)
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| POST | `/api/ad-checkout` | Cria anúncio pago (R$30/30 dias, só negócios aprovados com assinatura ativa). Beta mode ativa sem Stripe; produção cria Checkout Session `mode=payment` e o webhook ativa após `checkout.session.completed` |
+| GET | `/api/ads` | Anúncios ativos (público): sidebar 300×250 + card patrocinado acima da lista de temas. Ordenação: expiração mais próxima primeiro |
 
 ---
 
-## 🧱 Funções Netlify (22 archivos — `netlify/functions/`)
+## 🧱 Funções Netlify (24 archivos — `netlify/functions/`)
 
-`admin-approve.ts`, `admin-beta-mode.ts`, `admin-business-detail.ts`, `admin-businesses.ts`, `admin-delete.ts`, `admin-reject.ts`, `business-detail.ts`, `businesses.ts`, `categories.ts`, `community-reviews.ts`, `delete-image.ts`, `featured.ts`, `messages.ts`, `migrate-localstorage.ts`, `my-business.ts`, `reviews.ts`, `stats.ts`, `stripe-checkout.ts`, `stripe-portal.ts`, `stripe-webhook.ts`, `testimonials.ts`, `upload-image.ts`.
+`ad-checkout.ts`, `ads.ts`, `admin-approve.ts`, `admin-beta-mode.ts`, `admin-business-detail.ts`, `admin-businesses.ts`, `admin-delete.ts`, `admin-reject.ts`, `business-detail.ts`, `businesses.ts`, `categories.ts`, `community-reviews.ts`, `delete-image.ts`, `featured.ts`, `messages.ts`, `migrate-localstorage.ts`, `my-business.ts`, `reviews.ts`, `stats.ts`, `stripe-checkout.ts`, `stripe-portal.ts`, `stripe-webhook.ts`, `testimonials.ts`, `upload-image.ts`.
 
 **Libs compartidas (`netlify/functions/lib/`):** `auth.ts` (verificação Clerk/role), `cnpj.ts` (validação mod 11), `email.ts` (Resend, 4 templates), `prisma.ts` (client singleton), `subscription.ts` (mapeo status Stripe), `stripe.ts` (client), `blobs.ts`/store.
 
