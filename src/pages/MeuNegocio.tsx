@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useUser, useAuth } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { Flask, XCircle, Prohibit } from '@phosphor-icons/react';
-import { getMyBusinessWithAds, updateMyBusiness, openStripeCheckout, openStripePortal, createBusinessAdCheckout, type ApiBusinessWithAds as Business, type MyBusinessAd } from '../lib/api';
+import { getMyBusinessWithAds, updateMyBusiness, openStripeCheckout, openStripePortal, createBusinessAdCheckout, uploadAdImage, type ApiBusinessWithAds as Business, type MyBusinessAd } from '../lib/api';
 import { BusinessGallery } from '../components/BusinessGallery';
 import { showToast } from '../lib/toast';
 
@@ -49,6 +49,9 @@ export const MeuNegocio = () => {
   const [showAdForm, setShowAdForm] = useState(false);
   const [adTitle, setAdTitle] = useState('');
   const [adImageUrl, setAdImageUrl] = useState('');
+  const [adImagePreview, setAdImagePreview] = useState<string | null>(null);
+  const [adImageFile, setAdImageFile] = useState<File | null>(null);
+  const [uploadingAdImage, setUploadingAdImage] = useState(false);
   const [adTargetUrl, setAdTargetUrl] = useState('');
   const [buyingAd, setBuyingAd] = useState(false);
   const [formData, setFormData] = useState({
@@ -203,16 +206,47 @@ export const MeuNegocio = () => {
     }
   };
 
+  const handleAdImageFile = (file: File | null) => {
+    // Clean up any previous object URL
+    if (adImagePreview && adImagePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(adImagePreview);
+    }
+    if (!file) {
+      setAdImageFile(null);
+      setAdImagePreview(null);
+      return;
+    }
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      showToast('Tipo não suportado. Permitidos: JPEG, PNG, WebP', 'error');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('Arquivo muito grande. Máximo: 5MB', 'error');
+      return;
+    }
+    setAdImageFile(file);
+    setAdImagePreview(URL.createObjectURL(file));
+    // Clear the URL input when a local file is chosen (and vice-versa handled in the input)
+    setAdImageUrl('');
+  };
+
   const handleBuyAd = async () => {
     if (!business || !adTitle.trim()) return;
     setBuyingAd(true);
     try {
       const token = await getToken();
       if (!token) throw new Error('Sem sessão');
+      // Local file takes precedence over a URL — upload first, then use its blob URL.
+      let imageUrl = adImageUrl.trim() || undefined;
+      if (adImageFile) {
+        setUploadingAdImage(true);
+        const uploaded = await uploadAdImage(token, business.id, adImageFile);
+        imageUrl = uploaded.url;
+      }
       const res = await createBusinessAdCheckout(token, {
         businessId: business.id,
         title: adTitle.trim(),
-        imageUrl: adImageUrl.trim() || undefined,
+        imageUrl,
         targetUrl: adTargetUrl.trim() || undefined,
       });
       if (res.betaMode) {
@@ -220,6 +254,9 @@ export const MeuNegocio = () => {
         setShowAdForm(false);
         setAdTitle('');
         setAdImageUrl('');
+        setAdImageFile(null);
+        if (adImagePreview && adImagePreview.startsWith('blob:')) URL.revokeObjectURL(adImagePreview);
+        setAdImagePreview(null);
         setAdTargetUrl('');
         refresh();
       } else if (res.url) {
@@ -227,11 +264,15 @@ export const MeuNegocio = () => {
         setShowAdForm(false);
         setAdTitle('');
         setAdImageUrl('');
+        setAdImageFile(null);
+        if (adImagePreview && adImagePreview.startsWith('blob:')) URL.revokeObjectURL(adImagePreview);
+        setAdImagePreview(null);
         setAdTargetUrl('');
       }
     } catch (err: any) {
       showToast(err?.message || 'Erro ao criar o anúncio.', 'error');
     } finally {
+      setUploadingAdImage(false);
       setBuyingAd(false);
     }
   };
@@ -411,16 +452,66 @@ export const MeuNegocio = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Imagem do anúncio (opcional)</label>
-              <input
-                type="url"
-                value={adImageUrl}
-                onChange={(e) => setAdImageUrl(e.target.value)}
-                placeholder="https://... (se vazio, usamos a primeira foto do seu negócio)"
-                className="w-full p-3 rounded-lg border border-oro-inca/30 bg-white dark:bg-noche-lima text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-aji-rojo"
-              />
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Dica: use uma imagem de ~600×500px (proporção 6:5) para o sidebar.
-              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex-1">
+                  <input
+                    type="url"
+                    value={adImageUrl}
+                    onChange={(e) => {
+                      setAdImageUrl(e.target.value);
+                      // Switching to a URL discards the local file choice.
+                      if (e.target.value.trim()) {
+                        if (adImagePreview && adImagePreview.startsWith('blob:')) URL.revokeObjectURL(adImagePreview);
+                        setAdImagePreview(null);
+                        setAdImageFile(null);
+                      }
+                    }}
+                    disabled={!!adImageFile}
+                    placeholder="Cole uma URL de imagem... (ou envie um arquivo abaixo)"
+                    className="w-full p-3 rounded-lg border border-oro-inca/30 bg-white dark:bg-noche-lima text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-aji-rojo disabled:opacity-50"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    URL ou arquivo local (JPEG/PNG/WebP, máx. 5MB). Se vazio, usamos a primeira foto do seu negócio.
+                  </p>
+                </div>
+                <label className="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-oro-inca/30 text-sm font-medium text-gray-700 dark:text-gray-300 hover:border-aji-rojo/50 hover:text-aji-rojo cursor-pointer transition-colors">
+                  {uploadingAdImage ? (
+                    <span className="flex items-center gap-2">
+                      <span className="h-4 w-4 rounded-full border-2 border-oro-inca border-t-transparent animate-spin" />
+                      Enviando...
+                    </span>
+                  ) : (
+                    <>
+                      <span className="text-base">📁</span>
+                      {adImageFile ? 'Trocar arquivo' : 'Enviar arquivo'}
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    disabled={uploadingAdImage}
+                    onChange={(e) => handleAdImageFile(e.target.files?.[0] || null)}
+                  />
+                </label>
+              </div>
+              {adImagePreview && (
+                <div className="relative mt-3 inline-block">
+                  <img
+                    src={adImagePreview}
+                    alt="Preview do anúncio"
+                    className="h-24 w-32 object-cover rounded-lg border border-oro-inca/30"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleAdImageFile(null)}
+                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-aji-rojo text-white text-xs font-bold shadow hover:bg-aji-rojo/90 transition-colors"
+                    aria-label="Remover imagem"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Link de destino (opcional)</label>

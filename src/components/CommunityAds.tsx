@@ -39,6 +39,8 @@ interface CommunityAdsProps {
 export const CommunityAds = ({ variant = 'sidebar', limit = 4 }: CommunityAdsProps) => {
   const { t } = useTranslation();
   const [ads, setAds] = useState<CommunityAd[]>([]);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,18 +56,71 @@ export const CommunityAds = ({ variant = 'sidebar', limit = 4 }: CommunityAdsPro
     };
   }, [limit]);
 
+  // Featured carousel: auto-advance every 6s, pause on hover, wrap around.
+  // Respects prefers-reduced-motion (no auto-rotation; user navigates manually).
+  useEffect(() => {
+    if (variant !== 'featured' || ads.length <= 1 || paused) return;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduced) return;
+    const timer = setInterval(() => {
+      setActiveIndex((i) => (i + 1) % ads.length);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, [variant, ads.length, paused]);
+
   if (ads.length === 0) return null;
 
   if (variant === 'featured') {
+    const isCarousel = ads.length > 1;
     return (
-      <div className="mb-6 space-y-3 max-w-3xl">
-        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-          <Megaphone size={14} weight="fill" className="text-oro-inca" />
-          {t('ads.sidebarTitle')}
+      <div
+        className="mb-6 max-w-3xl"
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+      >
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+            <Megaphone size={14} weight="fill" className="text-oro-inca" />
+            {t('ads.sidebarTitle')}
+          </div>
+          {isCarousel && ads.length > 1 && (
+            <span className="text-[11px] text-gray-400 dark:text-gray-500 tabular-nums">
+              {activeIndex + 1} / {ads.length}
+            </span>
+          )}
         </div>
-        {ads.slice(0, 2).map((ad) => (
-          <AdCard key={ad.id} ad={ad} variant="featured" />
-        ))}
+
+        {/* Slides */}
+        <div className="relative overflow-hidden rounded-xl">
+          <div
+            className="flex transition-transform duration-500 ease-out"
+            style={{ transform: `translateX(-${activeIndex * 100}%)` }}
+          >
+            {ads.slice(0, 2).map((ad) => (
+              <div key={ad.id} className="w-full shrink-0 px-0.5">
+                <AdCard ad={ad} variant="featured" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Dots */}
+        {isCarousel && (
+          <div className="flex items-center justify-center gap-2 mt-3">
+            {ads.slice(0, 2).map((ad, i) => (
+              <button
+                key={ad.id}
+                onClick={() => setActiveIndex(i)}
+                aria-label={`Anúncio ${i + 1}`}
+                className={`h-2 rounded-full transition-all ${
+                  i === activeIndex
+                    ? 'w-6 bg-aji-rojo'
+                    : 'w-2 bg-gray-300 dark:bg-zinc-600 hover:bg-gray-400'
+                }`}
+              />
+            ))}
+          </div>
+        )}
       </div>
     );
   }

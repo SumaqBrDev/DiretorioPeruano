@@ -459,6 +459,36 @@ export async function createBusinessAdCheckout(
   );
 }
 
+/** POST /api/upload-ad-image — upload ONE local ad image (multipart). Returns the blob URL. */
+export async function uploadAdImage(
+  token: string,
+  businessId: string,
+  file: File
+): Promise<{ url: string; key: string }> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('businessId', businessId);
+
+  const response = await fetch(`${API_BASE}/.netlify/functions/upload-ad-image`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    let message = `Erro ${response.status}`;
+    try {
+      const data = await response.json();
+      if (data?.error) message = data.error;
+    } catch {
+      // ignore
+    }
+    throw new ApiError(response.status, message);
+  }
+
+  return (await response.json()) as { url: string; key: string };
+}
+
 /** GET /api/ads — public active ads (sidebar + featured). */
 export async function getActiveAds(): Promise<CommunityAd[]> {
   return request<CommunityAd[]>('ads', '', { method: 'GET' });
