@@ -383,6 +383,7 @@ model SiteConfig {
 |--------|----------|-----------|
 | POST | `/api/ad-checkout` | Cria anúncio pago (R$30/30 dias, só negócios aprovados com assinatura ativa). Beta mode ativa sem Stripe; produção cria Checkout Session `mode=payment` e o webhook ativa após `checkout.session.completed` |
 | GET | `/api/ads` | Anúncios ativos (público): sidebar 300×250 + card patrocinado acima da lista de temas. Ordenação: expiração mais próxima primeiro |
+| GET | `/api/admin-finance` | Dashboard financeiro (superadmin): receita de assinaturas (ativas × R$59) + receita de anúncios (pagos × R$30) + tabelas detalhadas de assinaturas ativas e anúncios |
 
 ---
 
