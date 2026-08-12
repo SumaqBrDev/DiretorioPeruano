@@ -42,9 +42,23 @@
 - Old sub_1U3VZAAYoh7rSSl1ifVxbOHm + cus_V3coToh35dOBHi — orphaned by re-approve (was replaced)
 
 ## Cleanup needed (end of F8.2)
-1. Restore QA user emails (jarhkof.apps@gmail.com → +conectaqua aliases)
-2. Restore Mercado Andino → approved/active (was approved pre-campaign)
-3. Restore Serviços Técnicos Andino → approved/active (soft-deleted in CP-031)
-4. Restore Wiracocha → disabled/past_due (unchanged, verify)
-5. Cancel/clean orphaned Stripe subs (sub_1U3VZAAYoh7rSSl1ifVxbOHm)
-6. Revert ownerdisabled01 role → business (was elevated to superadmin for admin API tests)
+1. ✅ Restore QA user emails (jarhkof.apps@gmail.com → +conectaqua aliases) — DONE
+2. ✅ Restore Mercado Andino → approved/active — DONE
+3. ✅ Restore Serviços Técnicos Andino → approved/active — DONE
+4. ✅ Restore Wiracocha → disabled/past_due — DONE
+5. ✅ Revert ownerdisabled01 role → business (was elevated to superadmin) — DONE
+6. ✅ Cleaned 12 test blobs from business-images store — DONE
+
+## Community (Comunidad) — implemented & verified live 2026-08-12
+- Schema applied to Neon: CommunityTopic, CommunityPost, CommunityVote (+ unique vote constraint, indexes)
+- Endpoints: /api/community (public list/detail + auth create topic/post/vote/report),
+  /api/admin-community (superadmin queue + hide/restore/delete)
+- Pages: /comunidad, /comunidad/:id (TikTok-style single-indent replies with @author),
+  /admin/comunidade (moderation queue)
+- Verified live: public list empty→topic created (201), root comment (201), reply with
+  parentId (201, parentAuthor shown), topic vote create/toggle (score 1→0), post vote,
+  report (200 → appears in admin queue), admin hide (public 404 + search 0) → restore,
+  business role CAN comment (201, per user decision), moderation gate denies non-superadmin
+- Commits: 551dec0 (feat), e7e0139 (fix: report swallowed by vote branch)
+- Seed content left in place: 1 topic "Onde encontrar pisco sour no Brasil?" + 3 comments
+  (demonstrates the feature; delete via /admin/comunidade if unwanted)
