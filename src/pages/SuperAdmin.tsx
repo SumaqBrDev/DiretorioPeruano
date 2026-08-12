@@ -22,7 +22,9 @@ import {
   adminDelete,
   adminGetBetaMode,
   adminSetBetaMode,
+  getFinanceDashboard,
   type ApiBusiness as Business,
+  type FinanceDashboard,
 } from '../lib/api';
 
 // ── Helpers ──
@@ -418,7 +420,7 @@ function StatsCard({
   color,
 }: {
   label: string;
-  value: number;
+  value: number | string;
   icon: React.ReactNode;
   color: string;
 }) {
@@ -447,6 +449,7 @@ export const SuperAdmin = () => {
   const [page, setPage] = useState(1);
   const [betaMode, setBeta] = useState<boolean>(true);
   const [loading, setLoading] = useState(true);
+  const [finance, setFinance] = useState<FinanceDashboard | null>(null);
 
   // Modal state
   const [detailBusiness, setDetailBusiness] = useState<Business | null>(null);
@@ -470,9 +473,10 @@ export const SuperAdmin = () => {
       return;
     }
     try {
-      const [list, beta] = await Promise.all([
+      const [list, beta, fin] = await Promise.all([
         adminListBusinesses(token, { status: 'ALL', limit: 100 }),
         adminGetBetaMode(token),
+        getFinanceDashboard(token).catch(() => null),
       ]);
       // Normalize API payload into the display shape used by the modals
       const normalized: Business[] = (list.businesses || []).map((b) => ({
@@ -487,6 +491,7 @@ export const SuperAdmin = () => {
       }));
       setBusinesses(normalized);
       setBeta(beta.betaMode);
+      setFinance(fin);
     } catch (err: any) {
       setToast({ message: err?.message || 'Erro ao carregar negócios.', type: 'error' });
     } finally {
@@ -711,6 +716,122 @@ export const SuperAdmin = () => {
         <StatsCard label="Desabilitados" value={stats.desabilitados} icon={<Prohibit size={20} weight="duotone" />} color="bg-zinc-100 border-zinc-300 text-zinc-700 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-300" />
         <StatsCard label="Em Trial" value={stats.emTrial} icon={<Flask size={20} weight="duotone" />} color="bg-purple-50 border-purple-200 text-purple-800 dark:bg-purple-900/20 dark:border-purple-800 dark:text-purple-200" />
       </div>
+
+      {/* ── Financial dashboard (ingresos suscripciones + anuncios) ── */}
+      {finance && (
+        <div className="mb-8">
+          <h2 className="font-playfair text-2xl font-bold text-noche-lima dark:text-white mb-4 flex items-center gap-2">
+            💰 Financeiro
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+            <StatsCard
+              label={`Assinaturas ativas (${finance.summary.activeSubscriptions} × R$${(finance.summary.subPriceCents / 100).toFixed(0)})`}
+              value={(finance.summary.subRevenueCents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+              icon={<span className="text-lg">🔑</span>}
+              color="bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-200"
+            />
+            <StatsCard
+              label={`Anúncios pagos (${finance.summary.totalAdsPaid} × R$${(finance.summary.adPriceCents / 100).toFixed(0)})`}
+              value={(finance.summary.adRevenueCents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+              icon={<span className="text-lg">📢</span>}
+              color="bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-200"
+            />
+            <StatsCard
+              label="Receita total (mensal estimada)"
+              value={(finance.summary.totalRevenueCents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+              icon={<span className="text-lg">💎</span>}
+              color="bg-aji-rojo/10 border-aji-rojo/30 text-aji-rojo"
+            />
+          </div>
+
+          {/* Active subscriptions table */}
+          <div className="bg-white dark:bg-noche-lima rounded-2xl shadow-lg border border-oro-inca/20 overflow-x-auto mb-6">
+            <div className="px-4 py-3 border-b border-oro-inca/20 font-semibold text-noche-lima dark:text-white">
+              🔑 Assinaturas ativas ({finance.subscriptions.length})
+            </div>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-oro-inca/20 bg-gray-50/80 dark:bg-zinc-800/50">
+                  <th className="text-left p-3 text-[11px] font-semibold uppercase tracking-wider text-noche-lima/60 dark:text-white/60">Negócio</th>
+                  <th className="text-left p-3 text-[11px] font-semibold uppercase tracking-wider text-noche-lima/60 dark:text-white/60 hidden md:table-cell">Dono</th>
+                  <th className="text-left p-3 text-[11px] font-semibold uppercase tracking-wider text-noche-lima/60 dark:text-white/60 hidden lg:table-cell">Email</th>
+                  <th className="text-left p-3 text-[11px] font-semibold uppercase tracking-wider text-noche-lima/60 dark:text-white/60">Status</th>
+                  <th className="text-left p-3 text-[11px] font-semibold uppercase tracking-wider text-noche-lima/60 dark:text-white/60 hidden sm:table-cell">Aprovado em</th>
+                </tr>
+              </thead>
+              <tbody>
+                {finance.subscriptions.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="p-6 text-center text-gray-500 dark:text-gray-400">Nenhuma assinatura ativa.</td>
+                  </tr>
+                )}
+                {finance.subscriptions.map((s) => (
+                  <tr key={s.businessId} className="border-b border-oro-inca/10 hover:bg-gray-50 dark:hover:bg-zinc-800/30 transition-colors">
+                    <td className="p-3 font-medium text-noche-lima dark:text-white max-w-[200px] truncate">{s.businessName}</td>
+                    <td className="p-3 text-gray-600 dark:text-gray-400 hidden md:table-cell">{s.ownerName || '—'}</td>
+                    <td className="p-3 text-gray-500 dark:text-gray-400 text-xs hidden lg:table-cell">{s.ownerEmail || '—'}</td>
+                    <td className="p-3">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ring-1 ring-inset bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-300 dark:ring-emerald-400/20">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        Ativa
+                      </span>
+                    </td>
+                    <td className="p-3 text-gray-500 dark:text-gray-400 text-xs hidden sm:table-cell">{s.approvedAt ? formatDate(s.approvedAt) : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Ads table */}
+          <div className="bg-white dark:bg-noche-lima rounded-2xl shadow-lg border border-oro-inca/20 overflow-x-auto">
+            <div className="px-4 py-3 border-b border-oro-inca/20 font-semibold text-noche-lima dark:text-white">
+              📢 Anúncios ({finance.ads.length})
+            </div>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-oro-inca/20 bg-gray-50/80 dark:bg-zinc-800/50">
+                  <th className="text-left p-3 text-[11px] font-semibold uppercase tracking-wider text-noche-lima/60 dark:text-white/60">Título</th>
+                  <th className="text-left p-3 text-[11px] font-semibold uppercase tracking-wider text-noche-lima/60 dark:text-white/60 hidden md:table-cell">Negócio</th>
+                  <th className="text-left p-3 text-[11px] font-semibold uppercase tracking-wider text-noche-lima/60 dark:text-white/60">Status</th>
+                  <th className="text-left p-3 text-[11px] font-semibold uppercase tracking-wider text-noche-lima/60 dark:text-white/60 hidden lg:table-cell">Vigência</th>
+                  <th className="text-left p-3 text-[11px] font-semibold uppercase tracking-wider text-noche-lima/60 dark:text-white/60 hidden sm:table-cell">Contratado em</th>
+                </tr>
+              </thead>
+              <tbody>
+                {finance.ads.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="p-6 text-center text-gray-500 dark:text-gray-400">Nenhum anúncio ainda.</td>
+                  </tr>
+                )}
+                {finance.ads.map((ad) => (
+                  <tr key={ad.id} className="border-b border-oro-inca/10 hover:bg-gray-50 dark:hover:bg-zinc-800/30 transition-colors">
+                    <td className="p-3 font-medium text-noche-lima dark:text-white max-w-[220px] truncate">{ad.title}</td>
+                    <td className="p-3 text-gray-600 dark:text-gray-400 hidden md:table-cell max-w-[150px] truncate">{ad.businessName}</td>
+                    <td className="p-3">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ring-1 ring-inset ${
+                        ad.status === 'active'
+                          ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-300 dark:ring-emerald-400/20'
+                          : ad.status === 'pending'
+                          ? 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-300 dark:ring-amber-400/20'
+                          : 'bg-zinc-100 text-zinc-600 ring-zinc-500/20 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-400/20'
+                      }`}>
+                        {ad.status === 'active' ? 'Ativo' : ad.status === 'pending' ? 'Pagamento pendente' : ad.status}
+                      </span>
+                    </td>
+                    <td className="p-3 text-gray-500 dark:text-gray-400 text-xs hidden lg:table-cell">
+                      {ad.startsAt && ad.endsAt
+                        ? `${formatDate(ad.startsAt)} → ${formatDate(ad.endsAt)}`
+                        : '—'}
+                    </td>
+                    <td className="p-3 text-gray-500 dark:text-gray-400 text-xs hidden sm:table-cell">{formatDate(ad.createdAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Empty State */}
       {businesses.length === 0 && (

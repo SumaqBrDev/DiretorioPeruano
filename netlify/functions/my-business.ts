@@ -44,10 +44,29 @@ export const handler = async (event: any) => {
         body: JSON.stringify({ error: 'El usuario no posee un negocio' }),
       };
     }
+    const business = await prisma.businessProfile.findUnique({
+      where: { id: user.business.id },
+      include: {
+        ads: {
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            title: true,
+            imageUrl: true,
+            targetUrl: true,
+            status: true,
+            stripePaymentId: true,
+            startsAt: true,
+            endsAt: true,
+            createdAt: true,
+          },
+        },
+      },
+    });
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify(user.business),
+      body: JSON.stringify(business),
     };
   }
 

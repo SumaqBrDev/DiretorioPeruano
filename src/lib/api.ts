@@ -464,6 +464,78 @@ export async function getActiveAds(): Promise<CommunityAd[]> {
   return request<CommunityAd[]>('ads', '', { method: 'GET' });
 }
 
+// ── Business ads owned by the current user (Meu Negócio) ──
+
+export interface MyBusinessAd {
+  id: string;
+  title: string;
+  imageUrl: string | null;
+  targetUrl: string | null;
+  status: string;
+  stripePaymentId: string | null;
+  startsAt: string | null;
+  endsAt: string | null;
+  createdAt: string;
+}
+
+export interface ApiBusinessWithAds extends ApiBusiness {
+  ads?: MyBusinessAd[];
+}
+
+/** GET /api/my-business — includes the owner's paid ads. */
+export async function getMyBusinessWithAds(token: string): Promise<ApiBusinessWithAds> {
+  return request<ApiBusinessWithAds>('my-business', token, { method: 'GET' });
+}
+
+// ── Superadmin financial dashboard ──
+
+export interface FinanceSubscriptionRow {
+  businessId: string;
+  businessName: string;
+  status: string;
+  subscriptionId: string | null;
+  subscriptionStatus: string;
+  trialEndsAt: string | null;
+  approvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  ownerEmail: string | null;
+  ownerName: string | null;
+}
+
+export interface FinanceAdRow {
+  id: string;
+  businessId: string;
+  businessName: string;
+  title: string;
+  status: string;
+  startsAt: string | null;
+  endsAt: string | null;
+  createdAt: string;
+  stripePaymentId: string | null;
+}
+
+export interface FinanceDashboard {
+  summary: {
+    activeSubscriptions: number;
+    activeAds: number;
+    totalAdsPaid: number;
+    subRevenueCents: number;
+    adRevenueCents: number;
+    totalRevenueCents: number;
+    currency: string;
+    subPriceCents: number;
+    adPriceCents: number;
+  };
+  subscriptions: FinanceSubscriptionRow[];
+  ads: FinanceAdRow[];
+}
+
+/** GET /api/admin-finance — superadmin revenue + detailed tables. */
+export async function getFinanceDashboard(token: string): Promise<FinanceDashboard> {
+  return request<FinanceDashboard>('admin-finance', token, { method: 'GET' });
+}
+
 // ── Home (useHomeStore, public read endpoints) ──
 
 export interface HomeCategory {

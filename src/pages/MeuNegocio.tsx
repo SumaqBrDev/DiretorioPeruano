@@ -4,7 +4,7 @@ import { useUser, useAuth } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Flask, XCircle, Prohibit } from '@phosphor-icons/react';
-import { getMyBusiness, updateMyBusiness, openStripeCheckout, openStripePortal, createBusinessAdCheckout, type ApiBusiness as Business } from '../lib/api';
+import { getMyBusinessWithAds, updateMyBusiness, openStripeCheckout, openStripePortal, createBusinessAdCheckout, type ApiBusinessWithAds as Business, type MyBusinessAd } from '../lib/api';
 import { BusinessGallery } from '../components/BusinessGallery';
 
 const CATEGORIES = [
@@ -40,6 +40,7 @@ export const MeuNegocio = () => {
   const { getToken } = useAuth();
   const navigate = useNavigate();
   const [business, setBusiness] = useState<Business | null>(null);
+  const [myAds, setMyAds] = useState<MyBusinessAd[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -93,9 +94,10 @@ export const MeuNegocio = () => {
       return;
     }
     try {
-      const mine = await getMyBusiness(token);
+      const mine = await getMyBusinessWithAds(token);
       if (mine) {
         hydrate(mine);
+        setMyAds(mine.ads || []);
         setLoadError(null);
       }
     } catch (err: any) {
@@ -440,6 +442,112 @@ export const MeuNegocio = () => {
           </div>
         </div>
       )}
+
+      {/* Subscription detail (diferenciada de los anuncios) */}
+      <div className="mb-6 bg-white dark:bg-noche-lima rounded-2xl shadow-lg border border-oro-inca/20 p-6">
+        <h2 className="font-playfair text-xl font-bold text-noche-lima dark:text-white mb-4 flex items-center gap-2">
+          🔑 Assinatura da página
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+          <div>
+            <p className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide mb-0.5">Plano</p>
+            <p className="font-semibold text-noche-lima dark:text-white">Listagem ConectaPeru</p>
+          </div>
+          <div>
+            <p className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide mb-0.5">Status</p>
+            <p className="font-semibold capitalize text-noche-lima dark:text-white">
+              {business.subscriptionStatus || 'none'}
+              {business.subscriptionStatus === 'active' && <span className="text-emerald-600 dark:text-emerald-400"> ●</span>}
+            </p>
+          </div>
+          <div>
+            <p className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide mb-0.5">Preço</p>
+            <p className="font-semibold text-noche-lima dark:text-white">R$59/mês</p>
+          </div>
+          <div>
+            <p className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide mb-0.5">Trial termina</p>
+            <p className="font-semibold text-noche-lima dark:text-white">
+              {business.trialEndsAt ? new Date(business.trialEndsAt).toLocaleDateString('pt-BR') : '—'}
+            </p>
+          </div>
+        </div>
+        {business.status === 'approved' && (
+          <button
+            onClick={handleManageSubscription}
+            className="mt-4 text-sm font-medium text-oro-inca hover:text-oro-inca/80 transition-colors"
+          >
+            {business.subscriptionStatus === 'active' || business.subscriptionStatus === 'past_due' ? 'Gerenciar no Portal Stripe →' : 'Assinar / Ativar plano →'}
+          </button>
+        )}
+      </div>
+
+      {/* Ads contratados (diferenciados de la suscripción) */}
+      <div className="mb-8 bg-white dark:bg-noche-lima rounded-2xl shadow-lg border border-oro-inca/20 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-playfair text-xl font-bold text-noche-lima dark:text-white flex items-center gap-2">
+            📢 Anúncios na Comunidade
+          </h2>
+          {business.status === 'approved' && business.subscriptionStatus === 'active' && (
+            <button
+              onClick={() => { setShowAdForm(!showAdForm); }}
+              className="text-sm font-medium text-aji-rojo hover:text-aji-rojo/80 transition-colors"
+            >
+              {showAdForm ? 'Fechar' : '+ Contratar anúncio (R$30/mês)'}
+            </button>
+          )}
+        </div>
+
+        {myAds.length === 0 ? (
+          <p className="text-sm text-gray-500 dark:text-gray-400 py-4 text-center">
+            Nenhum anúncio contratado ainda.
+            {business.subscriptionStatus === 'active'
+              ? ' Contrate um anúncio para aparecer na Comunidade.'
+              : ' A assinatura ativa é necessária para contratar anúncios.'}
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-oro-inca/20 bg-gray-50/80 dark:bg-zinc-800/50">
+                  <th className="text-left p-3 text-[11px] font-semibold uppercase tracking-wider text-noche-lima/60 dark:text-white/60">Título</th>
+                  <th className="text-left p-3 text-[11px] font-semibold uppercase tracking-wider text-noche-lima/60 dark:text-white/60">Status</th>
+                  <th className="text-left p-3 text-[11px] font-semibold uppercase tracking-wider text-noche-lima/60 dark:text-white/60 hidden sm:table-cell">Vigência</th>
+                  <th className="text-left p-3 text-[11px] font-semibold uppercase tracking-wider text-noche-lima/60 dark:text-white/60 hidden md:table-cell">Contratado em</th>
+                </tr>
+              </thead>
+              <tbody>
+                {myAds.map((ad) => (
+                  <tr key={ad.id} className="border-b border-oro-inca/10 hover:bg-gray-50 dark:hover:bg-zinc-800/30 transition-colors">
+                    <td className="p-3 font-medium text-noche-lima dark:text-white max-w-[220px] truncate">{ad.title}</td>
+                    <td className="p-3">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ring-1 ring-inset ${
+                        ad.status === 'active'
+                          ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-300 dark:ring-emerald-400/20'
+                          : ad.status === 'pending'
+                          ? 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-300 dark:ring-amber-400/20'
+                          : 'bg-zinc-100 text-zinc-600 ring-zinc-500/20 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-400/20'
+                      }`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${
+                          ad.status === 'active' ? 'bg-emerald-500' : ad.status === 'pending' ? 'bg-amber-500' : 'bg-zinc-400'
+                        }`} />
+                        {ad.status === 'active' ? 'Ativo' : ad.status === 'pending' ? 'Pagamento pendente' : ad.status}
+                      </span>
+                    </td>
+                    <td className="p-3 text-gray-600 dark:text-gray-400 text-xs hidden sm:table-cell">
+                      {ad.startsAt && ad.endsAt
+                        ? `${new Date(ad.startsAt).toLocaleDateString('pt-BR')} → ${new Date(ad.endsAt).toLocaleDateString('pt-BR')}`
+                        : '—'}
+                    </td>
+                    <td className="p-3 text-gray-500 dark:text-gray-400 text-xs hidden md:table-cell">
+                      {new Date(ad.createdAt).toLocaleDateString('pt-BR')}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       <div className="bg-white dark:bg-noche-lima rounded-2xl shadow-lg border border-oro-inca/20 p-8">
         {!isEditing ? (
