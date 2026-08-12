@@ -39,12 +39,12 @@ export const Navbar = () => {
             aria-label={`${t('brand.name')} - ${t('nav.home')}`}
           >
             {/* CP Logo Mark */}
-            <svg className="w-8 h-8 shrink-0" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-              <circle cx="16" cy="16" r="14" stroke="#C0392B" strokeWidth="2" />
-              <path d="M12 10 L20 10 L20 16 L12 16 Z" fill="#C0392B" />
-              <path d="M12 16 L20 22 L12 22 Z" fill="#F39C12" />
-              <text x="16" y="20" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" fontFamily="Geist, sans-serif">CP</text>
-            </svg>
+            <img
+              src="/conectaperu-icon-192x192.png"
+              alt=""
+              className="w-8 h-8 shrink-0"
+              aria-hidden="true"
+            />
             <span className="font-bold text-lg text-aji-rojo hidden sm:block">
               {t('brand.name')}
             </span>
