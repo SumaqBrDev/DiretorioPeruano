@@ -238,8 +238,12 @@ export const handler = async (event: any) => {
     const store = getStore(STORE_NAME);
     let storedCount = 0;
     try {
-      const listing = await store.list({ prefix: `${businessId}/` });
-      storedCount = listing?.blobs?.length ?? 0;
+      // BUG-032b: `list()` without paginate returns only the FIRST page — an
+      // attacker at the cap would see a partial count and keep uploading.
+      // Iterate the full paginated listing to count real blobs.
+      for await (const page of store.list({ prefix: `${businessId}/`, paginate: true })) {
+        storedCount += page?.blobs?.length ?? 0;
+      }
     } catch (err) {
       console.warn('[upload-image] blob list failed, falling back to DB count:', (err as Error).message);
     }
