@@ -58,18 +58,18 @@ export const handler = async (event: any) => {
       };
     }
 
-    // Cancel Stripe subscription if exists
+    // Cancel Stripe subscription if exists.
+    // BUG-035: `update({ cancel_at_period_end: true })` keeps the sub ACTIVE
+    // until period end and fires `customer.subscription.updated` with the OLD
+    // status (e.g. trialing) — the webhook then overwrites the local
+    // `subscriptionStatus: 'canceled'` we just wrote with `trial`, leaving a
+    // disabled business with an active-looking trial. Cancel immediately so
+    // Stripe emits `customer.subscription.deleted` → `canceled` (consistent).
     if (business.subscriptionId) {
       try {
         const stripe = getStripe();
-        await stripe.subscriptions.update(business.subscriptionId, {
-          cancel_at_period_end: true,
-          metadata: {
-            cancelledBy: 'superadmin',
-            businessId: businessId,
-          },
-        });
-        console.log(`Stripe subscription ${business.subscriptionId} marked for cancellation`);
+        await stripe.subscriptions.cancel(business.subscriptionId);
+        console.log(`Stripe subscription ${business.subscriptionId} cancelled`);
       } catch (stripeError: any) {
         console.error('Error cancelling Stripe subscription:', stripeError);
         // Don't block deletion if Stripe cancel fails

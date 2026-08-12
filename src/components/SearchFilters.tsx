@@ -58,13 +58,13 @@ export const SearchFilters = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Avaliação mínima</label>
             <select
-              value={new URLSearchParams(window.location.search).get('rating') || ''}
+              value={new URLSearchParams(window.location.search).get('minRating') || new URLSearchParams(window.location.search).get('rating') || ''}
               onChange={(e) => {
                 const newParams = new URLSearchParams(window.location.search)
                 if (e.target.value) {
-                  newParams.set('rating', e.target.value)
+                  newParams.set('minRating', e.target.value)
                 } else {
-                  newParams.delete('rating')
+                  newParams.delete('minRating')
                 }
                 window.history.pushState({}, '', `/busca?${newParams.toString()}`)
               }}

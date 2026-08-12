@@ -61,6 +61,17 @@ export const handler = async (event: any) => {
       };
     }
 
+    // BUG-033 (AC14): a disabled business is read-only — the owner panel shows
+    // a read-only banner, so the backend must reject mutations too (the UI-only
+    // guard was bypassable via direct API calls).
+    if (user.business.status === 'disabled') {
+      return {
+        statusCode: 403,
+        headers,
+        body: JSON.stringify({ error: 'Negócio desabilitado — edição não permitida' }),
+      };
+    }
+
     let body: any = {};
     try {
       body = JSON.parse(event.body || '{}');

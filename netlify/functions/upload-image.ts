@@ -1,9 +1,37 @@
 import { getStore } from '@netlify/blobs';
 import crypto from 'node:crypto';
+import prisma from './lib/prisma';
+import { authenticateRequest } from './lib/auth';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_PHOTOS_PER_BUSINESS = 10;
 const STORE_NAME = 'business-images';
+
+/** Magic-byte signatures for the allowed image formats (validated against the
+ * REAL file content, not just the client-declared Content-Type — a PDF renamed
+ * to .jpg must be rejected). */
+function detectImageType(data: Buffer): string | null {
+  if (data.length >= 3 && data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff) {
+    return 'image/jpeg';
+  }
+  if (
+    data.length >= 8 &&
+    data[0] === 0x89 && data[1] === 0x50 && data[2] === 0x4e && data[3] === 0x47 &&
+    data[4] === 0x0d && data[5] === 0x0a && data[6] === 0x1a && data[7] === 0x0a
+  ) {
+    return 'image/png';
+  }
+  // WebP: "RIFF" .... "WEBP"
+  if (
+    data.length >= 12 &&
+    data.toString('ascii', 0, 4) === 'RIFF' &&
+    data.toString('ascii', 8, 12) === 'WEBP'
+  ) {
+    return 'image/webp';
+  }
+  return null;
+}
 
 /**
  * Parse multipart/form-data body (non-streaming for Netlify Functions v1).
@@ -115,6 +143,30 @@ export const handler = async (event: any) => {
   }
 
   try {
+    // BUG-032c: the endpoint must not accept uploads from anonymous callers —
+    // authenticate the session and scope uploads to the caller's own business.
+    const auth = await authenticateRequest(event);
+    if (!auth.ok) {
+      return {
+        statusCode: auth.statusCode,
+        headers,
+        body: JSON.stringify({ error: auth.error }),
+      };
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { clerkId: auth.clerkId! },
+      select: { id: true, role: true, business: { select: { id: true } } },
+    });
+
+    if (!user) {
+      return {
+        statusCode: 401,
+        headers,
+        body: JSON.stringify({ error: 'Usuário não encontrado' }),
+      };
+    }
+
     const contentType = event.headers['content-type'] || event.headers['Content-Type'] || '';
     if (!contentType.includes('multipart/form-data')) {
       return {
@@ -153,19 +205,74 @@ export const handler = async (event: any) => {
       };
     }
 
-    const businessId = fields.businessId || 'unknown';
+    // BUG-032b: enforce the 10-photo cap server-side. Only the business owner
+    // may upload to their gallery — superadmin keeps access for moderation.
+    const businessId = fields.businessId || user.business?.id || '';
+    if (!businessId) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'businessId é obrigatório' }),
+      };
+    }
+
+    const ownsBusiness = user.business?.id === businessId || user.role === 'superadmin';
+    if (!ownsBusiness) {
+      return {
+        statusCode: 403,
+        headers,
+        body: JSON.stringify({ error: 'Acesso negado — este negócio não pertence ao usuário' }),
+      };
+    }
+
+    const current = await prisma.businessProfile.findUnique({
+      where: { id: businessId },
+      select: { photos: true },
+    });
+    const currentCount = current?.photos?.length ?? 0;
+    const remaining = MAX_PHOTOS_PER_BUSINESS - currentCount;
+    const acceptedFiles = uploadedFiles.slice(0, Math.max(0, remaining));
+    const overLimit = uploadedFiles.length - acceptedFiles.length;
+
+    if (acceptedFiles.length === 0) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({
+          error: `Limite máximo de ${MAX_PHOTOS_PER_BUSINESS} fotos atingido`,
+        }),
+      };
+    }
+
     const results: Array<{ url: string; key: string }> = [];
     const errors: Array<{ filename: string; error: string }> = [];
+    if (overLimit > 0) {
+      errors.push({
+        filename: '(excesso)',
+        error: `Limite máximo de ${MAX_PHOTOS_PER_BUSINESS} fotos. ${overLimit} arquivo(s) ignorado(s).`,
+      });
+    }
 
     // Get the store once
     const store = getStore(STORE_NAME);
 
-    for (const file of uploadedFiles) {
-      // Validate content type
+    for (const file of acceptedFiles) {
+      // Validate content type (declared)
       if (!ALLOWED_TYPES.includes(file.contentType)) {
         errors.push({
           filename: file.filename,
           error: `Tipo não suportado: ${file.contentType}. Permitidos: JPEG, PNG, WebP`,
+        });
+        continue;
+      }
+
+      // BUG-032: validate the REAL content via magic bytes — a PDF renamed to
+      // .jpg declares image/jpeg but must be rejected.
+      const detected = detectImageType(file.data);
+      if (detected === null || detected !== file.contentType) {
+        errors.push({
+          filename: file.filename,
+          error: 'Arquivo inválido: o conteúdo não corresponde a uma imagem JPEG, PNG ou WebP',
         });
         continue;
       }

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useClerk, useAuth } from '@clerk/clerk-react';
 
 interface BusinessGalleryProps {
   businessId: string;
@@ -42,6 +43,7 @@ function nextFileId(): string {
 }
 
 export const BusinessGallery = ({ businessId, photos, onPhotosChange, onPersistPhotos }: BusinessGalleryProps) => {
+  const { getToken } = useAuth();
   const [uploading, setUploading] = useState(false);
   const [overallProgress, setOverallProgress] = useState(0);
   const [filePreviews, setFilePreviews] = useState<FilePreview[]>([]);
@@ -231,6 +233,11 @@ export const BusinessGallery = ({ businessId, photos, onPhotosChange, onPersistP
       );
 
       xhr.open('POST', '/api/upload-image');
+      // BUG-032c: the upload endpoint now requires an authenticated session —
+      // attach the Clerk token so the backend can scope the upload to the owner.
+      getToken().then((token) => {
+        if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      });
       xhr.send(formData);
     });
   };

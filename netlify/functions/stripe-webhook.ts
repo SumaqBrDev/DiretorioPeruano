@@ -251,11 +251,22 @@ export const handler = async (event: any) => {
           });
 
           if (business) {
-            await prisma.businessProfile.update({
-              where: { id: business.id },
-              data: { subscriptionStatus: 'active' },
-            });
-            console.log(`Payment succeeded for business ${business.id}, status set to active`);
+            // BUG-036: the $0 invoice Stripe emits at trial start (a "Free
+            // trial" invoice) must NOT flip a trialing subscription to
+            // 'active' — that contradicts the contract mapping trialing→trial
+            // and leaves a DB row saying active while Stripe says trialing.
+            // Only real payments (> $0) transition to active; trial invoices
+            // preserve whatever subscription.updated already synced.
+            const isTrialInvoice = (invoice.total ?? 0) === 0;
+            if (!isTrialInvoice) {
+              await prisma.businessProfile.update({
+                where: { id: business.id },
+                data: { subscriptionStatus: 'active' },
+              });
+              console.log(`Payment succeeded for business ${business.id}, status set to active`);
+            } else {
+              console.log(`Trial invoice for business ${business.id} — status preserved`);
+            }
           }
         }
         await markEventProcessed(eventId, stripeEvent.type, stripeEvent.data.object);

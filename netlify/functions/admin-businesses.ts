@@ -46,12 +46,18 @@ export const handler = async (event: any) => {
 
     if (search) {
       // CNPJ is stored digits-only; normalize so formatted input matches.
+      // BUG-034: only add the CNPJ branch when the query actually contains
+      // digits — an empty `cnpjDigits` produces `contains: ''` which matches
+      // EVERY row and silently disables the name/owner search.
       const cnpjDigits = search.replace(/\D/g, '');
-      where.OR = [
+      const orClauses: any[] = [
         { name: { contains: search, mode: 'insensitive' } },
-        { cnpj: { contains: cnpjDigits, mode: 'insensitive' } },
         { owner: { name: { contains: search, mode: 'insensitive' } } },
       ];
+      if (cnpjDigits) {
+        orClauses.push({ cnpj: { contains: cnpjDigits, mode: 'insensitive' } });
+      }
+      where.OR = orClauses;
     }
 
     // Get total count
