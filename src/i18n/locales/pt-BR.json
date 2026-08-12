@@ -18,7 +18,9 @@
     "my_business": "Meu Negócio",
     "admin": "Admin",
     "logout": "Sair",
-    "hello": "Olá"
+    "hello": "Olá",
+    "community": "Comunidade",
+    "communityModeration": "Moderação da Comunidade"
   },
   "hero": {
     "badge": "Conectando Negócios Peruanos no Brasil",
@@ -85,7 +87,6 @@
     "terms": "Termos de Serviço",
     "cookies": "Cookies"
   },
-
   "pages": {
     "privacidade": "Política de Privacidade",
     "termos": "Termos de Serviço"
@@ -96,5 +97,42 @@
     "retry": "Tentar novamente",
     "reviews": "avaliações",
     "rating": "estrelas"
+  },
+  "forum": {
+    "title": "Comunidade",
+    "subtitle": "Tire dúvidas, compartilhe experiências e conecte-se com a comunidade peruana no Brasil.",
+    "searchPlaceholder": "Buscar temas... (ex: receitas, vistos, empresas)",
+    "search": "Buscar",
+    "newTopic": "Novo Tema",
+    "newTopicTitle": "Criar novo tema",
+    "topicTitlePlaceholder": "Título do tema (mín. 5 caracteres)",
+    "topicBodyPlaceholder": "Descreva sua dúvida ou experiência (mín. 10 caracteres)...",
+    "publish": "Publicar",
+    "saving": "Salvando...",
+    "cancel": "Cancelar",
+    "by": "por",
+    "responses": "respostas",
+    "retry": "Tentar novamente",
+    "empty": "Nenhum tema encontrado.",
+    "loginToParticipate": "Entre na sua conta para criar temas, comentar e votar.",
+    "notFound": "Tema não encontrado.",
+    "backToList": "Voltar para a comunidade",
+    "commentPlaceholder": "Escreva um comentário...",
+    "respond": "Responder",
+    "replyingTo": "Respondendo a",
+    "noComments": "Nenhum comentário ainda. Seja o primeiro a comentar!",
+    "like": "Curtir",
+    "dislike": "Não curtir",
+    "report": "Denunciar",
+    "reported": "Conteúdo denunciado. Obrigado pela ajuda!",
+    "reportedQueue": "Denunciados",
+    "hiddenDeleted": "Ocultos / Removidos",
+    "topics": "Temas",
+    "posts": "Mensagens",
+    "hide": "Ocultar",
+    "restore": "Restaurar",
+    "delete": "Remover",
+    "confirmDelete": "Tem certeza que deseja remover este conteúdo?",
+    "queueEmpty": "Nenhum conteúdo aguardando moderação."
   }
 }

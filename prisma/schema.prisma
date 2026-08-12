@@ -28,6 +28,9 @@ model User {
 
   business  BusinessProfile?
   reviews   Review[]
+  communityTopics CommunityTopic[] @relation("CommunityTopics")
+  communityPosts  CommunityPost[]  @relation("CommunityPosts")
+  communityVotes  CommunityVote[]  @relation("CommunityVotes")
 
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
@@ -128,4 +131,68 @@ model WebhookEvent {
   createdAt     DateTime  @default(now())
 
   @@index([type])
+}
+
+// ── Community (foro estilo Reddit/Yahoo Answers, alcance básico) ─────────────
+// Reglas: lectura pública; participación (crear temas, comentar, votar, reportar)
+// solo para usuarios autenticados de cualquier rol (consumer, business, admin,
+// superadmin). Moderación post-publicación por superadmin (ocultar/restaurar/
+// eliminar) + botón reportar.
+
+model CommunityTopic {
+  id          String   @id @default(dbgenerated("gen_random_uuid()"))
+  title       String
+  body        String
+  author      User     @relation("CommunityTopics", fields: [authorId], references: [id], onDelete: Cascade)
+  authorId    String
+  status      String   @default("visible") // visible, hidden, deleted
+  reported    Boolean  @default(false)
+  viewCount   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  posts CommunityPost[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([authorId])
+}
+
+model CommunityPost {
+  id        String          @id @default(dbgenerated("gen_random_uuid()"))
+  topic     CommunityTopic  @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  topicId   String
+  // TikTok-style tree: parentId references the post being replied to — the UI
+  // renders a SINGLE indent level with "@autor" as the reply reference (not
+  // infinite nesting).
+  parentId  String?
+  parent    CommunityPost?  @relation("PostReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   CommunityPost[] @relation("PostReplies")
+  author    User            @relation("CommunityPosts", fields: [authorId], references: [id], onDelete: Cascade)
+  authorId  String
+  body      String
+  status    String          @default("visible") // visible, hidden, deleted
+  reported  Boolean         @default(false)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@index([topicId])
+  @@index([parentId])
+  @@index([authorId])
+  @@index([status])
+}
+
+model CommunityVote {
+  id         String   @id @default(dbgenerated("gen_random_uuid()"))
+  // targetType: 'topic' | 'post' — votes apply to BOTH topics and replies.
+  targetType String
+  targetId   String
+  user       User     @relation("CommunityVotes", fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  value      Int      // 1 = like, -1 = dislike (toggle en upsert)
+  createdAt  DateTime @default(now())
+
+  @@unique([targetType, targetId, userId])
+  @@index([targetId])
+  @@index([userId])
 }

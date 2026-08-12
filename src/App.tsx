@@ -13,6 +13,9 @@ import { Inbox } from './pages/Inbox';
 import { Admin } from './pages/Admin';
 import { SuperAdmin } from './pages/SuperAdmin';
 import { Moderar } from './pages/Moderar';
+import { Comunidad } from './pages/Comunidad';
+import { ComunidadDetalle } from './pages/ComunidadDetalle';
+import { AdminComunidade } from './pages/AdminComunidade';
 import { Login } from './pages/Login';
 import { Privacidade } from './pages/Privacidade';
 import { Termos } from './pages/Termos';
@@ -45,6 +48,9 @@ function AppRoutes() {
             <Route path="/admin" element={<Admin />} />
             <Route path="/admin/super" element={<SuperAdmin />} />
             <Route path="/admin/moderar" element={<Moderar />} />
+            <Route path="/admin/comunidade" element={<AdminComunidade />} />
+            <Route path="/comunidad" element={<Comunidad />} />
+            <Route path="/comunidad/:id" element={<ComunidadDetalle />} />
             <Route path="/entrar" element={<Login />} />
             <Route path="/cadastrar" element={<Login />} />
             <Route path="/privacidade" element={<Privacidade />} />

@@ -23,6 +23,7 @@ export const Navbar = () => {
   const navLinks = [
     { path: '/', label: t('nav.home') },
     { path: '/busca', label: t('nav.search') },
+    { path: '/comunidad', label: t('nav.community') },
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -117,13 +118,22 @@ export const Navbar = () => {
                         </Link>
                       )}
                       {isSuperAdmin && (
-                        <Link
-                          to="/admin/super"
-                          onClick={() => setUserMenuOpen(false)}
-                          className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-aji-rojo/10 hover:text-aji-rojo"
-                        >
-                          👑 SuperAdmin
-                        </Link>
+                        <>
+                          <Link
+                            to="/admin/super"
+                            onClick={() => setUserMenuOpen(false)}
+                            className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-aji-rojo/10 hover:text-aji-rojo"
+                          >
+                            👑 SuperAdmin
+                          </Link>
+                          <Link
+                            to="/admin/comunidade"
+                            onClick={() => setUserMenuOpen(false)}
+                            className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-aji-rojo/10 hover:text-aji-rojo"
+                          >
+                            🛡️ {t('nav.communityModeration')}
+                          </Link>
+                        </>
                       )}
                       <hr className="my-1 border-oro-inca/20" />
                       <button

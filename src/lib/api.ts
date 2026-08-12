@@ -502,3 +502,147 @@ export async function getHomeTestimonials(token: string): Promise<HomeTestimonia
 export async function getCommunityReviews(token: string): Promise<CommunityReview[]> {
   return request<CommunityReview[]>('community-reviews', token);
 }
+
+// ── Community (foro) ──
+
+export interface CommunityTopicSummary {
+  id: string;
+  title: string;
+  author: string;
+  postsCount: number;
+  createdAt: string;
+}
+
+export interface CommunityTopicListResult {
+  topics: CommunityTopicSummary[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
+export interface CommunityPostItem {
+  id: string;
+  body: string;
+  author: string;
+  parentAuthor: string | null;
+  createdAt: string;
+  score: number;
+}
+
+export interface CommunityTopicDetail {
+  id: string;
+  title: string;
+  body: string;
+  author: string;
+  viewCount: number;
+  createdAt: string;
+  score: number;
+}
+
+export interface CommunityTopicDetailResult {
+  topic: CommunityTopicDetail;
+  posts: CommunityPostItem[];
+}
+
+export interface CommunityModerationQueue {
+  topics: Array<{
+    id: string;
+    title: string;
+    author: string;
+    status: string;
+    reported: boolean;
+    updatedAt: string;
+  }>;
+  posts: Array<{
+    id: string;
+    body: string;
+    author: string;
+    topicTitle: string;
+    status: string;
+    reported: boolean;
+    updatedAt: string;
+  }>;
+}
+
+/** GET /api/community?q=&page=&limit= — public list + search */
+export async function listCommunityTopics(
+  token: string | null,
+  query?: { q?: string; page?: number; limit?: number }
+): Promise<CommunityTopicListResult> {
+  const params: Record<string, string> = {};
+  if (query?.q) params.q = query.q;
+  if (query?.page) params.page = String(query.page);
+  params.limit = String(query?.limit ?? 10);
+  return request<CommunityTopicListResult>('community', token ?? '', { query: params });
+}
+
+/** GET /api/community?id= — public topic detail + posts */
+export async function getCommunityTopic(
+  token: string | null,
+  id: string
+): Promise<CommunityTopicDetailResult> {
+  return request<CommunityTopicDetailResult>('community', token ?? '', { query: { id } });
+}
+
+/** POST /api/community — create topic (auth) */
+export async function createCommunityTopic(
+  token: string,
+  data: { title: string; body: string }
+): Promise<{ topic: { id: string } }> {
+  return request<{ topic: { id: string } }>('community', token, {
+    method: 'POST',
+    body: { action: 'create-topic', ...data },
+  });
+}
+
+/** POST /api/community — create post/reply (auth) */
+export async function createCommunityPost(
+  token: string,
+  data: { topicId: string; body: string; parentId?: string | null }
+): Promise<{ post: { id: string } }> {
+  return request<{ post: { id: string } }>('community', token, {
+    method: 'POST',
+    body: { action: 'create-post', ...data },
+  });
+}
+
+/** POST /api/community — toggle like/dislike (auth, topics + posts) */
+export async function toggleCommunityVote(
+  token: string,
+  data: { targetType: 'topic' | 'post'; targetId: string; value: 1 | -1 }
+): Promise<{ vote: unknown; score: number }> {
+  return request<{ vote: unknown; score: number }>('community', token, {
+    method: 'POST',
+    body: { action: 'vote', ...data },
+  });
+}
+
+/** POST /api/community — report content (auth, post-publication moderation) */
+export async function reportCommunityContent(
+  token: string,
+  data: { targetType: 'topic' | 'post'; targetId: string }
+): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>('community', token, {
+    method: 'POST',
+    body: { action: 'report', ...data },
+  });
+}
+
+/** GET /api/admin-community — moderation queue (superadmin) */
+export async function getCommunityModerationQueue(
+  token: string,
+  scope: 'reported' | 'all' = 'reported'
+): Promise<CommunityModerationQueue> {
+  return request<CommunityModerationQueue>('admin-community', token, { query: { scope } });
+}
+
+/** POST /api/admin-community — hide/restore/delete (superadmin) */
+export async function moderateCommunityContent(
+  token: string,
+  data: { targetType: 'topic' | 'post'; targetId: string; action: 'hide' | 'restore' | 'delete' }
+): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>('admin-community', token, {
+    method: 'POST',
+    body: data,
+  });
+}

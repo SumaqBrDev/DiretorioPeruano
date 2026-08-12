@@ -161,16 +161,17 @@ A plataforma começa com destaque para a **gastronomia**, mas nasce arquitetada 
 | **F8.2 E2E contra producción** | 🔴 Pendente | Regresión AC1–AC15 sobre el sitio desplegado, `codegraph index .`, commit final de cierre. Es el único ítem del checklist SDD sin cerrar. |
 
 ### 🟡 Planejadas (post-release)
-| Feature | Detalles |
-|---------|----------|
-| **Moderação de reviews** | Fila `pending → approve/reject` en admin |
-| **Resposta do negócio aos reviews** | Threads de resposta |
-| **Painel do negócio: métricas** | Visualizações, clicks WhatsApp, reviews recebidas |
-| **Busca full-text** | Postgres FTS ou Meilisearch |
-| **Planos Free vs Premium** | Destaque no diretório |
-| **Migração storage** | Netlify Blobs → S3/R2 cuando el volumen crezca |
-| **PWA / App mobile** | React Native |
-| **Notificaciones** | Email/InApp para review novo, mensagem inbox, etc. |
+| Feature | Detalles | Estado |
+|---------|----------|--------|
+| **Comunidad (foro)** | ✅ **IMPLEMENTADA 12/08/2026** — temas, comentarios estilo TikTok (un nivel + @autor), votos like/dislike en temas y respuestas, búsqueda, moderación post-publicación (reporte + cola superadmin). Lectura pública; participación solo registrados (todos los roles). Endpoints: `/api/community`, `/api/admin-community`. Páginas: `/comunidad`, `/comunidad/:id`, `/admin/comunidade`. | ✅ |
+| **Moderação de reviews** | Fila `pending → approve/reject` en admin | 🟡 |
+| **Resposta do negócio aos reviews** | Threads de resposta | 🟡 |
+| **Painel do negócio: métricas** | Visualizações, clicks WhatsApp, reviews recebidas | 🟡 |
+| **Busca full-text** | Postgres FTS ou Meilisearch | 🟡 |
+| **Planos Free vs Premium** | Destaque no diretório | 🟡 |
+| **Migração storage** | Netlify Blobs → S3/R2 cuando el volumen crezca | 🟡 |
+| **PWA / App mobile** | React Native | 🟡 |
+| **Notificaciones** | Email/InApp para review novo, mensagem inbox, etc. | 🟡 |
 
 ---
 
