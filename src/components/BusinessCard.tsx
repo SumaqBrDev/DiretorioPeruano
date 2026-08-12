@@ -2,6 +2,7 @@
 "use client";
 
 import axios from "axios";
+import { showToast } from "../lib/toast";
 
 interface BusinessCardProps {
   business: {
@@ -19,7 +20,7 @@ export const BusinessCard = ({ business }: BusinessCardProps) => {
       window.location.reload();
     } catch (err) {
       console.error(err);
-      alert("Error atualizando negócio");
+      showToast("Erro atualizando negócio", "error");
     }
   };
   return (

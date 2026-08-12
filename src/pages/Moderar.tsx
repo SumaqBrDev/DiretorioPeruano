@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useUser } from '@clerk/clerk-react'
 import { ReviewModerationCard } from '@/components/ReviewModerationCard'
+import { showToast } from '@/lib/toast'
 
 // Mock pending reviews for moderation
 const mockPendingReviews = [
@@ -58,12 +59,12 @@ export const Moderar = () => {
 
   const handleApprove = (reviewId: string) => {
     setPendingReviews(prev => prev.map(r => r.id === reviewId ? { ...r, status: 'approved' } : r))
-    alert(`Avaliação ${reviewId} aprovada!`)
+    showToast(`Avaliação ${reviewId} aprovada!`, 'success')
   }
 
   const handleReject = (reviewId: string) => {
     setPendingReviews(prev => prev.filter(r => r.id !== reviewId))
-    alert(`Avaliação ${reviewId} rejeitada!`)
+    showToast(`Avaliação ${reviewId} rejeitada!`, 'info')
   }
 
   return (

@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { getCommunityModerationQueue, moderateCommunityContent } from '@/lib/api';
 import type { CommunityModerationQueue } from '@/lib/api';
 import { SEO } from '@/components/SEO';
+import { showToast } from '@/lib/toast';
 
 const SUPERADMIN_CLERK_ID = 'user_3GsBXtg23VQOhHPN3HCF1oCN4Eq';
 
@@ -47,7 +48,7 @@ export const AdminComunidade = () => {
       await moderateCommunityContent(token, { targetType, targetId, action });
       refresh();
     } catch (err: any) {
-      alert(err?.message || 'Erro ao moderar conteúdo.');
+      showToast(err?.message || 'Erro ao moderar conteúdo.', 'error');
     } finally {
       setPendingAction(null);
     }

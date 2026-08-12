@@ -2,10 +2,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useUser, useAuth } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'motion/react';
 import { Flask, XCircle, Prohibit } from '@phosphor-icons/react';
 import { getMyBusinessWithAds, updateMyBusiness, openStripeCheckout, openStripePortal, createBusinessAdCheckout, type ApiBusinessWithAds as Business, type MyBusinessAd } from '../lib/api';
 import { BusinessGallery } from '../components/BusinessGallery';
+import { showToast } from '../lib/toast';
 
 const CATEGORIES = [
   { value: 'restaurante', label: 'Restaurante' },
@@ -44,11 +44,11 @@ export const MeuNegocio = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   // Ad purchase state (Opción A+B: sidebar + featured en Comunidad)
   const [showAdForm, setShowAdForm] = useState(false);
   const [adTitle, setAdTitle] = useState('');
+  const [adImageUrl, setAdImageUrl] = useState('');
   const [adTargetUrl, setAdTargetUrl] = useState('');
   const [buyingAd, setBuyingAd] = useState(false);
   const [formData, setFormData] = useState({
@@ -119,10 +119,10 @@ export const MeuNegocio = () => {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('ad') === 'success') {
-      setToast({ message: 'Pagamento confirmado! Seu anúncio está ativo por 30 dias. 🎉', type: 'success' });
+      showToast('Pagamento confirmado! Seu anúncio está ativo por 30 dias. 🎉', 'success');
       window.history.replaceState({}, '', window.location.pathname);
     } else if (params.get('ad') === 'cancel') {
-      setToast({ message: 'Pagamento cancelado. Você pode tentar novamente quando quiser.', type: 'error' });
+      showToast('Pagamento cancelado. Você pode tentar novamente quando quiser.', 'error');
       window.history.replaceState({}, '', window.location.pathname);
     }
   }, []);
@@ -140,7 +140,7 @@ export const MeuNegocio = () => {
   const handleSave = async () => {
     if (!business || !user) return;
     if (business.status === 'disabled') {
-      setToast({ message: 'Negócio desabilitado — edição não permitida.', type: 'error' });
+      showToast('Negócio desabilitado — edição não permitida.', 'error');
       setIsEditing(false);
       return;
     }
@@ -167,20 +167,19 @@ export const MeuNegocio = () => {
       });
 
       hydrate(updated);
-      setToast({ message: 'Dados atualizados com sucesso! ✅', type: 'success' });
+      showToast('Dados atualizados com sucesso! ✅', 'success');
       setIsEditing(false);
     } catch (err: any) {
-      setToast({ message: err?.message || 'Erro ao salvar. Tente novamente.', type: 'error' });
+      showToast(err?.message || 'Erro ao salvar. Tente novamente.', 'error');
     } finally {
       setSaving(false);
-      setTimeout(() => setToast(null), 4000);
     }
   };
 
   const handleManageSubscription = async () => {
     if (!business) return;
     if (business.status === 'disabled') {
-      setToast({ message: 'Negócio desabilitado — gerencie sua assinatura no Portal Stripe.', type: 'error' });
+      showToast('Negócio desabilitado — gerencie sua assinatura no Portal Stripe.', 'error');
       return;
     }
     try {
@@ -194,13 +193,13 @@ export const MeuNegocio = () => {
         const res = await openStripeCheckout(token, business.id);
         url = res.url || '';
         if (!url) {
-          setToast({ message: res.betaMode ? 'Modo Beta ativo — assinatura de teste concedida. 🧪' : 'Checkout não disponível.', type: 'success' });
+          showToast(res.betaMode ? 'Modo Beta ativo — assinatura de teste concedida. 🧪' : 'Checkout não disponível.', 'success');
           return;
         }
       }
       if (url) window.open(url, '_blank', 'noopener,noreferrer');
     } catch (err: any) {
-      setToast({ message: err?.message || 'Erro ao abrir assinatura.', type: 'error' });
+      showToast(err?.message || 'Erro ao abrir assinatura.', 'error');
     }
   };
 
@@ -213,21 +212,25 @@ export const MeuNegocio = () => {
       const res = await createBusinessAdCheckout(token, {
         businessId: business.id,
         title: adTitle.trim(),
+        imageUrl: adImageUrl.trim() || undefined,
         targetUrl: adTargetUrl.trim() || undefined,
       });
       if (res.betaMode) {
-        setToast({ message: res.message || 'Modo Beta ativo — anúncio de teste ativado por 30 dias. 🧪', type: 'success' });
+        showToast(res.message || 'Modo Beta ativo — anúncio de teste ativado por 30 dias. 🧪', 'success');
         setShowAdForm(false);
         setAdTitle('');
+        setAdImageUrl('');
         setAdTargetUrl('');
+        refresh();
       } else if (res.url) {
         window.open(res.url, '_blank', 'noopener,noreferrer');
         setShowAdForm(false);
         setAdTitle('');
+        setAdImageUrl('');
         setAdTargetUrl('');
       }
     } catch (err: any) {
-      setToast({ message: err?.message || 'Erro ao criar o anúncio.', type: 'error' });
+      showToast(err?.message || 'Erro ao criar o anúncio.', 'error');
     } finally {
       setBuyingAd(false);
     }
@@ -301,22 +304,6 @@ export const MeuNegocio = () => {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
-      {/* Toast */}
-      {toast && (
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          className={`fixed top-4 right-4 z-50 px-5 py-3 rounded-xl shadow-xl border ${
-            toast.type === 'success'
-              ? 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900/80 dark:border-green-700 dark:text-green-200'
-              : 'bg-red-50 border-red-200 text-red-800 dark:bg-red-900/80 dark:border-red-700 dark:text-red-200'
-          }`}
-        >
-          {toast.message}
-        </motion.div>
-      )}
-
       <h1 className="font-playfair text-3xl md:text-4xl font-bold text-aji-rojo mb-8">
         Meu Negócio
       </h1>
@@ -421,6 +408,19 @@ export const MeuNegocio = () => {
                 placeholder="Ex: Promoção de ceviche no nosso restaurante"
                 className="w-full p-3 rounded-lg border border-oro-inca/30 bg-white dark:bg-noche-lima text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-aji-rojo"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Imagem do anúncio (opcional)</label>
+              <input
+                type="url"
+                value={adImageUrl}
+                onChange={(e) => setAdImageUrl(e.target.value)}
+                placeholder="https://... (se vazio, usamos a primeira foto do seu negócio)"
+                className="w-full p-3 rounded-lg border border-oro-inca/30 bg-white dark:bg-noche-lima text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-aji-rojo"
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Dica: use uma imagem de ~600×500px (proporção 6:5) para o sidebar.
+              </p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Link de destino (opcional)</label>

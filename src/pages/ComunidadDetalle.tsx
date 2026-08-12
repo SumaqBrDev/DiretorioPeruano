@@ -10,6 +10,7 @@ import { getCommunityTopic, createCommunityPost, toggleCommunityVote, reportComm
 import type { CommunityTopicDetailResult } from '@/lib/api';
 import { SEO } from '@/components/SEO';
 import { CommunityAds } from '@/components/CommunityAds';
+import { showToast } from '@/lib/toast';
 
 export const ComunidadDetalle = () => {
   const { id } = useParams<{ id: string }>();
@@ -84,7 +85,7 @@ export const ComunidadDetalle = () => {
       const token = await getToken();
       if (!token) return;
       await reportCommunityContent(token, { targetType, targetId });
-      alert(t('forum.reported'));
+      showToast(t('forum.reported'), 'success');
     } catch {
       // silent
     }

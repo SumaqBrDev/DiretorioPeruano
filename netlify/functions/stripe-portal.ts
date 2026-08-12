@@ -1,6 +1,7 @@
 import prisma from './lib/prisma';
 import { getStripe } from './lib/stripe';
 import { requireBusinessOwner, requireSuperAdmin } from './lib/auth';
+import type Stripe from 'stripe';
 
 const headers = {
   'Content-Type': 'application/json',
@@ -74,17 +75,24 @@ export const handler = async (event: any) => {
       };
     }
 
-    // Create Stripe Billing Portal session
-    const session = await stripe.billingPortal.sessions.create({
+    // Create Stripe Billing Portal session.
+    // flow_data.subscription_cancel REQUIRES a real subscription id — passing
+    // null (trial granted in beta mode, or sub not yet created) makes Stripe
+    // reject the request with a 400 and we surface a misleading 500. Fall back
+    // to a plain portal session (no pre-filled cancel flow) when absent.
+    const sessionParams: Stripe.BillingPortal.SessionCreateParams = {
       customer: business.stripeCustomerId,
       return_url: `${event.headers?.origin || process.env.APP_URL || 'https://conectaperu.com'}/meu-negocio`,
-      flow_data: {
+    };
+    if (business.subscriptionId) {
+      sessionParams.flow_data = {
         type: 'subscription_cancel',
         subscription_cancel: {
-          subscription: business.subscriptionId!,
+          subscription: business.subscriptionId,
         },
-      },
-    });
+      };
+    }
+    const session = await stripe.billingPortal.sessions.create(sessionParams);
 
     return {
       statusCode: 200,
