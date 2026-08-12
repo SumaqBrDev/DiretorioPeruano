@@ -1,10 +1,10 @@
 # PRODUCT.md — ConectaPeru (DiretorioPeruano)
 
-> **Estado actual:** MVP completo — migración `localStorage → API` cerrada (F3.x–F8.1). Pendiente solo F8.2 (E2E contra producción).
+> **Estado actual:** ✅ **MVP COMPLETO + RELEASE VALIDADO** — migración `localStorage → API` cerrada (F3.x–F8.1) y **F8.2 (regresión E2E contra producción) CERRADA** el 12/08/2026.
 > **Stack:** React 18 + Vite 5 + TypeScript + Tailwind + shadcn/ui + Clerk + Prisma + Neon (PostgreSQL) + Netlify Functions + Netlify Blobs + Stripe + Resend
-> **Última actualización:** 04/08/2026
-> **Commit de referencia:** `24fe9a9` (*feat: migrate frontend from localStorage to Netlify Functions API*)
-> **Checklist SDD:** 23/24 fases — pendiente `F8.2` (E2E + codegraph index)
+> **Última actualización:** 12/08/2026
+> **Commit de referencia:** `cea0715` (*fix(qa): paginate blob listing for accurate photo cap (BUG-032b)*) — cierre de campaña F8.2
+> **Checklist SDD:** ✅ **24/24 fases** — F8.2 cerrada (regresión E2E + codegraph index + commit de cierre)
 
 ---
 
@@ -449,7 +449,7 @@ model SiteConfig {
 ### 🔴 Pendiente
 | Fase | Detalle | Estado |
 |------|---------|--------|
-| **F8.2** | E2E contra producción (regresión AC1–AC15) + `codegraph index .` + commit de cierre | 🔴 Requiere probar en sitio desplegado |
+| **F8.2** | E2E contra producción (regresión AC1–AC15) + `codegraph index .` + commit de cierre | ✅ **CERRADA 12/08/2026** — 42 casos CP ejecutados (P0 100%), 7 defectos corregidos (BUG-031..036+), codegraph indexado (899 nodos). Detalle: `docs/qa-f82-manifest.md` + PRUEBAS_FUNCIONALES.md |
 
 ---
 
