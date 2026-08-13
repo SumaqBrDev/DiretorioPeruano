@@ -209,24 +209,26 @@ canceled  → assinatura cancelada/excluída
   (amount_off R$20, duration=repeating, 3 meses) → **R$ 39/mês nas 3 primeiras faturas**, R$ 59 depois.
   Aplicado em `stripe-checkout.ts` (`discounts`) e `admin-approve.ts` (`coupon`) quando a env var
   existe; remover a env var desativa a oferta sem tocar código.
-- **Estado LIVE (12/08/2026):** conta `jarhkof.apps@gmail.com` (acct_1TFRvKAYoh7rSSl1) —
-  product "Subscripcion ConectaPeru" + price `price_1U3mWKAYoh7rSSl1kIFlJ2z9` (5900 BRL/mês, ativo);
-  cupom early-bird **`QdNMZlb5`** (R$20 off × 3) criado e validado (session test: 5900→3900).
-  `EARLY_BIRD_COUPON_ID=QdNMZlb5` setado na Netlify (deploy `6a7d1337`).
+- **Estado LIVE (13/08/2026):** aplicativo **enlazado a la cuenta dedicada ConectaPeru** de la
+  organización StratAI Consulting (`acct_1U3odBATQZVnmBsA`) — product "Subscripcion ConectaPeru"
+  (`prod_V3wqk1Kf2jF74I`), price **`price_1U3oxgATQZVnmBsA9l9XiAjH`** (5900 BRL/mês, ativo),
+  cupom early-bird **`jxXuej7U`** (R$20 off × 3), webhook `we_1U3owRATQZVnmBsAqesjEdmA`
+  (6 eventos). Env Netlify: STRIPE_SECRET_KEY/PRICE_ID/WEBHOOK_SECRET/EARLY_BIRD_COUPON_ID → cuenta
+  ConectaPeru (deploy `6a7d34c2`).
 - Beta Mode ON: **sem cobranças nunca**, trials infinitos, emails de trial desativados.
 - Transição Beta → Produção: negócios existentes ganham `trialEndsAt = now + 30 dias`.
 
-### ⚠️ Checklist de saída do Beta (Stripe TEST → LIVE)
-> O deploy atual roda com **keys TEST** (STRIPE_SECRET_KEY sk_test, STRIPE_PRICE_ID price_1U1mfDAY… = price de TEST,
-> webhook whsec de TEST). A conta LIVE já tem tudo pronto. Para ligar cobranças reais, trocar NO Netlify:
-1. `STRIPE_SECRET_KEY` → **sk_live_…** (conta jarhkof.apps@gmail.com)
-2. `STRIPE_PRICE_ID` → **`price_1U3mWKAYoh7rSSl1kIFlJ2z9`** (R$59/mês LIVE)
-3. `STRIPE_WEBHOOK_SECRET` → whsec de LIVE + criar endpoint webhook `/api/stripe-webhook` em LIVE
-   com os eventos: `invoice.payment_failed`, `customer.subscription.updated`, `customer.subscription.deleted`,
-   `customer.subscription.trial_will_end`, `invoice.payment_succeeded`, `checkout.session.completed`
-4. `EARLY_BIRD_COUPON_ID=QdNMZlb5` já está setado (mesmo cupom vale em LIVE)
-5. **Pix:** NÃO habilitado na conta LIVE (capabilities sem `pix_payments`) — ativar no dashboard
-   (Configurações → Métodos de pagamento) antes de sair do beta se quiser Pix no checkout
+### ⚠️ Pendientes para cobrar (cuenta ConectaPeru — checklist de ativação)
+> A conta ConectaPeru está criada e o aplicativo já aponta para ela (LIVE). **Ainda NÃO pode cobrar**:
+> `charges_enabled=false`, `payouts_enabled=false`, `card_payments=pending` (KYC em curso).
+1. **Completar verificação/KYC** da conta no dashboard (dados da entidade, CNPJ, endereço fiscal)
+2. **Ativar métodos de pagamento** (Settings → Payment methods → cartão; Pix opcional — não ativado ainda)
+3. **Perfil "Acerca de"** por dashboard (API bloqueia POST /v1/account na conta própria):
+   support_email = jose.rocah.pe@gmail.com · support_url = https://conectaperu.netlify.app ·
+   statement descriptor = CONECTAPERU · logo quadrado PNG ≥128px
+4. **Validar sessão de checkout** com price + coupon (esperado 5900→3900) depois da ativação
+5. Conta antiga `acct_1TFRvKAYoh7rSSl1` (PersonalDev, jarhkof.apps@gmail.com) fica como legacy/test —
+   não usada pelo aplicativo
 
 ### Reviews
 - Auto-aprovados na v1 (`status: approved`).
