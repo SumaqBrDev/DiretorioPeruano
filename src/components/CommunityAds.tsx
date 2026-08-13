@@ -1,11 +1,12 @@
 // src/components/CommunityAds.tsx
 // Paid ads in the Comunidad section (Opción A: sidebar 300x250 IAB Medium
-// Rectangle; Opción B: featured card above the topic list). Data comes from
-// the public GET /api/ads endpoint. Renders nothing when there are no ads.
-import { useEffect, useState } from 'react';
+// Rectangle; Opción B: Google Shopping-style sponsored row above the topic
+// list). Data comes from the public GET /api/ads endpoint. Renders nothing
+// when there are no ads.
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Megaphone, Star } from '@phosphor-icons/react';
+import { CaretLeft, CaretRight, Megaphone, Star } from '@phosphor-icons/react';
 import { getActiveAds, type CommunityAd } from '../lib/api';
 
 const UNSPLASH_FALLBACKS: Record<string, string> = {
@@ -39,8 +40,9 @@ interface CommunityAdsProps {
 export const CommunityAds = ({ variant = 'sidebar', limit = 4 }: CommunityAdsProps) => {
   const { t } = useTranslation();
   const [ads, setAds] = useState<CommunityAd[]>([]);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [paused, setPaused] = useState(false);
+  const rowRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,72 +58,81 @@ export const CommunityAds = ({ variant = 'sidebar', limit = 4 }: CommunityAdsPro
     };
   }, [limit]);
 
-  // Featured carousel: auto-advance every 6s, pause on hover, wrap around.
-  // Respects prefers-reduced-motion (no auto-rotation; user navigates manually).
+  // Featured row: track scroll reachability to show/hide the desktop arrows.
+  const updateScrollState = () => {
+    const el = rowRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 4);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  };
+
   useEffect(() => {
-    if (variant !== 'featured' || ads.length <= 1 || paused) return;
+    if (variant !== 'featured') return;
+    const el = rowRef.current;
+    if (!el) return;
+    updateScrollState();
+    el.addEventListener('scroll', updateScrollState, { passive: true });
+    const ro = new ResizeObserver(updateScrollState);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener('scroll', updateScrollState);
+      ro.disconnect();
+    };
+  }, [variant, ads.length]);
+
+  const scrollRow = (dir: number) => {
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduced) return;
-    const timer = setInterval(() => {
-      setActiveIndex((i) => (i + 1) % ads.length);
-    }, 6000);
-    return () => clearInterval(timer);
-  }, [variant, ads.length, paused]);
+    rowRef.current?.scrollBy({
+      left: dir * 272, // card width (w-64) + gap
+      behavior: reduced ? 'auto' : 'smooth',
+    });
+  };
 
   if (ads.length === 0) return null;
 
   if (variant === 'featured') {
-    const isCarousel = ads.length > 1;
     return (
-      <div
-        className="mb-6 max-w-3xl"
-        onMouseEnter={() => setPaused(true)}
-        onMouseLeave={() => setPaused(false)}
-      >
+      <section className="mb-6 max-w-3xl" aria-label={t('ads.sidebarTitle')}>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
             <Megaphone size={14} weight="fill" className="text-oro-inca" />
             {t('ads.sidebarTitle')}
           </div>
-          {isCarousel && ads.length > 1 && (
-            <span className="text-[11px] text-gray-400 dark:text-gray-500 tabular-nums">
-              {activeIndex + 1} / {ads.length}
-            </span>
+          {ads.length > 1 && (canScrollLeft || canScrollRight) && (
+            <div className="hidden lg:flex items-center gap-1.5">
+              <button
+                onClick={() => scrollRow(-1)}
+                disabled={!canScrollLeft}
+                aria-label="Anúncios anteriores"
+                className="w-7 h-7 flex items-center justify-center rounded-full border border-oro-inca/30 text-noche-lima dark:text-white hover:bg-oro-inca/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <CaretLeft size={14} weight="bold" />
+              </button>
+              <button
+                onClick={() => scrollRow(1)}
+                disabled={!canScrollRight}
+                aria-label="Próximos anúncios"
+                className="w-7 h-7 flex items-center justify-center rounded-full border border-oro-inca/30 text-noche-lima dark:text-white hover:bg-oro-inca/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <CaretRight size={14} weight="bold" />
+              </button>
+            </div>
           )}
         </div>
 
-        {/* Slides */}
-        <div className="relative overflow-hidden rounded-xl">
-          <div
-            className="flex transition-transform duration-500 ease-out"
-            style={{ transform: `translateX(-${activeIndex * 100}%)` }}
-          >
-            {ads.slice(0, 2).map((ad) => (
-              <div key={ad.id} className="w-full shrink-0 px-0.5">
-                <AdCard ad={ad} variant="featured" />
-              </div>
-            ))}
-          </div>
+        {/* Google Shopping-style sponsored row: proportional image + text
+            cards, horizontally scrollable (swipe on touch, arrows on desktop). */}
+        <div
+          ref={rowRef}
+          tabIndex={0}
+          aria-label={t('ads.sidebarTitle')}
+          className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-aji-rojo/50"
+        >
+          {ads.map((ad) => (
+            <FeaturedAdCard key={ad.id} ad={ad} />
+          ))}
         </div>
-
-        {/* Dots */}
-        {isCarousel && (
-          <div className="flex items-center justify-center gap-2 mt-3">
-            {ads.slice(0, 2).map((ad, i) => (
-              <button
-                key={ad.id}
-                onClick={() => setActiveIndex(i)}
-                aria-label={`Anúncio ${i + 1}`}
-                className={`h-2 rounded-full transition-all ${
-                  i === activeIndex
-                    ? 'w-6 bg-aji-rojo'
-                    : 'w-2 bg-gray-300 dark:bg-zinc-600 hover:bg-gray-400'
-                }`}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      </section>
     );
   }
 
@@ -140,28 +151,33 @@ export const CommunityAds = ({ variant = 'sidebar', limit = 4 }: CommunityAdsPro
   );
 };
 
-const AdCard = ({ ad, variant }: { ad: CommunityAd; variant: 'sidebar' | 'featured' }) => {
+// Featured card: Google Shopping-style result — proportional image block on
+// top with the text underneath (title, business, rating), "Patrocinado"
+// badge overlaid on the image. Fixed width, scroll-snapped in the row.
+const FeaturedAdCard = ({ ad }: { ad: CommunityAd }) => {
   const { t } = useTranslation();
   const target = ad.targetUrl || `/negocio/${ad.businessId}`;
   const isExternal = Boolean(ad.targetUrl);
 
-  // Featured: compact horizontal banner (thumb + text) — commercial standard
-  // for sponsored rows in lists (Google Ads / native ad pattern).
-  const featuredCard = (
-    <article className="group flex items-center gap-4 overflow-hidden rounded-xl border border-oro-inca/20 bg-white dark:bg-noche-lima shadow-sm hover:shadow-md hover:border-aji-rojo/40 transition-all p-3">
-      <div className="relative w-24 h-16 shrink-0 overflow-hidden rounded-lg bg-gradient-to-br from-aji-rojo/10 to-oro-inca/5">
+  const card = (
+    <article className="group w-64 overflow-hidden rounded-xl border border-oro-inca/20 bg-white dark:bg-noche-lima shadow-sm hover:shadow-lg hover:border-aji-rojo/40 transition-all">
+      <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-aji-rojo/10 to-oro-inca/5">
         <img
           src={ad.imageUrl || getFallbackImage(ad.category)}
           alt={ad.title}
           loading="lazy"
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
         />
+        <span className="absolute top-2 left-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-noche-lima/90 dark:bg-zinc-900/90 text-[10px] font-bold uppercase tracking-wider text-oro-inca shadow-sm">
+          <Megaphone size={10} weight="fill" />
+          {t('ads.badge')}
+        </span>
       </div>
-      <div className="min-w-0 flex-1">
-        <h3 className="font-semibold text-noche-lima dark:text-white text-sm leading-snug group-hover:text-aji-rojo transition-colors truncate">
+      <div className="p-3.5">
+        <h3 className="font-semibold text-noche-lima dark:text-white text-sm leading-snug group-hover:text-aji-rojo transition-colors line-clamp-2 min-h-[2.4rem]">
           {ad.title}
         </h3>
-        <div className="flex items-center gap-2 mt-1 text-xs text-gray-500 dark:text-gray-400">
+        <div className="flex items-center gap-2 mt-1.5 text-xs text-gray-500 dark:text-gray-400">
           <span className="truncate">{ad.businessName}</span>
           {ad.rating > 0 && (
             <span className="inline-flex items-center gap-0.5 shrink-0">
@@ -171,15 +187,36 @@ const AdCard = ({ ad, variant }: { ad: CommunityAd; variant: 'sidebar' | 'featur
           )}
         </div>
       </div>
-      <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-noche-lima/90 dark:bg-zinc-900/90 text-[10px] font-bold uppercase tracking-wider text-oro-inca shadow-sm">
-        <Megaphone size={10} weight="fill" />
-        {t('ads.badge')}
-      </span>
     </article>
   );
 
+  if (isExternal) {
+    return (
+      <a
+        href={target}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block shrink-0 snap-start"
+        aria-label={ad.title}
+      >
+        {card}
+      </a>
+    );
+  }
+  return (
+    <Link to={target} className="block shrink-0 snap-start" aria-label={ad.title}>
+      {card}
+    </Link>
+  );
+};
+
+const AdCard = ({ ad }: { ad: CommunityAd }) => {
+  const { t } = useTranslation();
+  const target = ad.targetUrl || `/negocio/${ad.businessId}`;
+  const isExternal = Boolean(ad.targetUrl);
+
   // Sidebar: 300x250 Medium Rectangle (IAB standard) — 6:5 image + text block.
-  const sidebarCard = (
+  const card = (
     <article className="group overflow-hidden rounded-xl border border-oro-inca/20 bg-white dark:bg-noche-lima shadow-sm hover:shadow-md hover:border-aji-rojo/40 transition-all">
       <div className="relative aspect-[6/5] bg-gradient-to-br from-aji-rojo/10 to-oro-inca/5">
         <img
@@ -209,8 +246,6 @@ const AdCard = ({ ad, variant }: { ad: CommunityAd; variant: 'sidebar' | 'featur
       </div>
     </article>
   );
-
-  const card = variant === 'featured' ? featuredCard : sidebarCard;
 
   if (isExternal) {
     return (

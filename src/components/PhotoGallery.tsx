@@ -53,6 +53,34 @@ export const PhotoGallery = ({ images, name }: PhotoGalleryProps) => {
     setMainImage(images[0]);
   }, [images]);
 
+  const renderThumb = (image: string, index: number) => (
+    <button
+      key={index}
+      onClick={() => {
+        setMainImage(image);
+        openModal(index);
+      }}
+      className={`relative shrink-0 aspect-video rounded-lg overflow-hidden ring-1 transition-all duration-300 ${
+        mainImage === images[index]
+          ? 'ring-2 ring-aji-rojo shadow-md'
+          : 'ring-black/5 dark:ring-white/10 hover:ring-aji-rojo/40 hover:shadow-sm'
+      }`}
+      aria-label={`Ver foto ${index + 1}`}
+    >
+      <img
+        src={images[index]}
+        alt={`Miniatura ${index + 1}`}
+        className={`w-full h-full object-cover transition-all duration-300 ${
+          mainImage !== images[index] ? 'brightness-90 hover:brightness-100' : ''
+        }`}
+        onError={(e) => {
+          const target = e.target as HTMLImageElement;
+          target.src = 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=200&h=200&fit=crop';
+        }}
+      />
+    </button>
+  );
+
   if (!images || images.length === 0) return null;
 
   return (
@@ -87,35 +115,20 @@ export const PhotoGallery = ({ images, name }: PhotoGalleryProps) => {
             </button>
           </div>
 
-          {/* Thumbnails */}
-          <div className="grid grid-cols-4 lg:grid-cols-1 gap-2">
-            {images.map((image, index) => (
-              <button
-                key={index}
-                onClick={() => {
-                  setMainImage(image);
-                  openModal(index);
-                }}
-                className={`relative aspect-video rounded-lg overflow-hidden ring-1 transition-all duration-300 ${
-                  mainImage === images[index]
-                    ? 'ring-2 ring-aji-rojo shadow-md'
-                    : 'ring-black/5 dark:ring-white/10 hover:ring-aji-rojo/40 hover:shadow-sm'
-                }`}
-                aria-label={`Ver foto ${index + 1}`}
-              >
-                <img
-                  src={images[index]}
-                  alt={`Miniatura ${index + 1}`}
-                  className={`w-full h-full object-cover transition-all duration-300 ${
-                    mainImage !== images[index] ? 'brightness-90 hover:brightness-100' : ''
-                  }`}
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.src = 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=200&h=200&fit=crop';
-                  }}
-                />
-              </button>
-            ))}
+          {/* Thumbnails — mobile: 4-per-row static grid; desktop: vertical column
+              clamped to the main image height with its own scroll, so the content
+              below the gallery stays visible without scrolling the whole page. */}
+          <div className="relative">
+            <div className="grid grid-cols-4 gap-2 lg:hidden">
+              {images.map((image, index) => renderThumb(image, index))}
+            </div>
+            <div
+              tabIndex={0}
+              aria-label="Miniaturas da galeria"
+              className="hidden lg:flex lg:absolute lg:inset-0 lg:flex-col lg:gap-2 lg:overflow-y-auto lg:pr-1 lg:[-webkit-overflow-scrolling:touch] lg:[scrollbar-width:thin] lg:focus:outline-none lg:focus-visible:ring-2 lg:focus-visible:ring-aji-rojo/50 lg:rounded-lg"
+            >
+              {images.map((image, index) => renderThumb(image, index))}
+            </div>
           </div>
         </div>
       </section>
