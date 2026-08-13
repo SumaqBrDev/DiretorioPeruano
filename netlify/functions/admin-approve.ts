@@ -11,6 +11,9 @@ const headers = {
 
 const STRIPE_PRICE_ID = process.env.STRIPE_PRICE_ID || 'price_59_brl_monthly';
 const STRIPE_TRIAL_DAYS = parseInt(process.env.STRIPE_TRIAL_DAYS || '30', 10);
+// Early-bird launch offer: coupon id (amount_off R$20, duration repeating 3 months).
+// Present = applied to every subscription created on approval; remove to disable.
+const EARLY_BIRD_COUPON_ID = process.env.EARLY_BIRD_COUPON_ID || '';
 
 export const handler = async (event: any) => {
   if (event.httpMethod !== 'POST') {
@@ -111,6 +114,7 @@ export const handler = async (event: any) => {
           customer: stripeCustomerId,
           items: [{ price: STRIPE_PRICE_ID }],
           trial_period_days: STRIPE_TRIAL_DAYS,
+          ...(EARLY_BIRD_COUPON_ID ? { coupon: EARLY_BIRD_COUPON_ID } : {}),
           metadata: {
             businessId: business.id,
           },

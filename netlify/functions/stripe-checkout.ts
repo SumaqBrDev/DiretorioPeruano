@@ -10,6 +10,9 @@ const headers = {
 
 const STRIPE_PRICE_ID = process.env.STRIPE_PRICE_ID || 'price_59_brl_monthly';
 const STRIPE_TRIAL_DAYS = parseInt(process.env.STRIPE_TRIAL_DAYS || '30', 10);
+// Early-bird launch offer: coupon id (amount_off R$20, duration repeating 3 months).
+// Present = applied to every new checkout; remove the env var to disable the offer.
+const EARLY_BIRD_COUPON_ID = process.env.EARLY_BIRD_COUPON_ID || '';
 
 const stripe = getStripe();
 
@@ -128,6 +131,9 @@ export const handler = async (event: any) => {
         trial_period_days: STRIPE_TRIAL_DAYS,
         metadata: { businessId: business.id },
       },
+      ...(EARLY_BIRD_COUPON_ID
+        ? { discounts: [{ coupon: EARLY_BIRD_COUPON_ID }] }
+        : {}),
       metadata: { businessId: business.id },
       success_url: `${event.headers?.origin || process.env.APP_URL || 'https://conectaperu.com'}/meu-negocio?checkout=success`,
       cancel_url: `${event.headers?.origin || process.env.APP_URL || 'https://conectaperu.com'}/meu-negocio?checkout=cancel`,

@@ -204,7 +204,11 @@ canceled  → assinatura cancelada/excluída
 
 ### Trial & Billing
 - Trial: **30 dias** a partir da aprovação do superadmin (`STRIPE_TRIAL_DAYS`, default 30).
-- Preço: **R$ 59,00/mês** (`STRIPE_PRICE_ID`, default `price_59_brl_monthly`).
+- Preço: **R$ 59,00/mês** (`STRIPE_PRICE_ID` — price real da conta Stripe, não placeholder).
+- **Early-bird de lançamento (Opção A, decidido 12/08/2026):** cupom `EARLY_BIRD_COUPON_ID`
+  (amount_off R$20, duration=repeating, 3 meses) → **R$ 39/mês nas 3 primeiras faturas**, R$ 59 depois.
+  Aplicado em `stripe-checkout.ts` (`discounts`) e `admin-approve.ts` (`coupon`) quando a env var
+  existe; remover a env var desativa a oferta sem tocar código.
 - Beta Mode ON: **sem cobranças nunca**, trials infinitos, emails de trial desativados.
 - Transição Beta → Produção: negócios existentes ganham `trialEndsAt = now + 30 dias`.
 
