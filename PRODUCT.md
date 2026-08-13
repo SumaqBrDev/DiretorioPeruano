@@ -204,13 +204,29 @@ canceled  → assinatura cancelada/excluída
 
 ### Trial & Billing
 - Trial: **30 dias** a partir da aprovação do superadmin (`STRIPE_TRIAL_DAYS`, default 30).
-- Preço: **R$ 59,00/mês** (`STRIPE_PRICE_ID` — price real da conta Stripe, não placeholder).
+- Preço: **R$ 59,00/mês** (`STRIPE_PRICE_ID`).
 - **Early-bird de lançamento (Opção A, decidido 12/08/2026):** cupom `EARLY_BIRD_COUPON_ID`
   (amount_off R$20, duration=repeating, 3 meses) → **R$ 39/mês nas 3 primeiras faturas**, R$ 59 depois.
   Aplicado em `stripe-checkout.ts` (`discounts`) e `admin-approve.ts` (`coupon`) quando a env var
   existe; remover a env var desativa a oferta sem tocar código.
+- **Estado LIVE (12/08/2026):** conta `jarhkof.apps@gmail.com` (acct_1TFRvKAYoh7rSSl1) —
+  product "Subscripcion ConectaPeru" + price `price_1U3mWKAYoh7rSSl1kIFlJ2z9` (5900 BRL/mês, ativo);
+  cupom early-bird **`QdNMZlb5`** (R$20 off × 3) criado e validado (session test: 5900→3900).
+  `EARLY_BIRD_COUPON_ID=QdNMZlb5` setado na Netlify (deploy `6a7d1337`).
 - Beta Mode ON: **sem cobranças nunca**, trials infinitos, emails de trial desativados.
 - Transição Beta → Produção: negócios existentes ganham `trialEndsAt = now + 30 dias`.
+
+### ⚠️ Checklist de saída do Beta (Stripe TEST → LIVE)
+> O deploy atual roda com **keys TEST** (STRIPE_SECRET_KEY sk_test, STRIPE_PRICE_ID price_1U1mfDAY… = price de TEST,
+> webhook whsec de TEST). A conta LIVE já tem tudo pronto. Para ligar cobranças reais, trocar NO Netlify:
+1. `STRIPE_SECRET_KEY` → **sk_live_…** (conta jarhkof.apps@gmail.com)
+2. `STRIPE_PRICE_ID` → **`price_1U3mWKAYoh7rSSl1kIFlJ2z9`** (R$59/mês LIVE)
+3. `STRIPE_WEBHOOK_SECRET` → whsec de LIVE + criar endpoint webhook `/api/stripe-webhook` em LIVE
+   com os eventos: `invoice.payment_failed`, `customer.subscription.updated`, `customer.subscription.deleted`,
+   `customer.subscription.trial_will_end`, `invoice.payment_succeeded`, `checkout.session.completed`
+4. `EARLY_BIRD_COUPON_ID=QdNMZlb5` já está setado (mesmo cupom vale em LIVE)
+5. **Pix:** NÃO habilitado na conta LIVE (capabilities sem `pix_payments`) — ativar no dashboard
+   (Configurações → Métodos de pagamento) antes de sair do beta se quiser Pix no checkout
 
 ### Reviews
 - Auto-aprovados na v1 (`status: approved`).
