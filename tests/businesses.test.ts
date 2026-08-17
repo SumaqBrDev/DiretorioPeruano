@@ -9,6 +9,9 @@ vi.mock('../netlify/functions/lib/prisma', () => ({
   default: {
     businessProfile: { create: vi.fn(), findMany: vi.fn() },
     user: { findUnique: vi.fn() },
+    // WU2c: POST now runs the re-consent gate (assertCurrentMandatoryConsent),
+    // which reads consentRecord.findMany for non-admin owners.
+    consentRecord: { findMany: vi.fn() },
   },
 }));
 
@@ -30,12 +33,22 @@ const userFindMock = vi.mocked(prisma.user.findUnique);
 const validateCnpjMock = vi.mocked(validateCnpj);
 const createMock = vi.mocked(prisma.businessProfile.create);
 const findManyMock = vi.mocked(prisma.businessProfile.findMany);
+const recordFindManyMock = vi.mocked(prisma.consentRecord.findMany);
+
+// Current mandatory (purpose=service) consent for the mocked owner so the
+// WU2c re-consent gate passes (active versions: privacy_policy v2,
+// terms_of_service v1 — src/config/legal.ts).
+const CURRENT_SERVICE_ROWS = [
+  { id: 'c-privacy', documentType: 'privacy_policy', documentVersion: '2', purpose: 'service', granted: true, createdAt: new Date('2026-08-17T10:00:00Z') },
+  { id: 'c-terms', documentType: 'terms_of_service', documentVersion: '1', purpose: 'service', granted: true, createdAt: new Date('2026-08-17T10:00:00Z') },
+];
 
 describe('POST /api/businesses — KYC wiring', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     authMock.mockResolvedValue({ ok: true, clerkId: 'user_clerk_1', claims: { clerkId: 'user_clerk_1' } } as any);
-    userFindMock.mockResolvedValue({ id: 'user-db-id' } as any);
+    userFindMock.mockResolvedValue({ id: 'user-db-id', role: 'business' } as any);
+    recordFindManyMock.mockResolvedValue(CURRENT_SERVICE_ROWS as any);
     createMock.mockImplementation((args) =>
       Promise.resolve({ id: 'b1', createdAt: new Date(), ...args.data }) as any
     );
