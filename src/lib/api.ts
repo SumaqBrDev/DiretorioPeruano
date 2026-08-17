@@ -49,9 +49,12 @@ export interface AdminListResult {
 
 class ApiError extends Error {
   statusCode: number;
-  constructor(statusCode: number, message: string) {
+  /** Machine-readable code from the {error, code?} envelope (design D6), e.g. CONSENT_REQUIRED. */
+  code?: string;
+  constructor(statusCode: number, message: string, code?: string) {
     super(message);
     this.statusCode = statusCode;
+    if (code !== undefined) this.code = code;
   }
 }
 
@@ -82,13 +85,15 @@ async function request<T>(
 
   if (!response.ok) {
     let message = `Erro ${response.status}`;
+    let code: string | undefined;
     try {
       const data = await response.json();
       if (data?.error) message = data.error;
+      if (typeof data?.code === 'string') code = data.code;
     } catch {
       // ignore
     }
-    throw new ApiError(response.status, message);
+    throw new ApiError(response.status, message, code);
   }
 
   const contentType = response.headers.get('content-type') || '';
@@ -408,6 +413,59 @@ export async function submitReview(
     method: 'POST',
     body: data,
   });
+}
+
+// ── Consent (LGPD) — WU3 client support ──
+
+export interface ConsentRecordInput {
+  documentType: string;
+  documentVersion: string;
+  purpose: string;
+  legalBasis: string;
+  source: string;
+  locale: string;
+  granted: boolean;
+  idempotencyKey: string;
+}
+
+export interface ConsentRecord {
+  id: string;
+  documentType: string;
+  documentVersion: string;
+  documentHash: string;
+  purpose: string;
+  legalBasis: string;
+  intent: string;
+  granted: boolean;
+  consentedAt: string;
+  source: string;
+  locale: string;
+}
+
+export interface ConsentStatus {
+  mandatoryCurrent: boolean;
+  current: Array<{ documentType: string; version: string; granted: boolean; consentedAt: string }>;
+  requiredDocs: string[];
+}
+
+/**
+ * POST /api/consent — record a grant for the ACTIVE document version.
+ * Server derives the subject from the verified Clerk token (D4);
+ * idempotent: 201 {record} | 200 {record, duplicate:true}.
+ */
+export async function recordConsent(
+  token: string,
+  input: ConsentRecordInput
+): Promise<{ record: ConsentRecord; duplicate?: boolean }> {
+  return request<{ record: ConsentRecord; duplicate?: boolean }>('consent', token, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+/** GET /api/consent/status — current mandatory-consent state for the session. */
+export async function getConsentStatus(token: string): Promise<ConsentStatus> {
+  return request<ConsentStatus>('consent/status', token, { method: 'GET' });
 }
 
 // ── Stripe (checkout & billing portal) ──

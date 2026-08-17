@@ -98,6 +98,35 @@
     "reviews": "evaluaciones",
     "rating": "estrellas"
   },
+  "consent": {
+    "mandatory": {
+      "prefix": "He leído y acepto los",
+      "and": "y estoy informado de la"
+    },
+    "errors": {
+      "mandatory_required": "Es necesario aceptar los Términos y la Política de Privacidad para crear tu cuenta"
+    },
+    "optional": {
+      "marketing": "Quiero recibir novedades y ofertas por correo (opcional)"
+    },
+    "onboarding": {
+      "title": "Consentimiento de Datos (LGPD)",
+      "subtitle": "Confirma que has leído y aceptas nuestros documentos legales. Tu consentimiento queda registrado de forma segura y auditable antes de continuar con el registro.",
+      "confirm": "Confirmar y continuar",
+      "loading": "Verificando tu consentimiento...",
+      "error": "No se pudo verificar tu consentimiento. Inténtalo de nuevo.",
+      "retry": "Intentar de nuevo",
+      "saving": "Registrando consentimiento..."
+    },
+    "reconsent": {
+      "title": "Términos actualizados",
+      "subtitle": "Nuestros documentos legales fueron actualizados. Para seguir usando ConectaPerú, lee y acepta los documentos a continuación.",
+      "accept": "Aceptar y continuar",
+      "cancel": "Cancelar",
+      "saving": "Registrando...",
+      "error": "No se pudo registrar tu consentimiento. Inténtalo de nuevo."
+    }
+  },
   "forum": {
     "title": "Comunidad",
     "subtitle": "Resuelve dudas, comparte experiencias y conéctate con la comunidad peruana en Brasil.",
