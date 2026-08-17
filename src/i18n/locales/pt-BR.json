@@ -171,5 +171,35 @@
     "cta": "Impulsionar anúncio",
     "price": "R$30/mês",
     "onlySubscribers": "Disponível para negócios com assinatura ativa"
+  },
+  "cookies": {
+    "banner": {
+      "title": "Cookies e privacidade",
+      "description": "Usamos cookies essenciais para o funcionamento da plataforma. Cookies opcionais (analytics e marketing) só são carregados com a sua autorização.",
+      "acceptAll": "Aceitar todos",
+      "acceptSelected": "Aceitar selecionados",
+      "rejectOptional": "Rejeitar opcionais",
+      "settings": "Configurar cookies",
+      "close": "Fechar"
+    },
+    "category": {
+      "essential": "Essenciais",
+      "analytics": "Analytics",
+      "marketing": "Marketing",
+      "essentialDescription": "Necessários para autenticação e funcionamento básico da plataforma. Sempre ativos.",
+      "analyticsDescription": "Estatísticas anônimas de uso que nos ajudam a melhorar o site.",
+      "marketingDescription": "Campanhas e anúncios personalizados. Carregados somente com seu consentimento."
+    },
+    "page": {
+      "title": "Preferências de Cookies",
+      "subtitle": "Gerencie como a ConectaPeru usa cookies. Você pode alterar suas escolhas a qualquer momento.",
+      "categoriesTitle": "Categorias de cookies",
+      "alwaysActive": "Sempre ativos",
+      "save": "Salvar preferências",
+      "saving": "Salvando...",
+      "saved": "Preferências salvas com sucesso.",
+      "privacyLink": "Ver Política de Privacidade",
+      "note": "Suas preferências ficam armazenadas no seu navegador e, para usuários com conta, são sincronizadas com o seu perfil. Cookies essenciais não podem ser desativados. Você pode mudar suas escolhas a qualquer momento nesta página."
+    }
   }
 }

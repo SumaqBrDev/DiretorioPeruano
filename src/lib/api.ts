@@ -468,6 +468,48 @@ export async function getConsentStatus(token: string): Promise<ConsentStatus> {
   return request<ConsentStatus>('consent/status', token, { method: 'GET' });
 }
 
+// ── Cookie preferences (LGPD) — WU4 client support ──
+
+export interface CookiePreferencesPayload {
+  policyVersion: string;
+  categories: Record<string, boolean>;
+  locale?: string;
+}
+
+export interface ApiCookiePreferences {
+  id: string;
+  userId: string;
+  policyVersion: string;
+  categories: Record<string, boolean>;
+  locale: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * GET /api/consent/preferences — server-side current cookie preferences
+ * (CookiePreference upsert table = current UI state, NOT evidence; optional
+ * grants go through /api/consent per design D7).
+ */
+export async function getCookiePreferences(
+  token: string
+): Promise<{ preferences: ApiCookiePreferences | null }> {
+  return request<{ preferences: ApiCookiePreferences | null }>('consent/preferences', token, {
+    method: 'GET',
+  });
+}
+
+/** POST /api/consent/preferences — sync the current UI choice (upsert). */
+export async function saveCookiePreferences(
+  token: string,
+  input: CookiePreferencesPayload
+): Promise<{ preferences: ApiCookiePreferences }> {
+  return request<{ preferences: ApiCookiePreferences }>('consent/preferences', token, {
+    method: 'POST',
+    body: input,
+  });
+}
+
 // ── Stripe (checkout & billing portal) ──
 
 export async function openStripeCheckout(
