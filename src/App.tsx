@@ -19,6 +19,7 @@ import { AdminComunidade } from './pages/AdminComunidade';
 import { Login } from './pages/Login';
 import { Reconsent } from './pages/Reconsent';
 import { Cookies } from './pages/Cookies';
+import { Preferencias } from './pages/Preferencias';
 import { Privacidade } from './pages/Privacidade';
 import { Termos } from './pages/Termos';
 import './App.css';
@@ -57,6 +58,7 @@ function AppRoutes() {
             <Route path="/cadastrar" element={<Login />} />
             <Route path="/reconsent" element={<Reconsent />} />
             <Route path="/cookies" element={<Cookies />} />
+            <Route path="/preferencias" element={<Preferencias />} />
             <Route path="/privacidade" element={<Privacidade />} />
             <Route path="/termos" element={<Termos />} />
             {/* Legacy billing link (older emails/portal return URLs) — the
@@ -87,6 +89,12 @@ function AppRoutes() {
                   className="text-sm text-gray-500 dark:text-gray-400 hover:text-aji-rojo dark:hover:text-aji-rojo transition-colors"
                 >
                   {t('footer.cookies')}
+                </a>
+                <a
+                  href="/preferencias"
+                  className="text-sm text-gray-500 dark:text-gray-400 hover:text-aji-rojo dark:hover:text-aji-rojo transition-colors"
+                >
+                  {t('footer.preferences')}
                 </a>
               </nav>
             </div>

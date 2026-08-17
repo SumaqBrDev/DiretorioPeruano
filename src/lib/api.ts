@@ -440,6 +440,7 @@ export interface ConsentRecord {
   consentedAt: string;
   source: string;
   locale: string;
+  createdAt?: string;
 }
 
 export interface ConsentStatus {
@@ -466,6 +467,54 @@ export async function recordConsent(
 /** GET /api/consent/status — current mandatory-consent state for the session. */
 export async function getConsentStatus(token: string): Promise<ConsentStatus> {
   return request<ConsentStatus>('consent/status', token, { method: 'GET' });
+}
+
+/** GET /api/consent — own consent history, newest first (own rows only). */
+export async function getConsentHistory(token: string): Promise<{ records: ConsentRecord[] }> {
+  return request<{ records: ConsentRecord[] }>('consent', token, { method: 'GET' });
+}
+
+/** POST /api/consent/revoke — append a granted=false row for an OPTIONAL consent. */
+export async function revokeConsent(
+  token: string,
+  input: { documentType: string; purpose: string; idempotencyKey: string; source?: string; locale?: string }
+): Promise<{ record: ConsentRecord; duplicate?: boolean }> {
+  return request<{ record: ConsentRecord; duplicate?: boolean }>('consent/revoke', token, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+/** Shape of GET /api/consent/export — OWN data only; no password hashes, no other users. */
+export interface ConsentExportPayload {
+  profile: { id: string; email: string | null; name: string | null };
+  consents: Array<{
+    id: string;
+    documentType: string;
+    documentVersion: string;
+    documentHash: string;
+    purpose: string;
+    legalBasis: string;
+    intent: string;
+    granted: boolean;
+    consentedAt: string;
+    source: string;
+    locale: string;
+    idempotencyKey: string;
+    createdAt: string;
+  }>;
+  cookiePreferences: Array<{
+    policyVersion: string;
+    categories: Record<string, boolean>;
+    locale: string;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+}
+
+/** GET /api/consent/export — LGPD access/portability channel (own data only). */
+export async function exportConsentData(token: string): Promise<ConsentExportPayload> {
+  return request<ConsentExportPayload>('consent/export', token, { method: 'GET' });
 }
 
 // ── Cookie preferences (LGPD) — WU4 client support ──

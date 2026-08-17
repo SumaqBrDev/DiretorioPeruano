@@ -4,7 +4,8 @@
 **Tipo de prueba:** funcional manual end-to-end  
 **Objetivo:** validar el MVP en un ambiente desplegado antes de liberar F8.2  
 **Idioma de ejecución:** los textos esperados se indican en portugués cuando así aparecen en la interfaz actual  
-**Fecha de elaboración:** 07/08/2026
+**Fecha de elaboración:** 07/08/2026  
+**Última actualización:** 17/08/2026 — sección J (Gobernanza LGPD) y sección 10 (Checklist QA LGPD + Definition of Done), WU5.
 
 ---
 
@@ -721,6 +722,156 @@ Los nombres y CNPJ de altas repetibles deben llevar un sufijo único, por ejempl
 
 ---
 
+## J. Gobernanza LGPD (consentimiento y privacidad — WU5)
+
+> **Alcance y honestidad:** estos casos validan el **comportamiento funcional implementado**
+> (flujo híbrido D1, evidencia append-only D2/D5, script gate D7, endpoints D8, gate legal D10)
+> en ambiente QA. **No constituyen certificación de cumplimiento LGPD ni aprobación legal**:
+> todos los documentos del registro (`src/config/legal.ts`) son actualmente PLACEHOLDER con
+> `legalApproved: false`, y el gate `npm run check:legal` falla por diseño hasta la aprobación
+> del responsable/DPO (sección 10, DoD LGPD).
+
+### CP-043 — Consentimiento obligatorio antes del signup
+
+**Prioridad:** P0  
+**Trazabilidad:** PER-18; signup consent (WU3); D1  
+**Precondiciones:** ventana privada; cuenta nueva `CONSUMIDOR_NUEVO`.
+
+| Paso | Acción | Resultado esperado |
+|---:|---|---|
+| 1 | Abrir `/cadastrar` en ventana privada sin marcar nada. | La checkbox de aceptación de Términos/Política de Privacidad aparece **desmarcada por defecto**; el envío del signup está bloqueado hasta marcarla. |
+| 2 | Intentar continuar sin marcar. | No se crea cuenta; se informa que la aceptación es obligatoria (frontend). |
+| 3 | Marcar solo la obligatoria y completar el signup. | El signup avanza; las opcionales permanecen separadas y desmarcadas. |
+| 4 | Repetir manualmente `POST /api/businesses` con un token sin consentimiento registrado. | Backend responde `409 CONSENT_REQUIRED` (fail-closed); no crea negocio. |
+
+### CP-044 — Consentimientos opcionales separados
+
+**Prioridad:** P1  
+**Trazabilidad:** PER-18; D7  
+**Precondiciones:** pantalla de signup con opcionales (marketing/analytics).
+
+| Paso | Acción | Resultado esperado |
+|---:|---|---|
+| 1 | Verificar que marketing/analytics son checkboxes **independientes** de la obligatoria. | Nunca agrupadas con la contractual; pueden aceptarse o rechazarse por separado. |
+| 2 | Aceptar solo `marketing` y completar el signup. | Se registra evidencia solo para lo aceptado; nada de analytics. |
+| 3 | Revisar `/preferencias` tras el alta. | El estado refleja exactamente lo aceptado (marketing sí, analytics no). |
+
+### CP-045 — Páginas legales públicas y versión activa
+
+**Prioridad:** P1  
+**Trazabilidad:** PER-18; legal docs (D1/D8)  
+**Precondiciones:** sesión cerrada.
+
+| Paso | Acción | Resultado esperado |
+|---:|---|---|
+| 1 | Abrir `/termos`, `/privacidade` y `/cookies` sin sesión. | Páginas públicas renderizan los textos del registro activo (placeholder actual); sin pantalla de error. |
+| 2 | Consultar `GET /api/legal-docs` sin token. | `200` con metadatos de documentos ACTIVOS (id, version, effectiveDate, hash, purposes, legalBases, locale); **sin** texto de secciones ni `legalApproved`. |
+| 3 | Verificar que la versión futura-datada no aparece. | `cookie_policy` v2 (effective 2099) nunca se lista como activa. |
+| 4 | Abrir los enlaces legales desde el formulario de signup en pestaña nueva. | El formulario conserva los datos ingresados. |
+
+### CP-046 — Flujo híbrido D1: intención pre-signup → evidencia server-side
+
+**Prioridad:** P0  
+**Trazabilidad:** D1; signup intent (WU3)  
+**Precondiciones:** cuenta nueva; DevTools (Application → Session Storage).
+
+| Paso | Acción | Resultado esperado |
+|---:|---|---|
+| 1 | Marcar la checkbox obligatoria en `/cadastrar`. | Aparece `conectaperu_signup_intent` en `sessionStorage` (solo intención de UI). |
+| 2 | Completar el signup y el redirect de Clerk. | Onboarding paso 0 / Reconsent llama `POST /api/consent` por cada documento activo (`terms_of_service` y `privacy_policy`, purpose `service`). |
+| 3 | Verificar BD/API. | Cada fila `ConsentRecord` tiene `documentVersion` y `documentHash` **derivados del servidor** (versión activa del registro), `source` coherente (`signup`/`onboarding`) y `locale` válido (pt-BR/es-PE). |
+| 4 | Verificar que `sessionStorage` no es evidencia. | Eliminar la clave y confirmar que las filas ya escritas persisten; el historial proviene solo del servidor. |
+| 5 | Enviar `POST /api/consent` con `documentVersion` no activa (v1 superada o futura). | `422 INVALID_PAYLOAD`; no se registra evidencia con versión obsoleta. |
+
+### CP-047 — Evidencia append-only e idempotencia
+
+**Prioridad:** P0  
+**Trazabilidad:** D2; consent API (WU2b)  
+**Precondiciones:** usuario con grant registrado; acceso de solo lectura a BD Neon QA.
+
+| Paso | Acción | Resultado esperado |
+|---:|---|---|
+| 1 | Reenviar exactamente el mismo `POST /api/consent` (misma `idempotencyKey`). | `200 {record, duplicate:true}`; sigue existiendo **una sola fila** para `(userId, idempotencyKey)`. |
+| 2 | Verificar en BD que grants y revocations son filas nuevas. | La tabla `ConsentRecord` nunca muestra UPDATE sobre una fila previa; el consentimiento actual = última fila por `(userId, documentType, purpose)`. |
+| 3 | Verificar que las filas no contienen IP/userAgent. | No existen columnas `ipAddress`/`userAgent` en `ConsentRecord` ni `CookiePreference` (D5: no captura). |
+| 4 | Ejecutar dos veces la migración manual (ambiente autorizado). | `node run-migration.cjs prisma/lgpd_migration.sql` es re-ejecutable: no genera error ni objetos duplicados (idempotente). |
+
+### CP-048 — Endpoints protegidos y autorización
+
+**Prioridad:** P0  
+**Trazabilidad:** D8; consent API  
+**Precondiciones:** tokens de consumer, business y superadmin; usuario `B` distinto del ejecutor.
+
+| Paso | Acción | Resultado esperado |
+|---:|---|---|
+| 1 | `GET /api/consent` sin token y con token inválido. | `401`; nunca devuelve datos. |
+| 2 | `POST /api/consent` con body `userId` de otro usuario (B). | `403 CROSS_USER_TARGETING`; no se registra nada. |
+| 3 | `GET /api/consent` como A. | Solo filas propias de A, más recientes primero. |
+| 4 | `GET /api/consent/export` como A. | Solo datos propios: perfil (id/email/name), historial y preferencias; sin hashes de contraseña, roles ni IDs de Stripe; sin datos de B. |
+| 5 | `GET /api/consent/admin` como consumer/business. | `401/403`; sin datos. |
+| 6 | `GET /api/consent/admin` como superadmin, con filtros `documentType`/`source`. | `200` paginado (página 1, pageSize por defecto 50); expone solo `userId` como identificación del sujeto (sin email/name/role). |
+| 7 | `GET /api/consent/admin?documentType=inexistente`. | `422 INVALID_PAYLOAD` (listas cerradas). |
+
+### CP-049 — Revocación y gate de re-consentimiento
+
+**Prioridad:** P0  
+**Trazabilidad:** consent-rights (WU5); D3/D8  
+**Precondiciones:** usuario con consentimiento obligatorio vigente y opcional (marketing) aceptado.
+
+| Paso | Acción | Resultado esperado |
+|---:|---|---|
+| 1 | Revocar opcional (`cookie_policy`/`marketing`) desde `/preferencias` o `POST /api/consent/revoke`. | `201` con fila append `granted=false`; la última fila para esa clave pasa a revocada; el grant previo **no** se modifica. |
+| 2 | Revocar obligatorio (`purpose=service`). | `409 MANDATORY_NOT_REVOCABLE`; no se crea fila de revocación. |
+| 3 | Revocar documento desconocido/inactivo. | `404 DOCUMENT_NOT_FOUND`. |
+| 4 | Con consentimiento obligatorio ausente o de versión desactualizada, intentar crear/editar negocio. | `POST /api/businesses` responde `409 CONSENT_REQUIRED` con `requiredDocs`; la UI lleva a `/reconsent`. |
+| 5 | En `/reconsent`, descartar (cerrar) sin aceptar. | No se registra evidencia; el gate sigue bloqueando (dismiss nunca es consentimiento). |
+| 6 | Aceptar en `/reconsent` y reintentar la mutación. | Evidencia append con `source=reconsent`; la mutación procede. |
+| 7 | Repetir el gate con usuario superadmin sin consentimiento. | Exento: la mutación no es bloqueada por el gate. |
+
+### CP-050 — Script gate y preferencias de cookies
+
+**Prioridad:** P0  
+**Trazabilidad:** D7; cookie consent manager (WU4); PER-18  
+**Precondiciones:** DevTools Network; sin integraciones reales registradas (el gate es el punto único para futuras tags).
+
+| Paso | Acción | Resultado esperado |
+|---:|---|---|
+| 1 | Cargar `/` como visitante sin decidir. | No se solicita ningún script de categoría opcional (analytics/marketing) en Network; el banner pregunta. |
+| 2 | Aceptar solo esenciales. | `localStorage` guarda `conectaperu_cookie_prefs_v1` con esenciales=true y opcionales=false; no cargan scripts opcionales. |
+| 3 | Conceder `analytics` en `/preferencias`. | La categoría queda aceptada; el script gate lo aplica en caliente (`applyOptionalScriptConsent`) — solo carga lo consentido. |
+| 4 | Revocar `analytics`. | No se cargan scripts nuevos de esa categoría; ya cargados no se re-cargan (sin mecanismo de descarga de terceros, documentado). |
+| 5 | Usuario autenticado: cambiar preferencias. | Se sincroniza `POST /api/consent/preferences` (upsert `CookiePreference` con `policyVersion` activa); `GET` lo devuelve. |
+| 6 | Verificar migración del banner legado. | Si existe `conectaperu_cookie_consent='accepted'` (banner anterior), se migra a esenciales-solo y la clave se elimina; nunca concede opcionales. |
+| 7 | Enviar categoría desconocida o no booleana a `POST /api/consent/preferences`. | `422 INVALID_PAYLOAD`. |
+
+### CP-051 — Exportación de datos propios (canal de acceso/portabilidad)
+
+**Prioridad:** P1  
+**Trazabilidad:** consent-rights (WU5); D8  
+**Precondiciones:** usuario con grants, revocación y preferencias registradas.
+
+| Paso | Acción | Resultado esperado |
+|---:|---|---|
+| 1 | `GET /api/consent/export` como usuario con historial mixto. | `200` con `profile`, `consents[]` (incluye grants y revocations con versión/hash/fecha/origen) y `cookiePreferences[]`. |
+| 2 | Revisar los campos del payload. | Solo campos seleccionados: sin password hashes, sin roles, sin IDs de Stripe, sin `userId` de otros usuarios. |
+| 3 | Comparar con BD autorizada. | El export coincide con el historial propio completo (append-only). |
+
+### CP-052 — Gate legal D10 (`npm run check:legal`)
+
+**Prioridad:** P0  
+**Trazabilidad:** D10; check-legal (WU5.3)  
+**Precondiciones:** consola del ambiente; script `scripts/check-legal.mjs`.
+
+| Paso | Acción | Resultado esperado |
+|---:|---|---|
+| 1 | Ejecutar `npm run check:legal` con el registro actual. | **Falla por diseño** (exit ≠ 0) listando los documentos ACTIVOS con `legalApproved:false` (hoy: `privacy_policy` v2, `terms_of_service` v1, `cookie_policy` v1 — placeholders). Este es el estado esperado y honesto; NO es un defecto. |
+| 2 | Confirmar que el gate no forma parte de `npm test`. | `npm test` corre verde (238 pruebas) aunque `check:legal` falle; D10 separa el desarrollo del bloqueo legal. |
+| 3 | En ambiente controlado, mutar un `legalApproved:true` en un fixture y correr el gate. | Pasa solo si TODOS los activos están aprobados y los hashes intactos. |
+| 4 | Introducir drift de hash (copiar/pegar) en un fixture. | El gate falla reportando el mismatch `expected/actual`. |
+| 5 | Registrar el resultado. | La liberación exige `check:legal` PASS + aprobación del responsable/DPO de textos PT-BR y matriz de tratamiento + confirmación del punto de captura D1 (fuera del alcance de QA funcional). |
+
+---
+
 ## 5. Matriz de trazabilidad AC1–AC15
 
 | Criterio | Casos principales |
@@ -749,6 +900,7 @@ Los nombres y CNPJ de altas repetibles deben llevar un sufijo único, por ejempl
 2. **Administración e integraciones P0:** CP-028 a CP-032 y CP-034 a CP-037, únicamente en ambiente test autorizado.
 3. **Regresión P1:** CP-002, CP-003, CP-005, CP-009, CP-010, CP-012, CP-016, CP-018, CP-022, CP-026, CP-033, CP-038 y CP-040.
 4. **No funcional complementario:** CP-041 y CP-042.
+5. **LGPD (bloquea la liberación; solo ambiente QA autorizado):** CP-043, CP-046, CP-047, CP-048, CP-049, CP-050 y CP-052 (P0); luego CP-044, CP-045 y CP-051 (P1). Aplicar la checklist de la sección 10 (DoD LGPD).
 
 ---
 
@@ -770,6 +922,7 @@ Los nombres y CNPJ de altas repetibles deben llevar un sufijo único, por ejempl
 - Defectos Altos aceptados explícitamente por Product Owner si no se corrigen.
 - Evidencias y IDs externos adjuntos para Stripe, Resend, Clerk y operaciones destructivas.
 - Datos QA limpiados o identificados para limpieza posterior.
+- Checklist QA LGPD (sección 10) ejecutada y DoD LGPD cumplido; `npm run check:legal` documentado en su estado esperado (FAIL mientras los textos sean placeholders). La aprobación legal/DPO y la certificación de cumplimiento quedan **fuera del alcance de QA funcional**.
 
 ---
 
@@ -808,4 +961,46 @@ Impacto:
 7. El onboarding acepta `image/*` y convierte imágenes a base64, mientras la galería posterior limita tipo/tamaño y usa Netlify Blobs; confirmar límites exigidos durante onboarding.
 8. No se define claramente si una suscripción recuperada desde `past_due` reactiva automáticamente un BusinessProfile `disabled`.
 9. No se documenta una restricción única de review a nivel Prisma; la protección debe probarse bajo concurrencia además de la UI.
+
+---
+
+## 10. Checklist QA LGPD y Definition of Done (WU5)
+
+> **Alcance:** esta checklist valida el **comportamiento funcional implementado** en ambiente QA
+> (casos CP-043 a CP-052, sección J). **No es una certificación de cumplimiento LGPD ni una
+> aprobación legal.** Los textos del registro (`src/config/legal.ts`) son PLACEHOLDER con
+> `legalApproved: false`; el gate `npm run check:legal` falla por diseño y la liberación queda
+> bloqueada hasta la aprobación del responsable/DPO. Toda verificación marcada debe adjuntar
+> evidencia (captura, request/response sanitizado, consulta BD autorizada, salida de consola).
+
+### Checklist funcional QA
+
+| # | Verificación | Cómo | Evidencia esperada |
+|---|---|---|---|
+| QA-01 | Checkbox obligatoria desmarcada por defecto; signup bloqueado hasta aceptar (frontend) | CP-043 | Captura; sin cuenta creada |
+| QA-02 | Opcionales separadas de la obligatoria; solo lo aceptado se registra | CP-044 | Captura; filas `ConsentRecord` |
+| QA-03 | Páginas `/termos`, `/privacidade`, `/cookies` públicas; `GET /api/legal-docs` solo metadatos activos (sin texto ni `legalApproved`); versión futura-datada nunca activa | CP-045 | Capturas; response sanitizado |
+| QA-04 | Flujo híbrido D1: intención en `sessionStorage` NUNCA es evidencia; evidencia server-side tras redirect con `documentVersion`/`documentHash` derivados del servidor | CP-046 | Captura Session Storage; filas BD |
+| QA-05 | Evidencia append-only: grants y revocations son filas nuevas (nunca UPDATE); consentimiento actual = última fila por clave | CP-047 | Consulta BD autorizada |
+| QA-06 | Idempotencia: reenvío idéntico → `200 {duplicate:true}`, una sola fila `(userId, idempotencyKey)` | CP-047 | Response + consulta BD |
+| QA-07 | Sin captura de IP/userAgent (sin columnas en `ConsentRecord`/`CookiePreference`) | CP-047 | Esquema BD |
+| QA-08 | Migración manual idempotente re-ejecutable sin error ni duplicados | CP-047 | Salida de consola ×2 |
+| QA-09 | Sujeto siempre del token verificado; `403 CROSS_USER_TARGETING` ante `userId` ajeno; historial propio únicamente | CP-048 | Responses |
+| QA-10 | Revocación opcional (append), `409 MANDATORY_NOT_REVOCABLE` para `service`, `404 DOCUMENT_NOT_FOUND` | CP-049 | Responses + BD |
+| QA-11 | Gate re-consentimiento fail-closed: `409 CONSENT_REQUIRED` en `POST /api/businesses`; `/reconsent`; dismiss nunca es consentimiento; admin/superadmin exentos | CP-049 | Capturas + responses |
+| QA-12 | Script gate: ningún script opcional antes del consentimiento; cambios aplicados en caliente; sin recarga de ya cargados | CP-050 | Network tab |
+| QA-13 | Preferencias: `localStorage` versionado (`conectaperu_cookie_prefs_v1`), migración del banner legado, sync `CookiePreference` autenticado, categorías esenciales no desactivables | CP-050 | Captura storage + BD |
+| QA-14 | Export: solo datos propios, campos seleccionados (sin password hashes/roles/Stripe/otros usuarios) | CP-051 | Payload sanitizado |
+| QA-15 | Vista admin de gobernanza superadmin-only, paginada, filtros de listas cerradas, solo `userId` | CP-048 | Responses |
+| QA-16 | Gate legal: `npm run check:legal` FAIL por diseño con activos no aprobados; PASS solo con todos aprobados y hashes intactos; fuera de `npm test` | CP-052 | Salida de consola |
+
+### Definition of Done — control LGPD
+
+El WU5.4 se considera **documentalmente completo** (DoD de control para QA y release) cuando:
+
+- [ ] **QA-01 a QA-16** ejecutados y aprobados en ambiente QA, con evidencia adjunta (sin datos reales).
+- [ ] `npm test` verde (22 archivos / 238 pruebas) y el estado de `npm run check:legal` registrado explícitamente (hoy: FAIL esperado — placeholders).
+- [ ] La documentación (README, sección de gobernanza LGPD) refleja el estado honesto: implementación presente, textos legales pendientes de aprobación.
+- [ ] **Fuera del alcance de QA funcional — prerrequisitos de release:** `npm run check:legal` PASS; aprobación del responsable/DPO de los textos PT-BR y de la matriz de tratamiento; confirmación del punto de captura D1. Sin estos, **no** declarar cumplimiento LGPD ni liberar.
+- [ ] Ningún documento del registro se presenta como certificado legal (`legalApproved` permanece `false` hasta la aprobación).
 

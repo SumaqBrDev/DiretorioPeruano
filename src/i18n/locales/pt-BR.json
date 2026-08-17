@@ -85,7 +85,8 @@
     "copyright": "Desenvolvido por <a href=\"https://stratai-consulting-site.netlify.app/\" target=\"_blank\" rel=\"noopener\" class=\"text-aji-rojo hover:underline\">StratAi Consulting</a>. Conectando peruanos no Brasil.",
     "privacy": "Política de Privacidade",
     "terms": "Termos de Serviço",
-    "cookies": "Cookies"
+    "cookies": "Cookies",
+    "preferences": "Preferências"
   },
   "pages": {
     "privacidade": "Política de Privacidade",
@@ -200,6 +201,79 @@
       "saved": "Preferências salvas com sucesso.",
       "privacyLink": "Ver Política de Privacidade",
       "note": "Suas preferências ficam armazenadas no seu navegador e, para usuários com conta, são sincronizadas com o seu perfil. Cookies essenciais não podem ser desativados. Você pode mudar suas escolhas a qualquer momento nesta página."
+    }
+  },
+  "legal": {
+    "privacy": {
+      "title": "Política de Privacidade"
+    },
+    "terms": {
+      "title": "Termos de Serviço"
+    },
+    "cookies": {
+      "title": "Política de Cookies"
+    },
+    "meta": {
+      "version": "Versão",
+      "effective": "Vigente desde",
+      "hash": "Hash SHA-256"
+    },
+    "status": {
+      "approved": "Documento aprovado pelo responsável/DPO",
+      "pending": "AGUARDANDO APROVAÇÃO LEGAL — texto provisório (placeholder) pendente de revisão; não constitui documento legal aprovado."
+    }
+  },
+  "preferencias": {
+    "page": {
+      "title": "Preferências e Meus Dados",
+      "subtitle": "Consulte seus consentimentos (LGPD), gerencie preferências opcionais e exporte seus dados pessoais a qualquer momento.",
+      "loading": "Carregando suas preferências..."
+    },
+    "reconsent": {
+      "title": "Consentimento obrigatório pendente",
+      "body": "Nossos documentos legais foram atualizados. Você precisa aceitar a versão vigente para continuar usando o ConectaPeru.",
+      "link": "Aceitar agora"
+    },
+    "consents": {
+      "title": "Meus consentimentos (LGPD)",
+      "subtitle": "Estado atual dos seus consentimentos, por documento e finalidade. Cada aceite e revogação fica registrado de forma imutável.",
+      "empty": "Nenhum registro de consentimento encontrado.",
+      "version": "Versão",
+      "date": "Data",
+      "granted": "Consentido",
+      "revoked": "Revogado",
+      "purpose": {
+        "service": "Contrato de serviço",
+        "analytics": "Analytics",
+        "marketing": "Marketing"
+      },
+      "doc": {
+        "terms_of_service": "Termos de Serviço",
+        "privacy_policy": "Política de Privacidade",
+        "cookie_policy": "Política de Cookies"
+      },
+      "mandatoryNote": "Obrigatório — não pode ser revogado enquanto a conta estiver ativa."
+    },
+    "cookies": {
+      "title": "Preferências de cookies",
+      "subtitle": "As categorias opcionais só carregam recursos após o seu consentimento. Desativar uma categoria revoga o consentimento correspondente.",
+      "save": "Salvar preferências",
+      "saving": "Salvando...",
+      "saved": "Preferências salvas com sucesso."
+    },
+    "revoke": {
+      "button": "Revogar consentimento",
+      "revoking": "Revogando...",
+      "revoked": "Consentimento revogado.",
+      "error": "Não foi possível revogar o consentimento. Tente novamente."
+    },
+    "export": {
+      "title": "Exportar meus dados (LGPD)",
+      "subtitle": "Baixe um arquivo JSON com seus dados pessoais e o histórico de consentimentos. A exportação contém apenas os seus dados.",
+      "button": "Exportar meus dados",
+      "exporting": "Gerando exportação...",
+      "done": "Exportação baixada.",
+      "error": "Não foi possível gerar a exportação. Tente novamente."
     }
   }
 }
