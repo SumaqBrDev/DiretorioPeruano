@@ -9,7 +9,8 @@
 - **Auth:** Clerk (React SDK)
 - **Database:** Neon PostgreSQL + Prisma ORM
 - **Deploy:** Netlify (SPA)
-- **Lint/Format:** Oxlint + Prettier
+- **Lint:** ESLint (`npm run lint`)
+- **Testes:** Vitest (`npm test`, node env, sem jsdom)
 
 ## 📁 Estrutura do Projeto
 
@@ -132,8 +133,10 @@ No [Clerk Dashboard](https://dashboard.clerk.com/apps/app_3GVoHO4YI3D66tNLyOlNwd
 npm run dev          # Dev server com HMR
 npm run build        # Build de produção
 npm run preview      # Preview do build local
-npm run lint         # Oxlint (rápido)
-npm run format       # Prettier
+npm run lint         # ESLint (js/jsx)
+npm run test         # Vitest (node env; gate de merge — precisa ficar verde)
+npm run check:legal  # Gate legal LGPD (D10): falha enquanto houver documento ATIVO não aprovado
+                     #   pelo responsável/DPO ou hash divergente. NÃO faz parte do npm test.
 ```
 
 ## 🗄️ Banco de Dados (Prisma)
@@ -152,10 +155,15 @@ npx prisma db seed       # Popula dados iniciais
 - `Review` - Avaliações com moderação (auto-aprovadas; `status` default `approved`)
 - `WebhookEvent` - Idempotência de webhooks Stripe (sem Redis; `stripeEventId` único)
 - `Message` - Mensagens B2B
+- `ConsentRecord` - Evidência de consentimento LGPD (append-only; `@@unique(userId, idempotencyKey)`)
+- `CookiePreference` - Estado operacional das preferências de cookies (upsert por usuário; NÃO é evidência)
 
 > **Migrações:** este projeto não usa `prisma migrate dev` (sem `DATABASE_URL` local).
 > Aplicar SQL manual idempotente: `apply_schema.sql` (base) + `prisma/migration_manual.sql`
-> (billing/KYC/rating/WebhookEvent) + `supabase_migration.sql` (archive).
+> (billing/KYC/rating/WebhookEvent) + `supabase_migration.sql` (archive) +
+> `prisma/lgpd_migration.sql` (ConsentRecord + CookiePreference).
+> Comando (padrão do repositório, re-executável sem efeitos colaterais):
+> `node run-migration.cjs prisma/lgpd_migration.sql`
 
 ## 🎨 Design System
 
@@ -192,6 +200,120 @@ npx prisma db seed       # Popula dados iniciais
 - **Protected Routes** - `Onboarding`, `Inbox`, `Admin`, `Moderar`
 - **User Sync** - Webhook Clerk → Prisma `User` table
 - **Organizations** - Futuro: multi-tenancy para redes de franquias
+
+## 🔒 Governança LGPD (consentimento e privacidade)
+
+> **Status honesto (17/08/2026):** a implementação técnica de consentimento LGPD está presente
+> e coberta por testes (`npm test` — 22 arquivos, 238 testes, verde). Porém **todos os textos
+> legais são PLACEHOLDER** (`legalApproved: false` em todos os documentos do registro) e o gate
+> de release `npm run check:legal` **falha de propósito** enquanto houver documento ATIVO não
+> aprovado — **release bloqueado** até a aprovação do responsável/DPO. Este README não é
+> certificação legal.
+
+### Contrato de configuração legal (fonte única — D1)
+
+`src/config/legal.ts` é o registro único de documentos legais, importado pelo client
+(`src/pages/*`), pelas Netlify Functions e pelos testes — textos e versões podem ser trocados
+**sem mudança de código** após aprovação legal.
+
+| Campo | Significado |
+|---|---|
+| `id` | `terms_of_service` \| `privacy_policy` \| `cookie_policy` |
+| `version` | Versão do documento (ex.: `'2'`) |
+| `effectiveDate` | ISO date (UTC). Ativo = maior versão com `effectiveDate <= hoje` |
+| `hash` | sha256 hex (lowercase) de `JSON.stringify(sections)`; verificado por teste e pelo gate (drift = falha) |
+| `purposes` | `service` \| `marketing` \| `analytics` |
+| `legalBases` | `contract` \| `consent` \| `legitimate_interest` |
+| `locale` | `pt-BR` (textos atuais) / `es-PE` |
+| `legalApproved` | `false` até o responsável/DPO aprovar o texto exato (D10) |
+
+Versões futuras-datadas (ex.: `cookie_policy` v2, `effectiveDate` 2099) **nunca** resolvem como
+ativas — `activeLegalDocs()`/`getLegalDoc()` aplicam essa regra no client, nas Functions e no gate.
+
+### Migração manual idempotente
+
+```bash
+node run-migration.cjs prisma/lgpd_migration.sql   # padrão do repositório, re-executável
+```
+
+Cria `ConsentRecord` (evidência append-only) + `CookiePreference` (estado operacional), com
+`CREATE TABLE/INDEX IF NOT EXISTS` e chave única `(userId, idempotencyKey)` — re-executar não
+gera erro nem duplicata.
+
+> ⚠️ **Limitação conhecida:** o runner `run-migration.cjs` (raiz) lê um caminho **fixo**
+> (`./prisma/migration_manual.sql`) e atualmente **não consome o argumento de caminho**. Antes
+> de aplicar o SQL LGPD, aponte o caminho dentro do arquivo (o cabeçalho de
+> `prisma/lgpd_migration.sql` documenta o mesmo padrão: "edit the SQL path if needed").
+
+### Fluxo híbrido de consentimento (D1)
+
+1. **Pré-signup — intenção, NUNCA evidência:** as checkboxes em `Login` gravam a intenção em
+   `sessionStorage` (`conectaperu_signup_intent`). O signup fica bloqueado até a checkbox
+   obrigatória ser marcada (frontend); o servidor revalida depois (409 `CONSENT_REQUIRED`).
+2. **Evidência server-side após o redirect do Clerk:** `Onboarding` (passo 0) / `Reconsent`
+   chamam `POST /api/consent` por documento ativo; o servidor deriva `documentVersion` +
+   `documentHash` do registro ativo — versão superada ou futura-datada é rejeitada (422).
+3. **Idempotência (D2):** a `idempotencyKey` deriva do timestamp da intenção + documento +
+   propósito; reenvio idêntico → `200 {record, duplicate:true}` (pré-checagem lógica + chave
+   única `(userId, idempotencyKey)` como backstop de corrida).
+
+### IP/userAgent NÃO são capturados (D5)
+
+Nenhuma coluna `ipAddress`/`userAgent` existe em `ConsentRecord`/`CookiePreference` (sem
+justificativa/retention definida) — o consentimento é registrado sem dados de rede/dispositivo.
+
+### Evidência vs. estado operacional
+
+| Modelo | Papel | Escrita |
+|---|---|---|
+| `ConsentRecord` | **Evidência imutável** (LGPD) | Append-only: grants E revogações são **novas linhas**; consentimento atual = última linha por `(userId, documentType, purpose)`; nunca UPDATE |
+| `CookiePreference` | **Estado operacional** da UI | Upsert por usuário (`userId` único); NÃO é evidência |
+
+### Endpoints e semântica de status
+
+| Endpoint | Auth | Comportamento |
+|---|---|---|
+| `GET /api/legal-docs` | pública | Metadados dos documentos ATIVOS (sem texto, sem flags internas) |
+| `POST /api/consent` | Clerk | Grant → `201`; reenvio idêntico → `200 {duplicate:true}`; `403 CROSS_USER_TARGETING` (body `userId` ≠ sujeito do token); `422 INVALID_PAYLOAD` (listas fechadas / versão inativa) |
+| `GET /api/consent` | Clerk | Histórico próprio, mais recente primeiro |
+| `GET /api/consent/status` | Clerk | `mandatoryCurrent`, `current[]`, `requiredDocs[]` |
+| `POST /api/consent/revoke` | Clerk | Revogação opcional (append) → `201`; obrigatório (`service`) → **`409 MANDATORY_NOT_REVOCABLE`**; documento desconhecido/inativo → `404 DOCUMENT_NOT_FOUND` |
+| `GET/POST /api/consent/preferences` | Clerk | Upsert `CookiePreference` (categorias validadas contra `COOKIE_CATEGORIES`) |
+| `GET /api/consent/export` | Clerk | Dados próprios (perfil + histórico + preferências); campos selecionados — sem hashes de senha, roles ou IDs Stripe |
+| `GET /api/consent/admin` | superadmin | Visão de governança paginada/filtrável; expõe só `userId` (sem PII adicional) |
+| `POST /api/businesses` | Clerk | Gate de re-consentimento **fail-closed**: obrigatório ausente/desatualizado → **`409 CONSENT_REQUIRED`** (admin/superadmin isentos) |
+
+O sujeito é **sempre derivado do token Clerk verificado** (`ensureUserByClerkId` upsert);
+qualquer `userId` alheio no body é rejeitado com `403 CROSS_USER_TARGETING` e nada é gravado.
+
+### Script gate (scripts opcionais nunca carregam antes do consentimento)
+
+`src/lib/scriptGate.ts` é o ponto único de carga de scripts de terceiros: todo script opcional
+deve passar por `registerOptionalScript(categoria, loader)` e **nada carrega** até o
+consentimento da categoria (`applyOptionalScriptConsent`). Nenhuma integração real de
+analytics/marketing está registrada ainda — integrações futuras obrigatoriamente passam pelo
+gate. A preferência fica em `localStorage` versionado (`conectaperu_cookie_prefs_v1`, com
+migração do banner legado `conectaperu_cookie_consent`) e, para usuários autenticados,
+sincroniza com `CookiePreference` via `POST /api/consent/preferences`. Categorias essenciais
+não podem ser desativadas.
+
+### Pré-requisito de release (D10) e verificação atual
+
+```bash
+npm test            # 22 arquivos / 238 testes — verde (gate de merge; inclui consent, script-gate,
+                    #   cookie-manager, signup-intent, legal-config, check-legal, consent-rights…)
+npm run check:legal # GATE LGPD (D10): falha (exit != 0) enquanto houver documento ATIVO com
+                    #   legalApproved:false ou hash divergente. NÃO faz parte do npm test.
+```
+
+- **Estado atual:** `npm run check:legal` **falha por design** — 3 documentos ativos
+  (`privacy_policy` v2, `terms_of_service` v1, `cookie_policy` v1) são placeholder com
+  `legalApproved: false`. **Release bloqueado** até: (1) `npm run check:legal` passar, (2)
+  aprovação do responsável/DPO dos textos PT-BR e da matriz de tratamento, e (3) confirmação do
+  ponto de captura D1.
+- **Páginas:** `/termos`, `/privacidade`, `/cookies`, `/reconsent` (tela de re-consentimento —
+  usuários existentes que caem no gate `CONSENT_REQUIRED`) e `/preferencias` (preferências de
+  consentimento/cookies).
 
 ## 🚧 Próximos Passos (Roadmap)
 

@@ -49,9 +49,12 @@ export interface AdminListResult {
 
 class ApiError extends Error {
   statusCode: number;
-  constructor(statusCode: number, message: string) {
+  /** Machine-readable code from the {error, code?} envelope (design D6), e.g. CONSENT_REQUIRED. */
+  code?: string;
+  constructor(statusCode: number, message: string, code?: string) {
     super(message);
     this.statusCode = statusCode;
+    if (code !== undefined) this.code = code;
   }
 }
 
@@ -82,13 +85,15 @@ async function request<T>(
 
   if (!response.ok) {
     let message = `Erro ${response.status}`;
+    let code: string | undefined;
     try {
       const data = await response.json();
       if (data?.error) message = data.error;
+      if (typeof data?.code === 'string') code = data.code;
     } catch {
       // ignore
     }
-    throw new ApiError(response.status, message);
+    throw new ApiError(response.status, message, code);
   }
 
   const contentType = response.headers.get('content-type') || '';
@@ -407,6 +412,150 @@ export async function submitReview(
   return request<{ success: boolean }>('reviews', token, {
     method: 'POST',
     body: data,
+  });
+}
+
+// ── Consent (LGPD) — WU3 client support ──
+
+export interface ConsentRecordInput {
+  documentType: string;
+  documentVersion: string;
+  purpose: string;
+  legalBasis: string;
+  source: string;
+  locale: string;
+  granted: boolean;
+  idempotencyKey: string;
+}
+
+export interface ConsentRecord {
+  id: string;
+  documentType: string;
+  documentVersion: string;
+  documentHash: string;
+  purpose: string;
+  legalBasis: string;
+  intent: string;
+  granted: boolean;
+  consentedAt: string;
+  source: string;
+  locale: string;
+  createdAt?: string;
+}
+
+export interface ConsentStatus {
+  mandatoryCurrent: boolean;
+  current: Array<{ documentType: string; version: string; granted: boolean; consentedAt: string }>;
+  requiredDocs: string[];
+}
+
+/**
+ * POST /api/consent — record a grant for the ACTIVE document version.
+ * Server derives the subject from the verified Clerk token (D4);
+ * idempotent: 201 {record} | 200 {record, duplicate:true}.
+ */
+export async function recordConsent(
+  token: string,
+  input: ConsentRecordInput
+): Promise<{ record: ConsentRecord; duplicate?: boolean }> {
+  return request<{ record: ConsentRecord; duplicate?: boolean }>('consent', token, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+/** GET /api/consent/status — current mandatory-consent state for the session. */
+export async function getConsentStatus(token: string): Promise<ConsentStatus> {
+  return request<ConsentStatus>('consent/status', token, { method: 'GET' });
+}
+
+/** GET /api/consent — own consent history, newest first (own rows only). */
+export async function getConsentHistory(token: string): Promise<{ records: ConsentRecord[] }> {
+  return request<{ records: ConsentRecord[] }>('consent', token, { method: 'GET' });
+}
+
+/** POST /api/consent/revoke — append a granted=false row for an OPTIONAL consent. */
+export async function revokeConsent(
+  token: string,
+  input: { documentType: string; purpose: string; idempotencyKey: string; source?: string; locale?: string }
+): Promise<{ record: ConsentRecord; duplicate?: boolean }> {
+  return request<{ record: ConsentRecord; duplicate?: boolean }>('consent/revoke', token, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+/** Shape of GET /api/consent/export — OWN data only; no password hashes, no other users. */
+export interface ConsentExportPayload {
+  profile: { id: string; email: string | null; name: string | null };
+  consents: Array<{
+    id: string;
+    documentType: string;
+    documentVersion: string;
+    documentHash: string;
+    purpose: string;
+    legalBasis: string;
+    intent: string;
+    granted: boolean;
+    consentedAt: string;
+    source: string;
+    locale: string;
+    idempotencyKey: string;
+    createdAt: string;
+  }>;
+  cookiePreferences: Array<{
+    policyVersion: string;
+    categories: Record<string, boolean>;
+    locale: string;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+}
+
+/** GET /api/consent/export — LGPD access/portability channel (own data only). */
+export async function exportConsentData(token: string): Promise<ConsentExportPayload> {
+  return request<ConsentExportPayload>('consent/export', token, { method: 'GET' });
+}
+
+// ── Cookie preferences (LGPD) — WU4 client support ──
+
+export interface CookiePreferencesPayload {
+  policyVersion: string;
+  categories: Record<string, boolean>;
+  locale?: string;
+}
+
+export interface ApiCookiePreferences {
+  id: string;
+  userId: string;
+  policyVersion: string;
+  categories: Record<string, boolean>;
+  locale: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * GET /api/consent/preferences — server-side current cookie preferences
+ * (CookiePreference upsert table = current UI state, NOT evidence; optional
+ * grants go through /api/consent per design D7).
+ */
+export async function getCookiePreferences(
+  token: string
+): Promise<{ preferences: ApiCookiePreferences | null }> {
+  return request<{ preferences: ApiCookiePreferences | null }>('consent/preferences', token, {
+    method: 'GET',
+  });
+}
+
+/** POST /api/consent/preferences — sync the current UI choice (upsert). */
+export async function saveCookiePreferences(
+  token: string,
+  input: CookiePreferencesPayload
+): Promise<{ preferences: ApiCookiePreferences }> {
+  return request<{ preferences: ApiCookiePreferences }>('consent/preferences', token, {
+    method: 'POST',
+    body: input,
   });
 }
 

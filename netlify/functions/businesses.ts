@@ -1,6 +1,7 @@
 import prisma from './lib/prisma';
 import { validateCnpj } from './lib/cnpj';
 import { authenticateRequest } from './lib/auth';
+import { assertCurrentMandatoryConsent } from './lib/consent';
 
 export const handler = async (event: any) => {
   const headers = {
@@ -28,6 +29,25 @@ export const handler = async (event: any) => {
           statusCode: 401,
           headers,
           body: JSON.stringify({ error: 'Usuário não encontrado' }),
+        };
+      }
+
+      // LGPD re-consent gate (design D3, spec consent-api/Re-consent gate):
+      // the owner's mandatory service consent (latest row per document, active
+      // version) must be current before any business mutation. Stale/missing
+      // → 409 CONSENT_REQUIRED (machine-readable, envelope D6); fail-closed
+      // when no user row exists. admin/superadmin are exempt. Runs after
+      // owner resolution and before the role check so gated users always get
+      // the CONSENT_REQUIRED code.
+      const gate = await assertCurrentMandatoryConsent(owner.id, { prisma });
+      if (gate.ok !== true) {
+        return {
+          statusCode: 409,
+          headers,
+          body: JSON.stringify({
+            error: 'Consentimento obrigatório desatualizado ou ausente — revise os Termos e a Política de Privacidade',
+            code: gate.code,
+          }),
         };
       }
 

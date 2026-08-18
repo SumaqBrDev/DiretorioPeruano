@@ -6,6 +6,7 @@
 //   - apply_schema.sql          (schema base: address/contact JSONB, modelo Message)
 //   - prisma/migration_manual.sql (columnas de billing/KYC añadidas)
 //   - supabase_migration.sql    (archived/deletedAt en Message)
+//   - prisma/lgpd_migration.sql (LGPD consent governance tables)
 //
 // Se usa el modelo JSONB + Message (no B2BConversation/B2BMessage estructurado),
 // porque es el que está aplicado y poblado en producción (Neon).
@@ -31,6 +32,8 @@ model User {
   communityTopics CommunityTopic[] @relation("CommunityTopics")
   communityPosts  CommunityPost[]  @relation("CommunityPosts")
   communityVotes  CommunityVote[]  @relation("CommunityVotes")
+  consentRecords  ConsentRecord[]
+  cookiePreferences CookiePreference[]
 
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
@@ -221,4 +224,46 @@ model BusinessAd {
   @@index([status])
   @@index([endsAt])
   @@index([businessId])
+}
+
+// ── LGPD consent governance (append-only evidence + cookie preferences) ─────
+// Consent evidence rows are NEVER updated: grants and revocations append new
+// rows (spec: append-only consent evidence; "No sobrescrever evidencia
+// histórica"). Current consent = latest row per key. CookiePreference is
+// current UI state (upsert per user), NOT evidence. Table names are the
+// Prisma defaults ("ConsentRecord", "CookiePreference") matching the quoted
+// camelCase manual SQL in prisma/lgpd_migration.sql (no `prisma migrate`).
+
+model ConsentRecord {
+  id              String   @id @default(dbgenerated("gen_random_uuid()"))
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documentType    String // terms_of_service | privacy_policy | cookie_policy
+  documentVersion String
+  documentHash    String
+  purpose         String // service | marketing | analytics
+  legalBasis      String // contract | consent | legitimate_interest
+  intent          String // grant | revoke
+  granted         Boolean
+  consentedAt     DateTime @default(now())
+  revokedAt       DateTime?
+  source          String // signup | onboarding | reconsent | settings | import
+  locale          String
+  idempotencyKey  String
+  createdAt       DateTime @default(now())
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, documentType, purpose])
+  @@index([documentType, documentVersion])
+}
+
+model CookiePreference {
+  id            String   @id @default(dbgenerated("gen_random_uuid()"))
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  policyVersion String
+  categories    Json // { analytics: bool, marketing: bool }
+  locale        String   @default("pt-BR")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }

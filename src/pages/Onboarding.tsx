@@ -2,8 +2,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useUser, useAuth } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
-import { createBusiness } from '../lib/api';
+import { createBusiness, getConsentStatus, recordConsent, ApiError } from '../lib/api';
+import { ConsentCheckboxes } from '../components/ConsentCheckboxes';
+import { activeLegalDocs } from '../config/legal';
+import {
+  SIGNUP_INTENT_KEY,
+  buildSignupIntent,
+  parseSignupIntent,
+  buildConsentRequests,
+  normalizeConsentLocale,
+} from '../lib/signupIntent';
 
 // --- Constantes ---
 
@@ -165,6 +175,7 @@ interface OnboardingFormData {
 export const Onboarding = () => {
   const { user, isLoaded } = useUser();
   const { getToken } = useAuth();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<OnboardingFormData>({
@@ -181,6 +192,96 @@ export const Onboarding = () => {
   const [errors, setErrors] = useState<Record<string, string | null>>({});
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  // ── Consent evidence step 0 (WU3, design D1/D3) ──
+  // After the verified Clerk redirect the user must record evidence for the
+  // CURRENT mandatory versions before steps 1-3 / business creation. The
+  // pre-signup intent (sessionStorage) is UI intent only — NEVER evidence.
+  type ConsentPhase = 'loading' | 'needed' | 'recorded' | 'error';
+  const [consentPhase, setConsentPhase] = useState<ConsentPhase>('loading');
+  const [mandatoryChecked, setMandatoryChecked] = useState(false);
+  const [optionalChecked, setOptionalChecked] = useState<Record<string, boolean>>({});
+  const [consentError, setConsentError] = useState<string | null>(null);
+  const [consentBusy, setConsentBusy] = useState(false);
+
+  const checkConsent = useCallback(async () => {
+    if (!isLoaded || !user) return;
+    setConsentPhase('loading');
+    setConsentError(null);
+    try {
+      const token = await getToken();
+      if (!token) {
+        setConsentPhase('error');
+        return;
+      }
+      const status = await getConsentStatus(token);
+      if (status.mandatoryCurrent) {
+        // Already current — nothing to record; drop any stale intent.
+        sessionStorage.removeItem(SIGNUP_INTENT_KEY);
+        setConsentPhase('recorded');
+        return;
+      }
+      // Rehydrate the pre-signup intent so the user does not re-read the docs.
+      const intent = parseSignupIntent(sessionStorage.getItem(SIGNUP_INTENT_KEY));
+      setMandatoryChecked(!!intent);
+      if (intent) {
+        const opt: Record<string, boolean> = {};
+        for (const id of intent.optionalAccepted) opt[id] = true;
+        setOptionalChecked(opt);
+      }
+      setConsentPhase('needed');
+    } catch (err) {
+      console.error('Erro ao verificar consentimento:', err);
+      setConsentPhase('error');
+    }
+  }, [isLoaded, user, getToken]);
+
+  useEffect(() => {
+    checkConsent();
+  }, [checkConsent]);
+
+  const handleConfirmConsent = async () => {
+    setConsentError(null);
+    if (!mandatoryChecked) {
+      setConsentError(t('consent.errors.mandatory_required'));
+      return;
+    }
+    setConsentBusy(true);
+    try {
+      const token = await getToken();
+      if (!token) {
+        setConsentBusy(false);
+        setConsentError(t('consent.onboarding.error'));
+        return;
+      }
+      const active = activeLegalDocs();
+      const serviceIds = active.filter((d) => d.purposes.includes('service')).map((d) => d.id);
+      const optionalAccepted = Object.entries(optionalChecked)
+        .filter(([, checked]) => checked)
+        .map(([id]) => id);
+      // Reuse the captured intent ts so retries of the same intent are true
+      // idempotent duplicates server-side; otherwise mint a fresh intent.
+      const existing = parseSignupIntent(sessionStorage.getItem(SIGNUP_INTENT_KEY));
+      const intent =
+        existing && existing.legalVersions.length > 0
+          ? { ...existing, optionalAccepted }
+          : buildSignupIntent(serviceIds, optionalAccepted);
+      const requests = buildConsentRequests(intent, active, {
+        source: 'onboarding',
+        locale: normalizeConsentLocale(i18n.language),
+      });
+      for (const req of requests) {
+        await recordConsent(token, req);
+      }
+      sessionStorage.removeItem(SIGNUP_INTENT_KEY);
+      setConsentPhase('recorded');
+    } catch (err) {
+      console.error('Erro ao registrar consentimento:', err);
+      setConsentError(t('consent.onboarding.error'));
+    } finally {
+      setConsentBusy(false);
+    }
+  };
 
   // --- Validation ---
 
@@ -305,6 +406,11 @@ export const Onboarding = () => {
     } catch (err: any) {
       console.error('Erro ao cadastrar negócio:', err);
       setSubmitting(false);
+      if (err instanceof ApiError && err.code === 'CONSENT_REQUIRED') {
+        // Stale/missing mandatory consent — dedicated re-consent screen.
+        navigate('/reconsent', { state: { from: '/onboarding' } });
+        return;
+      }
       setToast({ message: 'Erro ao salvar. Tente novamente.', type: 'error' });
       return;
     }
@@ -696,6 +802,51 @@ export const Onboarding = () => {
 
   // --- Main Render ---
 
+  const renderConsentStep = () => (
+    <motion.div
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      className="space-y-6"
+    >
+      <div className="bg-white dark:bg-noche-lima rounded-2xl shadow-lg p-8 border border-oro-inca/20">
+        <h2 className="font-playfair text-2xl font-bold text-aji-rojo mb-2">
+          {t('consent.onboarding.title')}
+        </h2>
+        <p className="text-gray-600 dark:text-gray-400 text-sm mb-6">
+          {t('consent.onboarding.subtitle')}
+        </p>
+        <ConsentCheckboxes
+          mandatoryChecked={mandatoryChecked}
+          onMandatoryChange={(checked) => {
+            setMandatoryChecked(checked);
+            if (checked) setConsentError(null);
+          }}
+          optionalOptions={[{ id: 'marketing', labelKey: 'consent.optional.marketing' }]}
+          optionalChecked={optionalChecked}
+          onOptionalChange={(id, checked) =>
+            setOptionalChecked((prev) => ({ ...prev, [id]: checked }))
+          }
+          error={consentError}
+        />
+        <button
+          type="button"
+          onClick={handleConfirmConsent}
+          disabled={consentBusy}
+          className="w-full bg-aji-rojo text-white py-3 rounded-xl font-semibold hover:bg-aji-rojo/90 transition-colors mt-6 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        >
+          {consentBusy ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+              {t('consent.onboarding.saving')}
+            </>
+          ) : (
+            t('consent.onboarding.confirm')
+          )}
+        </button>
+      </div>
+    </motion.div>
+  );
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       {/* Toast */}
@@ -713,43 +864,69 @@ export const Onboarding = () => {
         Preencha as informações abaixo para cadastrar seu negócio gratuitamente no SaborPeruano
       </p>
 
-      {/* Progress indicator */}
-      <div className="flex justify-center items-center gap-2 mb-8">
-        {[1, 2, 3].map(s => (
-          <div key={s} className="flex items-center gap-2">
-            <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-colors ${
-                step === s
-                  ? 'bg-aji-rojo text-white'
-                  : step > s
-                  ? 'bg-green-500 text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
-              }`}
-            >
-              {step > s ? '✓' : s}
-            </div>
-            {s < 3 && (
-              <div className={`w-8 h-0.5 transition-colors ${step > s ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-700'}`} />
-            )}
-          </div>
-        ))}
-      </div>
+      {/* Consent evidence step 0 — blocks steps 1-3 until recorded */}
+      {consentPhase === 'loading' && (
+        <div className="flex flex-col items-center justify-center py-16 text-gray-500 dark:text-gray-400 gap-4">
+          <div className="animate-spin rounded-full h-10 w-10 border-4 border-aji-rojo border-t-transparent" />
+          <p className="text-sm">{t('consent.onboarding.loading')}</p>
+        </div>
+      )}
 
-      <form onSubmit={handleSubmit} className="space-y-8">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={step}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.2 }}
+      {consentPhase === 'error' && (
+        <div className="flex flex-col items-center justify-center py-16 text-center gap-4">
+          <p className="text-red-500 text-sm">{t('consent.onboarding.error')}</p>
+          <button
+            onClick={checkConsent}
+            className="bg-aji-rojo text-white px-6 py-2 rounded-xl font-semibold hover:bg-aji-rojo/90 transition-colors"
           >
-            {step === 1 && renderStep1()}
-            {step === 2 && renderStep2()}
-            {step === 3 && renderStep3()}
-          </motion.div>
-        </AnimatePresence>
-      </form>
+            {t('consent.onboarding.retry')}
+          </button>
+        </div>
+      )}
+
+      {consentPhase === 'needed' && renderConsentStep()}
+
+      {consentPhase === 'recorded' && (
+        <>
+          {/* Progress indicator */}
+          <div className="flex justify-center items-center gap-2 mb-8">
+            {[1, 2, 3].map(s => (
+              <div key={s} className="flex items-center gap-2">
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-colors ${
+                    step === s
+                      ? 'bg-aji-rojo text-white'
+                      : step > s
+                      ? 'bg-green-500 text-white'
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                  }`}
+                >
+                  {step > s ? '✓' : s}
+                </div>
+                {s < 3 && (
+                  <div className={`w-8 h-0.5 transition-colors ${step > s ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-700'}`} />
+                )}
+              </div>
+            ))}
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-8">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={step}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.2 }}
+              >
+                {step === 1 && renderStep1()}
+                {step === 2 && renderStep2()}
+                {step === 3 && renderStep3()}
+              </motion.div>
+            </AnimatePresence>
+          </form>
+        </>
+      )}
     </div>
   );
 };

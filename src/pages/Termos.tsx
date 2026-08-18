@@ -1,49 +1,28 @@
+// src/pages/Termos.tsx
+// /termos — config-driven Terms of Service (WU5 task 5.2, design D1/D10).
+//
+// Renders the ACTIVE terms_of_service version from src/config/legal.ts (the
+// single source of truth): sections, version, effective date and sha256 hash
+// all come from the registry, so approved wording swaps WITHOUT code changes.
+// The legal-status callout reflects `legalApproved` honestly — all current
+// registry entries are placeholders pending responsible/DPO review, and this
+// page never claims legal approval (no false certification).
+//
+// Route stays crawlable (static client route, same convention as before).
+
 import { useTranslation } from 'react-i18next';
 import { Breadcrumb } from '../components/Breadcrumb';
-import { FileText, UserCheck, Shield, Scales, Warning, EnvelopeSimple } from '@phosphor-icons/react';
+import { FileText, WarningCircle, CheckCircle } from '@phosphor-icons/react';
 import { motion } from 'motion/react';
+
+import { getLegalDoc } from '../config/legal';
+
+const DOC_ID = 'terms_of_service';
 
 export const Termos = () => {
   const { t } = useTranslation();
-
-  const sections = [
-    {
-      icon: FileText,
-      title: 'Aceitação dos Termos',
-      content:
-        'Ao acessar ou utilizar a plataforma ConectaPeru, você concorda em cumprir e estar vinculado a estes Termos de Serviço. Se você não concordar com qualquer parte destes termos, não deverá utilizar nossos serviços.',
-    },
-    {
-      icon: UserCheck,
-      title: 'Cadastro e Conta',
-      content:
-        'Para cadastrar um negócio ou enviar avaliações, é necessário criar uma conta. Você é responsável por manter a confidencialidade de suas credenciais de acesso e por todas as atividades realizadas em sua conta. As informações fornecidas devem ser verdadeiras, precisas e atualizadas.',
-    },
-    {
-      icon: Shield,
-      title: 'Responsabilidades do Usuário',
-      content:
-        'Você concorda em não utilizar a plataforma para: (a) publicar conteúdo falso, enganoso ou difamatório, (b) violar direitos de propriedade intelectual, (c) enviar spam ou conteúdo não solicitado, (d) tentar acessar áreas restritas sem autorização, (e) realizar qualquer atividade que possa danificar ou sobrecarregar a infraestrutura da plataforma.',
-    },
-    {
-      icon: Scales,
-      title: 'Moderação de Avaliações',
-      content:
-        'A ConectaPeru se reserva o direito de moderar, editar ou remover avaliações que violem estes termos. Avaliações devem ser baseadas em experiências reais e genuínas. São proibidas avaliações falsas, pagas, ou com intuito de prejudicar injustamente um negócio. Avaliações com linguagem ofensiva, discriminatória ou difamatória serão removidas. Usuários que reincidirem em violações poderão ter suas contas suspensas.',
-    },
-    {
-      icon: Warning,
-      title: 'Uso Aceitável do Diretório',
-      content:
-        'O diretório ConectaPeru destina-se exclusivamente à conexão entre a comunidade peruana e negócios no Brasil. Não é permitido: (a) cadastrar negócios que não sejam peruanos ou não estejam localizados no Brasil, (b) utilizar a plataforma para fins ilegais, (c) reproduzir ou distribuir conteúdo da plataforma sem autorização, (d) realizar engenharia reversa ou extrair dados de forma automatizada (scraping).',
-    },
-    {
-      icon: EnvelopeSimple,
-      title: 'Contato',
-      content:
-        'Para questões relacionadas a estes Termos de Serviço, entre em contato conosco através do e-mail: contato@conectaperu.com.br. Responderemos no prazo máximo de 5 dias úteis.',
-    },
-  ];
+  const doc = getLegalDoc(DOC_ID);
+  const approved = doc?.legalApproved === true;
 
   return (
     <div className="min-h-screen bg-creme-andino dark:bg-zinc-950">
@@ -51,7 +30,7 @@ export const Termos = () => {
         <Breadcrumb
           items={[
             { label: t('nav.home'), href: '/' },
-            { label: 'Termos de Serviço' },
+            { label: t('legal.terms.title') },
           ]}
         />
 
@@ -60,27 +39,48 @@ export const Termos = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <div className="mb-12 mt-6">
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 tracking-tighter leading-none mb-4">
-              Termos de Serviço
-            </h1>
-            <p className="text-gray-500 dark:text-gray-400 text-sm">
-              Última atualização: Julho de 2026
-            </p>
+          <div className="mb-10 mt-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex-shrink-0 w-11 h-11 bg-aji-rojo/10 dark:bg-aji-rojo/20 rounded-xl flex items-center justify-center">
+                <FileText className="w-6 h-6 text-aji-rojo" weight="duotone" />
+              </div>
+              <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 tracking-tighter leading-none">
+                {t('legal.terms.title')}
+              </h1>
+            </div>
+            {doc && (
+              <p className="text-gray-500 dark:text-gray-400 text-sm">
+                {t('legal.meta.version')} {doc.version} · {t('legal.meta.effective')}{' '}
+                {doc.effectiveDate} · {t('legal.meta.hash')}{' '}
+                <code className="text-xs bg-white dark:bg-zinc-800 px-1.5 py-0.5 rounded border border-oro-inca/20 break-all">
+                  {doc.hash}
+                </code>
+              </p>
+            )}
           </div>
 
-          <div className="prose prose-gray dark:prose-invert max-w-none mb-12">
-            <p className="text-gray-600 dark:text-gray-400 leading-relaxed text-lg">
-              Bem-vindo(a) à <strong className="text-gray-900 dark:text-gray-100">ConectaPeru</strong>.
-              Estes Termos de Serviço regem o uso da plataforma, do site e dos serviços oferecidos
-              pela ConectaPeru. Ao utilizar nossos serviços, você aceita estes termos integralmente.
-            </p>
-          </div>
+          {doc && (
+            <div
+              className={`mb-8 p-4 rounded-xl border flex items-start gap-3 ${
+                approved
+                  ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800'
+                  : 'bg-oro-inca/10 border-oro-inca/30'
+              }`}
+            >
+              {approved ? (
+                <CheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" weight="duotone" />
+              ) : (
+                <WarningCircle className="w-5 h-5 text-oro-inca mt-0.5 shrink-0" weight="duotone" />
+              )}
+              <p className={`text-sm leading-relaxed ${approved ? 'text-emerald-800 dark:text-emerald-200' : 'text-gray-700 dark:text-gray-300'}`}>
+                {approved ? t('legal.status.approved') : t('legal.status.pending')}
+              </p>
+            </div>
+          )}
 
-          <div className="grid gap-6">
-            {sections.map((section, index) => {
-              const Icon = section.icon;
-              return (
+          {doc ? (
+            <div className="grid gap-6">
+              {doc.sections.map((section, index) => (
                 <motion.div
                   key={section.title}
                   initial={{ opacity: 0, y: 16 }}
@@ -88,42 +88,22 @@ export const Termos = () => {
                   transition={{ duration: 0.4, delay: index * 0.08 }}
                   className="bg-white dark:bg-zinc-800/80 rounded-xl p-6 border border-oro-inca/10 shadow-sm"
                 >
-                  <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0 w-10 h-10 bg-aji-rojo/10 dark:bg-aji-rojo/20 rounded-lg flex items-center justify-center">
-                      <Icon className="w-5 h-5 text-aji-rojo" weight="duotone" />
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                        {section.title}
-                      </h2>
-                      <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-                        {section.content}
-                      </p>
-                    </div>
-                  </div>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                    {section.title}
+                  </h2>
+                  <p className="text-gray-600 dark:text-gray-400 leading-relaxed whitespace-pre-line">
+                    {section.body}
+                  </p>
                 </motion.div>
-              );
-            })}
-          </div>
-
-          <div className="mt-12 p-6 bg-white dark:bg-zinc-800/60 rounded-xl border border-oro-inca/10">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
-              Disposições Gerais
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400 leading-relaxed mb-4">
-              Estes Termos de Serviço são regidos pelas leis da República Federativa do Brasil.
-              Caso qualquer disposição destes termos seja considerada inválida ou inexequível, as
-              demais disposições permanecerão em pleno vigor e efeito.
-            </p>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
-              Alterações nos Termos
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-              Reservamo-nos o direito de modificar estes termos a qualquer momento. Notificaremos
-              os usuários sobre alterações significativas através da plataforma ou por e-mail. O uso
-              continuado dos serviços após tais alterações constitui aceitação dos novos termos.
-            </p>
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-6 bg-white dark:bg-zinc-800/60 rounded-xl border border-oro-inca/10">
+              <p className="text-gray-600 dark:text-gray-400">
+                Documento não encontrado no registro legal.
+              </p>
+            </div>
+          )}
 
           <div className="mt-12 text-center">
             <p className="text-gray-500 dark:text-gray-400 text-sm">

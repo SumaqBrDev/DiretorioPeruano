@@ -85,7 +85,8 @@
     "copyright": "Desarrollado por <a href=\"https://stratai-consulting-site.netlify.app/\" target=\"_blank\" rel=\"noopener\" class=\"text-aji-rojo hover:underline\">StratAi Consulting</a>. Conectando peruanos en Brasil.",
     "privacy": "Política de Privacidad",
     "terms": "Términos de Servicio",
-    "cookies": "Cookies"
+    "cookies": "Cookies",
+    "preferences": "Preferencias"
   },
   "pages": {
     "privacidade": "Política de Privacidad",
@@ -97,6 +98,35 @@
     "retry": "Intentar de nuevo",
     "reviews": "evaluaciones",
     "rating": "estrellas"
+  },
+  "consent": {
+    "mandatory": {
+      "prefix": "He leído y acepto los",
+      "and": "y estoy informado de la"
+    },
+    "errors": {
+      "mandatory_required": "Es necesario aceptar los Términos y la Política de Privacidad para crear tu cuenta"
+    },
+    "optional": {
+      "marketing": "Quiero recibir novedades y ofertas por correo (opcional)"
+    },
+    "onboarding": {
+      "title": "Consentimiento de Datos (LGPD)",
+      "subtitle": "Confirma que has leído y aceptas nuestros documentos legales. Tu consentimiento queda registrado de forma segura y auditable antes de continuar con el registro.",
+      "confirm": "Confirmar y continuar",
+      "loading": "Verificando tu consentimiento...",
+      "error": "No se pudo verificar tu consentimiento. Inténtalo de nuevo.",
+      "retry": "Intentar de nuevo",
+      "saving": "Registrando consentimiento..."
+    },
+    "reconsent": {
+      "title": "Términos actualizados",
+      "subtitle": "Nuestros documentos legales fueron actualizados. Para seguir usando ConectaPerú, lee y acepta los documentos a continuación.",
+      "accept": "Aceptar y continuar",
+      "cancel": "Cancelar",
+      "saving": "Registrando...",
+      "error": "No se pudo registrar tu consentimiento. Inténtalo de nuevo."
+    }
   },
   "forum": {
     "title": "Comunidad",
@@ -142,5 +172,108 @@
     "cta": "Impulsar anuncio",
     "price": "R$30/mes",
     "onlySubscribers": "Disponible para negocios con suscripción activa"
+  },
+  "cookies": {
+    "banner": {
+      "title": "Cookies y privacidad",
+      "description": "Usamos cookies esenciales para el funcionamiento de la plataforma. Los cookies opcionales (analytics y marketing) solo se cargan con tu autorización.",
+      "acceptAll": "Aceptar todos",
+      "acceptSelected": "Aceptar seleccionados",
+      "rejectOptional": "Rechazar opcionales",
+      "settings": "Configurar cookies",
+      "close": "Cerrar"
+    },
+    "category": {
+      "essential": "Esenciales",
+      "analytics": "Analytics",
+      "marketing": "Marketing",
+      "essentialDescription": "Necesarios para la autenticación y el funcionamiento básico de la plataforma. Siempre activos.",
+      "analyticsDescription": "Estadísticas anónimas de uso que nos ayudan a mejorar el sitio.",
+      "marketingDescription": "Campañas y anuncios personalizados. Se cargan solo con tu consentimiento."
+    },
+    "page": {
+      "title": "Preferencias de Cookies",
+      "subtitle": "Gestiona cómo ConectaPerú usa cookies. Puedes cambiar tus elecciones en cualquier momento.",
+      "categoriesTitle": "Categorías de cookies",
+      "alwaysActive": "Siempre activos",
+      "save": "Guardar preferencias",
+      "saving": "Guardando...",
+      "saved": "Preferencias guardadas correctamente.",
+      "privacyLink": "Ver Política de Privacidad",
+      "note": "Tus preferencias se guardan en tu navegador y, para usuarios con cuenta, se sincronizan con tu perfil. Los cookies esenciales no se pueden desactivar. Puedes cambiar tus elecciones en cualquier momento en esta página."
+    }
+  },
+  "legal": {
+    "privacy": {
+      "title": "Política de Privacidad"
+    },
+    "terms": {
+      "title": "Términos de Servicio"
+    },
+    "cookies": {
+      "title": "Política de Cookies"
+    },
+    "meta": {
+      "version": "Versión",
+      "effective": "Vigente desde",
+      "hash": "Hash SHA-256"
+    },
+    "status": {
+      "approved": "Documento aprobado por el responsable/DPO",
+      "pending": "PENDIENTE DE APROBACIÓN LEGAL — texto provisional (placeholder) pendiente de revisión; no constituye un documento legal aprobado."
+    }
+  },
+  "preferencias": {
+    "page": {
+      "title": "Preferencias y Mis Datos",
+      "subtitle": "Consulta tus consentimientos (LGPD), gestiona preferencias opcionales y exporta tus datos personales en cualquier momento.",
+      "loading": "Cargando tus preferencias..."
+    },
+    "reconsent": {
+      "title": "Consentimiento obligatorio pendiente",
+      "body": "Nuestros documentos legales fueron actualizados. Debes aceptar la versión vigente para seguir usando ConectaPerú.",
+      "link": "Aceptar ahora"
+    },
+    "consents": {
+      "title": "Mis consentimientos (LGPD)",
+      "subtitle": "Estado actual de tus consentimientos, por documento y finalidad. Cada aceptación y revocación queda registrada de forma inmutable.",
+      "empty": "No se encontraron registros de consentimiento.",
+      "version": "Versión",
+      "date": "Fecha",
+      "granted": "Consentido",
+      "revoked": "Revocado",
+      "purpose": {
+        "service": "Contrato de servicio",
+        "analytics": "Analytics",
+        "marketing": "Marketing"
+      },
+      "doc": {
+        "terms_of_service": "Términos de Servicio",
+        "privacy_policy": "Política de Privacidad",
+        "cookie_policy": "Política de Cookies"
+      },
+      "mandatoryNote": "Obligatorio — no se puede revocar mientras la cuenta esté activa."
+    },
+    "cookies": {
+      "title": "Preferencias de cookies",
+      "subtitle": "Las categorías opcionales solo cargan recursos tras tu consentimiento. Desactivar una categoría revoca el consentimiento correspondiente.",
+      "save": "Guardar preferencias",
+      "saving": "Guardando...",
+      "saved": "Preferencias guardadas correctamente."
+    },
+    "revoke": {
+      "button": "Revocar consentimiento",
+      "revoking": "Revocando...",
+      "revoked": "Consentimiento revocado.",
+      "error": "No se pudo revocar el consentimiento. Inténtalo de nuevo."
+    },
+    "export": {
+      "title": "Exportar mis datos (LGPD)",
+      "subtitle": "Descarga un archivo JSON con tus datos personales y el historial de consentimientos. La exportación contiene solo tus datos.",
+      "button": "Exportar mis datos",
+      "exporting": "Generando exportación...",
+      "done": "Exportación descargada.",
+      "error": "No se pudo generar la exportación. Inténtalo de nuevo."
+    }
   }
 }
