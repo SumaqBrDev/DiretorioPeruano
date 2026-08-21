@@ -8,6 +8,7 @@
 //   the user does not lose entered form data while reading the documents.
 // Controlled component: the parent owns all checked state.
 
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
 export interface OptionalConsentOption {
@@ -52,23 +53,19 @@ export const ConsentCheckboxes = ({
         />
         <span className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
           {t('consent.mandatory.prefix')}{' '}
-          <a
-            href="/termos"
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            to="/termos"
             className="text-aji-rojo font-medium hover:underline underline-offset-2"
           >
             {t('footer.terms')}
-          </a>{' '}
+          </Link>{' '}
           {t('consent.mandatory.and')}{' '}
-          <a
-            href="/privacidade"
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            to="/privacidade"
             className="text-aji-rojo font-medium hover:underline underline-offset-2"
           >
             {t('footer.privacy')}
-          </a>
+          </Link>
         </span>
       </label>
 
