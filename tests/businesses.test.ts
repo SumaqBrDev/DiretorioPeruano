@@ -108,6 +108,37 @@ describe('POST /api/businesses — KYC wiring', () => {
     expect(data.ownerFullName).toBeNull();
     expect(data.ownerBirthCity).toBeNull();
   });
+
+  it('stamps dataClassification from the authenticated owner', async () => {
+    userFindMock.mockResolvedValue({ id: 'user-db-id', role: 'business', dataClassification: 'test' } as any);
+
+    const res = await handler({
+      httpMethod: 'POST',
+      body: JSON.stringify({ name: 'Chifa', description: 'Comida chinesa', ownerId: 'client-supplied-owner' }),
+    });
+
+    expect(res.statusCode).toBe(201);
+    expect(createMock.mock.calls[0][0].data.ownerId).toBe('user-db-id');
+    expect(createMock.mock.calls[0][0].data.dataClassification).toBe('test');
+  });
+
+  it('ignores any client-supplied dataClassification override', async () => {
+    userFindMock.mockResolvedValue({ id: 'user-db-id', role: 'business', dataClassification: 'real' } as any);
+
+    const res = await handler({
+      httpMethod: 'POST',
+      body: JSON.stringify({
+        name: 'Chifa',
+        description: 'Comida chinesa',
+        ownerId: 'client-supplied-owner',
+        dataClassification: 'test',
+      }),
+    });
+
+    expect(res.statusCode).toBe(201);
+    expect(createMock.mock.calls[0][0].data.dataClassification).toBe('real');
+    expect(createMock.mock.calls[0][0].data).not.toHaveProperty('ownerId', 'client-supplied-owner');
+  });
 });
 
 describe('GET /api/businesses — minRating filter', () => {

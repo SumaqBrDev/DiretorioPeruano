@@ -13,7 +13,6 @@ ALTER TABLE "BusinessProfile" ADD COLUMN IF NOT EXISTS "disabledAt" TIMESTAMP;
 
 -- Add status to Review
 ALTER TABLE "Review" ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'approved';
--- Align the default on existing databases (ADD COLUMN IF NOT EXISTS is a no-op there)
 ALTER TABLE "Review" ALTER COLUMN status SET DEFAULT 'approved';
 
 -- Average rating on BusinessProfile (minRating filter)
@@ -44,12 +43,9 @@ ON CONFLICT (id) DO NOTHING;
 -- Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_business_status ON "BusinessProfile"(status);
 CREATE INDEX IF NOT EXISTS idx_business_approved_at ON "BusinessProfile"("approvedAt");
--- Column names are canonical camelCase (apply_schema.sql quotes identifiers)
 CREATE INDEX IF NOT EXISTS idx_review_business ON "Review"("businessId");
+
 -- Review hard rules (BUG-010/BUG-011): one review per consumer per business.
--- Dedupe existing data first (keep one review per consumer+business; id as
--- tiebreaker because now() is constant within a transaction, so createdAt
--- ties are common).
 DELETE FROM "Review" r USING (
   SELECT "consumerId", "businessId", MAX(id) AS keep_id
   FROM "Review" GROUP BY "consumerId", "businessId" HAVING COUNT(*) > 1
@@ -72,3 +68,71 @@ ALTER TABLE "Message" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP;
 -- (broke my-business resolution). Dedupe QA artifacts, then constrain.
 -- (Postgres UNIQUE allows multiple NULLs, so ownerless rows are fine.)
 ALTER TABLE "BusinessProfile" ADD CONSTRAINT businessprofile_ownerid_key UNIQUE ("ownerId");
+
+-- test-data-lifecycle: explicit root classification with database defaults.
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "dataClassification" TEXT NOT NULL DEFAULT 'real';
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "dataClassifiedAt" TIMESTAMP NOT NULL DEFAULT now();
+ALTER TABLE "BusinessProfile" ADD COLUMN IF NOT EXISTS "dataClassification" TEXT NOT NULL DEFAULT 'real';
+ALTER TABLE "BusinessProfile" ADD COLUMN IF NOT EXISTS "dataClassifiedAt" TIMESTAMP NOT NULL DEFAULT now();
+ALTER TABLE "User" ALTER COLUMN "dataClassification" SET DEFAULT 'real';
+ALTER TABLE "User" ALTER COLUMN "dataClassifiedAt" SET DEFAULT now();
+ALTER TABLE "BusinessProfile" ALTER COLUMN "dataClassification" SET DEFAULT 'real';
+ALTER TABLE "BusinessProfile" ALTER COLUMN "dataClassifiedAt" SET DEFAULT now();
+CREATE INDEX IF NOT EXISTS idx_user_data_classification ON "User"("dataClassification");
+CREATE INDEX IF NOT EXISTS idx_businessprofile_data_classification ON "BusinessProfile"("dataClassification");
+
+-- Fail closed unless the exact protected identity resolves to exactly one user.
+WITH protected_user AS (
+  SELECT id
+  FROM "User"
+  WHERE email = 'jarhkof.apps@gmail.com'
+), protected_user_count AS (
+  SELECT COUNT(*)::int AS count
+  FROM protected_user
+), protected_user_guard AS (
+  SELECT CASE WHEN count = 1 THEN 1 ELSE 1 / 0 END AS ok
+  FROM protected_user_count
+)
+UPDATE "User" AS u
+SET "dataClassification" = CASE
+      WHEN u.email = 'jarhkof.apps@gmail.com' THEN 'real'
+      ELSE 'test'
+    END,
+    "dataClassifiedAt" = COALESCE(u."dataClassifiedAt", now())
+FROM protected_user_guard
+WHERE u."dataClassification" IS DISTINCT FROM CASE
+        WHEN u.email = 'jarhkof.apps@gmail.com' THEN 'real'
+        ELSE 'test'
+      END
+   OR u."dataClassifiedAt" IS NULL;
+
+-- Backfill businesses from owner classification; ownerless rows stay real for manual review.
+WITH protected_user AS (
+  SELECT id
+  FROM "User"
+  WHERE email = 'jarhkof.apps@gmail.com'
+), protected_user_count AS (
+  SELECT COUNT(*)::int AS count
+  FROM protected_user
+), protected_user_guard AS (
+  SELECT CASE WHEN count = 1 THEN 1 ELSE 1 / 0 END AS ok
+  FROM protected_user_count
+)
+UPDATE "BusinessProfile" AS b
+SET "dataClassification" = u."dataClassification",
+    "dataClassifiedAt" = COALESCE(b."dataClassifiedAt", now())
+FROM "User" AS u, protected_user_guard
+WHERE b."ownerId" = u.id
+  AND (
+    b."dataClassification" IS DISTINCT FROM u."dataClassification"
+    OR b."dataClassifiedAt" IS NULL
+  );
+
+-- ownerless test businesses block cleanup and require manual review before any later destructive phase.
+WITH ownerless_test_businesses AS (
+  SELECT b.id
+  FROM "BusinessProfile" AS b
+  WHERE b."ownerId" IS NULL AND b."dataClassification" = 'test'
+)
+SELECT COUNT(*)
+FROM ownerless_test_businesses;

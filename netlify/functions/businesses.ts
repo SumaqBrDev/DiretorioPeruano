@@ -99,6 +99,7 @@ export const handler = async (event: any) => {
           photos: photos || [],
           contact: contact || {},
           ownerId: owner.id,
+          dataClassification: owner.dataClassification || 'real',
           status: 'pending',
           cnpj: normalizedCnpj,
           ownerFullName: ownerFullName || null,

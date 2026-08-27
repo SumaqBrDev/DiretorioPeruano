@@ -20,30 +20,34 @@ datasource db {
 }
 
 model User {
-  id        String           @id @default(dbgenerated("gen_random_uuid()"))
-  clerkId   String?          @unique
-  email     String?
-  name      String?
-  role      String           @default("consumer") // consumer, business, admin, superadmin
-  language  String           @default("pt-BR")
+  id                 String           @id @default(dbgenerated("gen_random_uuid()"))
+  clerkId            String?          @unique
+  email              String?
+  name               String?
+  role               String           @default("consumer") // consumer, business, admin, superadmin
+  language           String           @default("pt-BR")
+  dataClassification String           @default("real")
+  dataClassifiedAt   DateTime         @default(now())
 
-  business  BusinessProfile?
-  reviews   Review[]
-  communityTopics CommunityTopic[] @relation("CommunityTopics")
-  communityPosts  CommunityPost[]  @relation("CommunityPosts")
-  communityVotes  CommunityVote[]  @relation("CommunityVotes")
-  consentRecords  ConsentRecord[]
-  cookiePreferences CookiePreference[]
+  business           BusinessProfile?
+  reviews            Review[]
+  communityTopics    CommunityTopic[] @relation("CommunityTopics")
+  communityPosts     CommunityPost[]  @relation("CommunityPosts")
+  communityVotes     CommunityVote[]  @relation("CommunityVotes")
+  consentRecords     ConsentRecord[]
+  cookiePreferences  CookiePreference[]
 
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@index([dataClassification])
 }
 
 model BusinessProfile {
-  id                 String   @id @default(dbgenerated("gen_random_uuid()"))
+  id                 String           @id @default(dbgenerated("gen_random_uuid()"))
   name               String?
   description        String?
-  category           String   @default("restaurante")
+  category           String           @default("restaurante")
 
   // Structured as JSONB in Neon (matches the deployed schema)
   address            Json?
@@ -51,13 +55,15 @@ model BusinessProfile {
   photos             String[]
   contact            Json?
 
-  status             String   @default("pending") // pending, approved, rejected, disabled
-  rating             Float?   // average rating, maintained from approved reviews
+  status             String           @default("pending") // pending, approved, rejected, disabled
+  rating             Float?           // average rating, maintained from approved reviews
 
   // Owner (KYC + billing)
-  ownerId            String?  @unique
-  owner              User?    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  cnpj               String?  @unique
+  dataClassification String           @default("real")
+  dataClassifiedAt   DateTime         @default(now())
+  ownerId            String?          @unique
+  owner              User?            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  cnpj               String?          @unique
   ownerFullName      String?
   ownerBirthCity     String?
   rejectionReason    String?
@@ -65,9 +71,9 @@ model BusinessProfile {
   disabledAt         DateTime?
 
   // Stripe subscription
-  stripeCustomerId   String?  @unique
+  stripeCustomerId   String?          @unique
   subscriptionId     String?
-  subscriptionStatus String?  // none, trial, active, past_due, canceled
+  subscriptionStatus String?          // none, trial, active, past_due, canceled
   trialEndsAt        DateTime?
 
   // Paid community ads (Opción A+B: sidebar + featured)
@@ -75,15 +81,16 @@ model BusinessProfile {
 
   // Relations
   reviews            Review[]
-  sentMessages       Message[] @relation("BusinessSentMessages")
-  receivedMessages   Message[] @relation("BusinessReceivedMessages")
+  sentMessages       Message[]        @relation("BusinessSentMessages")
+  receivedMessages   Message[]        @relation("BusinessReceivedMessages")
 
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
 
   @@index([status])
   @@index([ownerId])
   @@index([category])
+  @@index([dataClassification])
 }
 
 model Review {
