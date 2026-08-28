@@ -103,7 +103,7 @@ WHERE u."dataClassification" IS DISTINCT FROM CASE
       END
    OR u."dataClassifiedAt" IS NULL;
 
--- Backfill businesses from owner classification; ownerless rows stay real for manual review.
+-- Backfill businesses from owner classification and keep ownerless rows real for manual review
 WITH protected_user AS (
   SELECT id
   FROM "User"
