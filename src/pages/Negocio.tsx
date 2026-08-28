@@ -1,6 +1,6 @@
 import { useParams, Link } from 'react-router-dom';
 import { useUser, useAuth } from '@clerk/clerk-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getBusinessDetail, getReviewsForBusiness } from '@/lib/api';
 import { Breadcrumb } from '@/components/Breadcrumb';
@@ -13,6 +13,7 @@ import { MenuSection } from '@/components/MenuSection';
 import { ReviewsSection } from '@/components/ReviewsSection';
 import { Sidebar } from '@/components/Sidebar';
 import { CaretRight } from '@phosphor-icons/react';
+import { analytics } from '@/lib/posthog';
 
 // Rich shape consumed by the detail section components (matches the former
 // DisplayBusiness contract so PhotoGallery, AboutSection, HoursSection,
@@ -48,6 +49,7 @@ export const Negocio = () => {
 
   const [business, setBusiness] = useState<DetailView | null>(null);
   const [bizLoading, setBizLoading] = useState(true);
+  const trackedBusinessIdRef = useRef<string | null>(null);
 
   const businessId = id || '';
 
@@ -113,7 +115,7 @@ export const Negocio = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [businessId]);
 
-  const hasGallery = business?.images && business.images.length > 0;
+  const hasGallery = Boolean(business?.images?.length);
   const tabs: Array<'sobre' | 'cardapio' | 'avaliacoes' | 'galeria'> = [
     'sobre',
     ...(business?.menu?.length ? ['cardapio' as const] : []),
@@ -121,6 +123,19 @@ export const Negocio = () => {
     'avaliacoes' as const,
   ];
   const [activeTab, setActiveTab] = useState<(typeof tabs)[number]>('sobre');
+
+  useEffect(() => {
+    if (!business?.localId) return;
+    if (trackedBusinessIdRef.current === business.localId) return;
+
+    analytics.trackBusinessViewed({
+      businessId: business.localId,
+      category: business.category,
+      hasGallery,
+      reviewsCount: business.reviews.length,
+    });
+    trackedBusinessIdRef.current = business.localId;
+  }, [business?.localId, business?.category, business?.reviews.length, hasGallery]);
 
   if (!isLoaded || bizLoading) {
     return (

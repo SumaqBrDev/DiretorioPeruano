@@ -14,6 +14,7 @@ import {
   buildConsentRequests,
   normalizeConsentLocale,
 } from '../lib/signupIntent';
+import { analytics } from '../lib/posthog';
 
 // --- Constantes ---
 
@@ -416,6 +417,11 @@ export const Onboarding = () => {
     }
 
     // Show success toast
+    analytics.trackBusinessSignupCompleted({
+      category: formData.category,
+      tagsCount: formData.tags.length,
+      hasPhotos: photoDataUrls.length > 0,
+    });
     setToast({ message: 'Negócio cadastrado com sucesso! 🎉', type: 'success' });
 
     // Navigate after a short delay

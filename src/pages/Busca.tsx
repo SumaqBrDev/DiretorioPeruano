@@ -5,6 +5,7 @@ import { MagnifyingGlass, Star, Funnel } from '@phosphor-icons/react';
 import { useAuth } from '@clerk/clerk-react';
 import { SkeletonCard } from '../components/SkeletonCard';
 import { searchBusinesses } from '../lib/api';
+import { analytics } from '../lib/posthog';
 
 interface SearchResult {
   id: string;
@@ -177,6 +178,12 @@ export const Busca = () => {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    analytics.trackBusinessSearch({
+      query: searchInput,
+      category,
+      city,
+      minRating,
+    });
     const params = new URLSearchParams();
     if (searchInput.trim()) params.set('q', searchInput.trim());
     if (category) params.set('category', category);

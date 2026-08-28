@@ -28,6 +28,7 @@ import {
   saveCookiePreferences as persistLocalPreferences,
 } from '../lib/cookieManager';
 import type { CookiePreferenceRecord } from '../lib/cookieManager';
+import { analytics } from '../lib/posthog';
 import { applyOptionalScriptConsent } from '../lib/scriptGate';
 import {
   getCookiePreferences,
@@ -87,6 +88,7 @@ export const useConsentStore = create<ConsentState>((set, get) => ({
     // With no decision, apply an empty consent map: the gate loads NOTHING
     // optional before consent (spec: Single script gate).
     applyOptionalScriptConsent(preferences ? preferences.categories : {});
+    analytics.reconcileConsent(preferences?.categories.analytics === true);
   },
 
   savePreferences: async (categories, opts) => {
@@ -97,6 +99,7 @@ export const useConsentStore = create<ConsentState>((set, get) => ({
     });
 
     applyOptionalScriptConsent(record.categories);
+    analytics.reconcileConsent(record.categories.analytics === true);
     set({ preferences: record });
 
     if (opts?.token) {

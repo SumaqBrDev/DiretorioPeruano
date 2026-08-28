@@ -1,4 +1,5 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ClerkProvider, useUser } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
 import { HelmetProvider } from 'react-helmet-async';
@@ -22,7 +23,26 @@ import { Cookies } from './pages/Cookies';
 import { Preferencias } from './pages/Preferencias';
 import { Privacidade } from './pages/Privacidade';
 import { Termos } from './pages/Termos';
+import { analytics } from './lib/posthog';
+import { useConsentStore } from './stores/useConsentStore';
 import './App.css';
+
+function AnalyticsRouteTracker() {
+  const location = useLocation();
+  const { preferences, hydrated } = useConsentStore();
+  const analyticsConsented = preferences?.categories.analytics === true;
+
+  useEffect(() => {
+    analytics.register();
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated || !analyticsConsented) return;
+    analytics.capturePageview(location.pathname);
+  }, [analyticsConsented, hydrated, location.pathname]);
+
+  return null;
+}
 
 function AppRoutes() {
   const { isLoaded } = useUser();
@@ -38,6 +58,7 @@ function AppRoutes() {
 
   return (
     <Router>
+      <AnalyticsRouteTracker />
       <div className="min-h-screen flex flex-col bg-creme-andino dark:bg-zinc-950 transition-colors duration-300">
         <Navbar />
         <main className="flex-grow w-full">
