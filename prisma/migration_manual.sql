@@ -52,12 +52,8 @@ DELETE FROM "Review" r USING (
 ) d
 WHERE r."consumerId" = d."consumerId" AND r."businessId" = d."businessId" AND r.id <> d.keep_id;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'review_consumer_business_unique') THEN
-    ALTER TABLE "Review" ADD CONSTRAINT review_consumer_business_unique UNIQUE ("consumerId", "businessId");
-  END IF;
-END $$;
+CREATE UNIQUE INDEX IF NOT EXISTS review_consumer_business_unique_idx
+  ON "Review" ("consumerId", "businessId");
 
 -- BUG-019 schema drift: Message table was missing archived/deletedAt columns.
 ALTER TABLE "Message" ADD COLUMN IF NOT EXISTS archived BOOLEAN NOT NULL DEFAULT false;
