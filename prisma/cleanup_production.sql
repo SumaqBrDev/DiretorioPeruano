@@ -38,6 +38,9 @@ WITH protected_user AS (
   SELECT b.id
   FROM "BusinessProfile" AS b
   WHERE b."ownerId" IS NULL AND b."dataClassification" = 'test'
+), schema_requirements AS (
+  SELECT table_name, to_regclass(format('public.%I', table_name)) AS relation
+  FROM (VALUES ('ConsentRecord'), ('CookiePreference')) AS required(table_name)
 ), blocked_reasons AS (
   SELECT 'protected user count must equal 1' AS reason
   FROM protected_user_count
@@ -52,6 +55,10 @@ WITH protected_user AS (
   UNION ALL
   SELECT 'ownerless test businesses block cleanup' AS reason
   FROM ownerless_test_businesses
+  UNION ALL
+  SELECT format('required relation %s is missing', table_name) AS reason
+  FROM schema_requirements
+  WHERE relation IS NULL
 ), dependent_counts AS (
   SELECT 'BusinessAd' AS table_name, COUNT(*)::bigint AS candidate_count
   FROM "BusinessAd"
@@ -78,14 +85,6 @@ WITH protected_user AS (
   UNION ALL
   SELECT 'CommunityVote', COUNT(*)::bigint
   FROM "CommunityVote"
-  WHERE "userId" IN (SELECT id FROM candidate_users)
-  UNION ALL
-  SELECT 'ConsentRecord', COUNT(*)::bigint
-  FROM "ConsentRecord"
-  WHERE "userId" IN (SELECT id FROM candidate_users)
-  UNION ALL
-  SELECT 'CookiePreference', COUNT(*)::bigint
-  FROM "CookiePreference"
   WHERE "userId" IN (SELECT id FROM candidate_users)
 )
 SELECT
