@@ -63,7 +63,8 @@ ALTER TABLE "Message" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP;
 -- column lacked the constraint, letting one user own multiple businesses
 -- (broke my-business resolution). Dedupe QA artifacts, then constrain.
 -- (Postgres UNIQUE allows multiple NULLs, so ownerless rows are fine.)
-ALTER TABLE "BusinessProfile" ADD CONSTRAINT businessprofile_ownerid_key UNIQUE ("ownerId");
+CREATE UNIQUE INDEX IF NOT EXISTS businessprofile_ownerid_key
+  ON "BusinessProfile" ("ownerId");
 
 -- test-data-lifecycle: explicit root classification with database defaults.
 ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "dataClassification" TEXT NOT NULL DEFAULT 'real';
