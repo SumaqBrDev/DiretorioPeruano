@@ -6,10 +6,10 @@
 // versions can be swapped WITHOUT code changes once the responsible/DPO
 // approves the PT-BR texts.
 //
-// IMPORTANT (legal status): every entry below is a PLACEHOLDER pending legal
-// review. `legalApproved` is false for ALL documents; the release gate
-// (`npm run check:legal`, D10) fails while any ACTIVE document is unapproved.
-// Legal wording is NOT certified by this file.
+// IMPORTANT (legal status): the currently active PT-BR documents have been
+// approved by the responsible party for this release. Inactive historical and
+// future-dated entries remain unapproved and are not resolved as active.
+// `legalApproved` is evaluated by the release gate (`npm run check:legal`, D10).
 //
 // Hash contract: `hash` = lowercase hex sha256 of `JSON.stringify(sections)`.
 // `verifyLegalDocHashes()` recomputes it from the sections so wording drift
@@ -88,7 +88,7 @@ export const LEGAL_DOCS: LegalDoc[] = [
     version: '2',
     effectiveDate: '2026-08-17',
     hash: 'd94cb64ac17f18f3e64f03526c7efd32244848dc16b7386d2769152945ef2f6b',
-    legalApproved: false,
+    legalApproved: true,
     purposes: ['service'],
     legalBases: ['contract', 'legitimate_interest'],
     locale: 'pt-BR',
@@ -118,7 +118,7 @@ export const LEGAL_DOCS: LegalDoc[] = [
     version: '1',
     effectiveDate: '2026-08-17',
     hash: '7953fa0bc4f8cb28868e5681034476ba10425f3b8361a82da43de1510dfc270c',
-    legalApproved: false,
+    legalApproved: true,
     purposes: ['service'],
     legalBases: ['contract'],
     locale: 'pt-BR',
@@ -148,7 +148,7 @@ export const LEGAL_DOCS: LegalDoc[] = [
     version: '1',
     effectiveDate: '2026-08-17',
     hash: '897c9bd23dc02848eec9d7f33380771f47629d38cab0beb333ed3e915fb416b3',
-    legalApproved: false,
+    legalApproved: true,
     purposes: ['analytics', 'marketing'],
     legalBases: ['consent'],
     locale: 'pt-BR',

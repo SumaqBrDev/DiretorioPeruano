@@ -51,14 +51,12 @@ async function withFixture(mutate: (source: string) => string, fn: (path: string
 }
 
 describe('npm run check:legal — release gate (D10)', () => {
-  it('fails on the CURRENT registry: every active doc is an unapproved placeholder', async () => {
+  it('passes on the CURRENT registry after active documents are approved', async () => {
     const { code, output } = await runCheck(undefined);
 
-    expect(code).not.toBe(0);
-    // Honest report: names the release blocker and the flag, never claims approval.
-    expect(output).toMatch(/release blocker/i);
-    expect(output).toMatch(/legalApproved:false/i);
-    expect(output).not.toMatch(/pass/i);
+    expect(code).toBe(0);
+    expect(output).toMatch(/PASS/i);
+    expect(output).toMatch(/active document\(s\) approved/i);
   }, 30000);
 
   it('fails with a hash-mismatch report when a stored hash drifts from its sections', async () => {

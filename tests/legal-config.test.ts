@@ -87,17 +87,18 @@ describe('legal registry — hash integrity', () => {
 });
 
 describe('legal registry — legalApproved flag (D10)', () => {
-  it('marks every placeholder document as not legally approved', () => {
+  it('approves the active documents while retaining historical and future entries as unapproved', () => {
     expect(LEGAL_DOCS.length).toBeGreaterThan(0);
+    const active = new Set(activeLegalDocs(NOW).map((doc) => `${doc.id}:${doc.version}`));
     for (const doc of LEGAL_DOCS) {
-      expect(doc.legalApproved).toBe(false);
+      expect(doc.legalApproved).toBe(active.has(`${doc.id}:${doc.version}`));
     }
   });
 
-  it('keeps at least one ACTIVE document unapproved (release blocked until legal review)', () => {
+  it('approves every ACTIVE document after responsible-party authorization', () => {
     const active = activeLegalDocs(NOW);
     expect(active.length).toBeGreaterThan(0);
-    expect(active.some((d) => !d.legalApproved)).toBe(true);
+    expect(active.every((d) => d.legalApproved)).toBe(true);
   });
 });
 
