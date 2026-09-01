@@ -41,18 +41,27 @@ describe('legal registry — active version resolution', () => {
   });
 });
 
-describe('legal registry — future-dated version', () => {
-  it('does not return a future-dated version as active today', () => {
-    const future = getLegalDocVersion('cookie_policy', '2');
-    expect(future?.effectiveDate).toBe('2099-01-01');
+describe('legal registry — version supersession', () => {
+  it('never resolves a superseded version as active once a newer one is in force', () => {
+    const later = new Date('2026-09-01T12:00:00Z');
+    const activeVersions = new Map(activeLegalDocs(later).map((d) => [d.id, d.version]));
 
-    const activeVersions = new Map(activeLegalDocs(NOW).map((d) => [d.id, d.version]));
-    expect(activeVersions.get('cookie_policy')).toBe('1');
+    expect(activeVersions.get('privacy_policy')).toBe('3');
+    expect(activeVersions.get('terms_of_service')).toBe('2');
+    expect(activeVersions.get('cookie_policy')).toBe('2');
+
+    // Superseded entries remain in the registry (immutable audit history) but
+    // never resolve as active.
+    expect(getLegalDoc('privacy_policy', later)?.version).toBe('3');
+    expect(getLegalDoc('terms_of_service', later)?.version).toBe('2');
+    expect(getLegalDoc('cookie_policy', later)?.version).toBe('2');
   });
 
-  it('becomes active once its effective date arrives', () => {
-    const later = new Date('2099-01-02T00:00:00Z');
-    expect(getLegalDoc('cookie_policy', later)?.version).toBe('2');
+  it('resolves the active placeholder-era versions before the clean versions take effect', () => {
+    const activeVersions = new Map(activeLegalDocs(NOW).map((d) => [d.id, d.version]));
+    expect(activeVersions.get('privacy_policy')).toBe('2');
+    expect(activeVersions.get('terms_of_service')).toBe('1');
+    expect(activeVersions.get('cookie_policy')).toBe('1');
   });
 });
 
@@ -87,18 +96,21 @@ describe('legal registry — hash integrity', () => {
 });
 
 describe('legal registry — legalApproved flag (D10)', () => {
-  it('approves the active documents while retaining historical and future entries as unapproved', () => {
-    expect(LEGAL_DOCS.length).toBeGreaterThan(0);
-    const active = new Set(activeLegalDocs(NOW).map((doc) => `${doc.id}:${doc.version}`));
-    for (const doc of LEGAL_DOCS) {
-      expect(doc.legalApproved).toBe(active.has(`${doc.id}:${doc.version}`));
-    }
-  });
-
   it('approves every ACTIVE document after responsible-party authorization', () => {
     const active = activeLegalDocs(NOW);
     expect(active.length).toBeGreaterThan(0);
     expect(active.every((d) => d.legalApproved)).toBe(true);
+  });
+
+  it('approves the clean placeholder-free versions that are ACTIVE since 2026-09-01', () => {
+    const later = new Date('2026-09-01T12:00:00Z');
+    const active = activeLegalDocs(later);
+
+    expect(active.every((d) => d.legalApproved)).toBe(true);
+    const clean = active.find((d) => d.id === 'privacy_policy');
+    expect(clean?.version).toBe('3');
+    expect(JSON.stringify(clean?.sections)).not.toContain('PLACEHOLDER');
+    expect(JSON.stringify(clean?.sections)).not.toContain('Texto provisório');
   });
 });
 

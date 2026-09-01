@@ -57,12 +57,10 @@ describe('GET /api/legal-docs — public active legal registry', () => {
     expect(JSON.stringify(documents)).not.toContain('legalApproved');
   });
 
-  it('excludes future-dated versions (cookie_policy v2 is not active)', async () => {
+  it('returns only versions effective today or earlier (no future-dated entries)', async () => {
     const res = await handler(event('GET'));
 
     const { documents } = JSON.parse(res.body);
-    const futureV2 = documents.find((d: any) => d.id === 'cookie_policy' && d.version === '2');
-    expect(futureV2).toBeUndefined();
     for (const doc of documents) {
       expect(new Date(`${doc.effectiveDate}T00:00:00Z`).getTime()).toBeLessThanOrEqual(Date.now());
     }

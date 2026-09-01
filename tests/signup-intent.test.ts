@@ -23,7 +23,8 @@ import { activeLegalDocs } from '../src/config/legal';
 
 // Fixed "today" so active-version resolution is deterministic regardless of
 // when the suite runs: privacy_policy v2, terms_of_service v1 and
-// cookie_policy v1 are active; cookie_policy v2 (2099) is not.
+// cookie_policy v1 are active; cookie_policy v2 (effective 2026-09-01) is not
+// yet in force at this date.
 const TODAY = new Date('2026-08-20T12:00:00Z');
 
 const active = activeLegalDocs(TODAY);

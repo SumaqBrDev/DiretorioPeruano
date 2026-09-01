@@ -40,28 +40,28 @@ const userFindMock = vi.mocked(prisma.user.findUnique);
 const recordFindManyMock = vi.mocked(prisma.consentRecord.findMany);
 const createMock = vi.mocked(prisma.businessProfile.create);
 
-// Active mandatory (purpose=service) versions today: privacy_policy v2,
-// terms_of_service v1 (registry src/config/legal.ts).
+// Active mandatory (purpose=service) versions today: privacy_policy v3,
+// terms_of_service v2 (registry src/config/legal.ts).
 const CURRENT_SERVICE_ROWS = [
   {
     id: 'c-privacy',
     userId: 'user-db-id',
     documentType: 'privacy_policy',
-    documentVersion: '2',
+    documentVersion: '3',
     purpose: 'service',
     granted: true,
-    consentedAt: new Date('2026-08-17T10:00:00Z'),
-    createdAt: new Date('2026-08-17T10:00:00Z'),
+    consentedAt: new Date('2026-09-01T10:00:00Z'),
+    createdAt: new Date('2026-09-01T10:00:00Z'),
   },
   {
     id: 'c-terms',
     userId: 'user-db-id',
     documentType: 'terms_of_service',
-    documentVersion: '1',
+    documentVersion: '2',
     purpose: 'service',
     granted: true,
-    consentedAt: new Date('2026-08-17T10:00:00Z'),
-    createdAt: new Date('2026-08-17T10:00:00Z'),
+    consentedAt: new Date('2026-09-01T10:00:00Z'),
+    createdAt: new Date('2026-09-01T10:00:00Z'),
   },
 ];
 
@@ -93,7 +93,7 @@ describe('POST /api/businesses — LGPD re-consent gate (WU2c)', () => {
   });
 
   it('blocks creation with 409 CONSENT_REQUIRED when mandatory consent is stale (superseded version)', async () => {
-    // privacy_policy v1 is superseded: the ACTIVE version is v2 → stale.
+    // privacy_policy v1 is superseded: the ACTIVE version is v3 → stale.
     recordFindManyMock.mockResolvedValue([
       { ...CURRENT_SERVICE_ROWS[0], documentVersion: '1', id: 'c-privacy-v1' },
       CURRENT_SERVICE_ROWS[1],

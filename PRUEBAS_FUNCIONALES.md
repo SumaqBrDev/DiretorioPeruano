@@ -727,9 +727,10 @@ Los nombres y CNPJ de altas repetibles deben llevar un sufijo único, por ejempl
 > **Alcance y honestidad:** estos casos validan el **comportamiento funcional implementado**
 > (flujo híbrido D1, evidencia append-only D2/D5, script gate D7, endpoints D8, gate legal D10)
 > en ambiente QA. **No constituyen certificación de cumplimiento LGPD ni aprobación legal**:
-> todos los documentos del registro (`src/config/legal.ts`) son actualmente PLACEHOLDER con
-> `legalApproved: false`, y el gate `npm run check:legal` falla por diseño hasta la aprobación
-> del responsable/DPO (sección 10, DoD LGPD).
+> los documentos legales **activos** fueron aprobados por el responsable el 01/09/2026
+> (privacy_policy v3, terms_of_service v2, cookie_policy v2, sin marcadores placeholder) y el
+> gate `npm run check:legal` pasa; las versiones anteriores quedan como histórico superseded.
+> Las verificaciones se basan en evidencia real (captura, request/response sanitizado, BD).
 
 ### CP-043 — Consentimiento obligatorio antes del signup
 
@@ -764,9 +765,9 @@ Los nombres y CNPJ de altas repetibles deben llevar un sufijo único, por ejempl
 
 | Paso | Acción | Resultado esperado |
 |---:|---|---|
-| 1 | Abrir `/termos`, `/privacidade` y `/cookies` sin sesión. | Páginas públicas renderizan los textos del registro activo (placeholder actual); sin pantalla de error. |
+| 1 | Abrir `/termos`, `/privacidade` y `/cookies` sin sesión. | Páginas públicas renderizan los textos del registro activo aprobado (sin marcadores placeholder); sin pantalla de error. |
 | 2 | Consultar `GET /api/legal-docs` sin token. | `200` con metadatos de documentos ACTIVOS (id, version, effectiveDate, hash, purposes, legalBases, locale); **sin** texto de secciones ni `legalApproved`. |
-| 3 | Verificar que la versión futura-datada no aparece. | `cookie_policy` v2 (effective 2099) nunca se lista como activa. |
+| 3 | Verificar que solo aparecen versiones vigentes. | El registro activo lista privacy_policy v3, terms_of_service v2 y cookie_policy v2 (effective 2026-09-01); ninguna superseded ni futura. |
 | 4 | Abrir los enlaces legales desde el formulario de signup en pestaña nueva. | El formulario conserva los datos ingresados. |
 
 ### CP-046 — Flujo híbrido D1: intención pre-signup → evidencia server-side
@@ -968,10 +969,10 @@ Impacto:
 
 > **Alcance:** esta checklist valida el **comportamiento funcional implementado** en ambiente QA
 > (casos CP-043 a CP-052, sección J). **No es una certificación de cumplimiento LGPD ni una
-> aprobación legal.** Los textos del registro (`src/config/legal.ts`) son PLACEHOLDER con
-> `legalApproved: false`; el gate `npm run check:legal` falla por diseño y la liberación queda
-> bloqueada hasta la aprobación del responsable/DPO. Toda verificación marcada debe adjuntar
-> evidencia (captura, request/response sanitizado, consulta BD autorizada, salida de consola).
+> aprobación legal.** Los documentos legales activos fueron aprobados por el responsable el
+> 01/09/2026 (privacy_policy v3, terms_of_service v2, cookie_policy v2) y el gate
+> `npm run check:legal` pasa. Toda verificación marcada debe adjuntar evidencia (captura,
+> request/response sanitizado, consulta BD autorizada, salida de consola).
 
 ### Checklist funcional QA
 

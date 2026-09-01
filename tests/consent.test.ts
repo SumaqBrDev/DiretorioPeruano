@@ -304,7 +304,7 @@ describe('recordConsent — append-only grant with idempotency', () => {
     expect(prisma.consentRecord.create).not.toHaveBeenCalled();
   });
 
-  it('rejects a future-dated version (cookie_policy v2, effective 2099)', async () => {
+  it('rejects a version that is not active at the current date (cookie_policy v2, effective 2026-09-01, while v1 is active at NOW)', async () => {
     const res = await recordConsent(
       {
         userId: 'user-1',

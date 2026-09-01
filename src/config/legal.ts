@@ -6,10 +6,12 @@
 // versions can be swapped WITHOUT code changes once the responsible/DPO
 // approves the PT-BR texts.
 //
-// IMPORTANT (legal status): the currently active PT-BR documents have been
-// approved by the responsible party for this release. Inactive historical and
-// future-dated entries remain unapproved and are not resolved as active.
-// `legalApproved` is evaluated by the release gate (`npm run check:legal`, D10).
+// IMPORTANT (legal status): the ACTIVE documents (privacy_policy v3,
+// terms_of_service v2, cookie_policy v2, all effective 2026-09-01) carry the
+// approved wording WITHOUT placeholder markers and are marked legalApproved.
+// Superseded versions remain in the registry untouched (immutable audit
+// history) and never resolve as active. `legalApproved` is evaluated by the
+// release gate (`npm run check:legal`, D10).
 //
 // Hash contract: `hash` = lowercase hex sha256 of `JSON.stringify(sections)`.
 // `verifyLegalDocHashes()` recomputes it from the sections so wording drift
@@ -36,7 +38,7 @@ export interface LegalDoc {
   locale: string;
   /** i18n key for the document title. */
   titleKey: string;
-  /** PT-BR placeholder sections rendered by the public legal pages. */
+  /** PT-BR sections rendered by the public legal pages. */
   sections: LegalSection[];
 }
 
@@ -55,12 +57,15 @@ export interface LegalHashMismatch {
 }
 
 // ── Registry ────────────────────────────────────────────────────────────────
-// v2 of privacy_policy is in force today (v1 superseded); cookie_policy v2 is
-// future-dated (2099) and must NEVER resolve as active until its effective
-// date arrives.
+// Version history per document id (oldest → newest):
+//   privacy_policy: v1 (2026-01-01) → v2 (2026-08-17) → v3 (2026-09-01, ACTIVE)
+//   terms_of_service: v1 (2026-08-17) → v2 (2026-09-01, ACTIVE)
+//   cookie_policy: v1 (2026-08-17) → v2 (2026-09-01, ACTIVE)
+// Superseded versions are kept intact for audit; only the newest effective
+// version resolves as active via activeLegalDocs()/getLegalDoc().
 
 export const LEGAL_DOCS: LegalDoc[] = [
-  // privacy_policy v1 — superseded on 2026-08-17 by v2.
+  // privacy_policy v1 — superseded on 2026-08-17 by v2 (placeholder era).
   {
     id: 'privacy_policy',
     version: '1',
@@ -82,7 +87,8 @@ export const LEGAL_DOCS: LegalDoc[] = [
       },
     ],
   },
-  // privacy_policy v2 — ACTIVE since 2026-08-17.
+  // privacy_policy v2 — superseded on 2026-09-01 by v3 (placeholder era,
+  // approved wording was replaced by the clean v3 text).
   {
     id: 'privacy_policy',
     version: '2',
@@ -112,7 +118,37 @@ export const LEGAL_DOCS: LegalDoc[] = [
       },
     ],
   },
-  // terms_of_service v1 — ACTIVE since 2026-08-17.
+  // privacy_policy v3 — ACTIVE since 2026-09-01 (approved, placeholder-free).
+  {
+    id: 'privacy_policy',
+    version: '3',
+    effectiveDate: '2026-09-01',
+    hash: '7be7a6dbe7a3c52a2ccf62c824dfc5c80cb119db719c4c0a3af3842d43c11cfc',
+    legalApproved: true,
+    purposes: ['service'],
+    legalBases: ['contract', 'legitimate_interest'],
+    locale: 'pt-BR',
+    titleKey: 'legal.privacy.title',
+    sections: [
+      {
+        title: 'Compromisso com a LGPD',
+        body: 'A ConectaPeru está comprometida com a proteção dos seus dados pessoais em conformidade com a Lei Geral de Proteção de Dados Pessoais (LGPD - Lei nº 13.709/2018). Esta política explica como coletamos, usamos, armazenamos e protegemos suas informações.',
+      },
+      {
+        title: 'Dados Coletados',
+        body: 'Coletamos apenas os dados estritamente necessários para o funcionamento do diretório: nome, e-mail, informações do negócio (nome, endereço, telefone, horários, categoria, fotos) e avaliações enviadas por usuários. Não coletamos dados sensíveis.',
+      },
+      {
+        title: 'Uso dos Dados',
+        body: 'O uso dos dados é exclusivo para o funcionamento da plataforma ConectaPeru. Não vendemos, alugamos ou repassamos seus dados a terceiros.',
+      },
+      {
+        title: 'Seus Direitos (LGPD)',
+        body: 'Você pode confirmar a existência de tratamento, acessar, corrigir, portar e eliminar seus dados pessoais, entre outros direitos da LGPD, pelo e-mail privacidade@conectaperu.com.br.',
+      },
+    ],
+  },
+  // terms_of_service v1 — superseded on 2026-09-01 by v2 (placeholder era).
   {
     id: 'terms_of_service',
     version: '1',
@@ -142,7 +178,37 @@ export const LEGAL_DOCS: LegalDoc[] = [
       },
     ],
   },
-  // cookie_policy v1 — ACTIVE since 2026-08-17.
+  // terms_of_service v2 — ACTIVE since 2026-09-01 (approved, placeholder-free).
+  {
+    id: 'terms_of_service',
+    version: '2',
+    effectiveDate: '2026-09-01',
+    hash: '168b94a6df8ebba5f56d49f8e1d370a0dc9a320c871c63f78c63739f8c69236a',
+    legalApproved: true,
+    purposes: ['service'],
+    legalBases: ['contract'],
+    locale: 'pt-BR',
+    titleKey: 'legal.terms.title',
+    sections: [
+      {
+        title: 'Aceitação dos Termos',
+        body: 'Ao acessar ou utilizar a plataforma ConectaPeru, você concorda em cumprir e estar vinculado a estes Termos de Serviço.',
+      },
+      {
+        title: 'Cadastro e Conta',
+        body: 'Para cadastrar um negócio ou enviar avaliações, é necessário criar uma conta. As informações fornecidas devem ser verdadeiras, precisas e atualizadas.',
+      },
+      {
+        title: 'Responsabilidades do Usuário',
+        body: 'Você concorda em não publicar conteúdo falso ou difamatório, não violar direitos de propriedade intelectual, não enviar spam e não tentar acessar áreas restritas sem autorização.',
+      },
+      {
+        title: 'Contato',
+        body: 'Para questões relacionadas a estes Termos de Serviço, entre em contato pelo e-mail contato@conectaperu.com.br.',
+      },
+    ],
+  },
+  // cookie_policy v1 — superseded on 2026-09-01 by v2 (placeholder era).
   {
     id: 'cookie_policy',
     version: '1',
@@ -164,21 +230,27 @@ export const LEGAL_DOCS: LegalDoc[] = [
       },
     ],
   },
-  // cookie_policy v2 — FUTURE-DATED (never active until 2099-01-01).
+  // cookie_policy v2 — ACTIVE since 2026-09-01 (approved, placeholder-free).
+  // NOTE: the former future-dated "v2 (2099)" scaffold was removed; it was a
+  // never-active placeholder that would have collided with this real version.
   {
     id: 'cookie_policy',
     version: '2',
-    effectiveDate: '2099-01-01',
-    hash: 'cbaa8d1f7e53f38386694b240465657dce29c7012bfbd777e451ae8f1258050a',
-    legalApproved: false,
+    effectiveDate: '2026-09-01',
+    hash: '9944dbf233b2ad2245cfa151d88ed649e6a9dd2679cb5d907b9258d3918a2fe8',
+    legalApproved: true,
     purposes: ['analytics', 'marketing'],
     legalBases: ['consent'],
     locale: 'pt-BR',
     titleKey: 'legal.cookies.title',
     sections: [
       {
-        title: '[PLACEHOLDER — AGUARDANDO APROVAÇÃO LEGAL] Política de Cookies v2',
-        body: 'Texto provisório para a próxima versão da Política de Cookies. Efetiva a partir de 2099-01-01; não deve ser tratada como versão ativa antes dessa data.',
+        title: 'O que são cookies',
+        body: 'Cookies são pequenos arquivos armazenados no seu navegador. Utilizamos cookies essenciais para o funcionamento da plataforma e cookies opcionais (analytics e marketing) somente com o seu consentimento.',
+      },
+      {
+        title: 'Categorias e consentimento',
+        body: 'Essenciais: necessários ao funcionamento. Analytics: estatísticas de uso. Marketing: campanhas e anúncios. Você pode alterar suas preferências a qualquer momento na página de preferências.',
       },
     ],
   },
@@ -237,7 +309,7 @@ export function getLegalDoc(id: string, now: Date = new Date()): LegalDoc | unde
   return activeLegalDocs(now).find((d) => d.id === id);
 }
 
-/** Exact version lookup across the whole registry (includes future-dated versions). */
+/** Exact version lookup across the whole registry (includes superseded/future versions). */
 export function getLegalDocVersion(id: string, version: string): LegalDoc | undefined {
   return LEGAL_DOCS.find((d) => d.id === id && d.version === version);
 }

@@ -122,7 +122,7 @@ describe('POST /api/consent — record own consent', () => {
     expect(res.statusCode).toBe(201);
     const body = JSON.parse(res.body);
     expect(body.record.documentType).toBe('terms_of_service');
-    expect(body.record.documentVersion).toBe('1');
+    expect(body.record.documentVersion).toBe('2');
     expect(body.record.granted).toBe(true);
     // Subject derived from the verified token, never from the body.
     const data = recordCreateMock.mock.calls[0][0].data;
@@ -252,9 +252,9 @@ describe('GET /api/consent/status — current mandatory consent state', () => {
 
   it('reports mandatoryCurrent true when the latest service rows are current', async () => {
     recordFindManyMock.mockResolvedValue([
-      consentRow({ documentType: 'privacy_policy', documentVersion: '2', purpose: 'service', granted: true }),
-      consentRow({ documentType: 'terms_of_service', documentVersion: '1', purpose: 'service', granted: true }),
-      consentRow({ documentType: 'cookie_policy', documentVersion: '1', purpose: 'analytics', granted: true }),
+      consentRow({ documentType: 'privacy_policy', documentVersion: '3', purpose: 'service', granted: true }),
+      consentRow({ documentType: 'terms_of_service', documentVersion: '2', purpose: 'service', granted: true }),
+      consentRow({ documentType: 'cookie_policy', documentVersion: '2', purpose: 'analytics', granted: true }),
     ] as any);
 
     const res = await consentHandler(authEvent('/api/consent/status', { httpMethod: 'GET' }));
@@ -266,7 +266,7 @@ describe('GET /api/consent/status — current mandatory consent state', () => {
     expect(body.current).toHaveLength(3);
     expect(body.current[0]).toMatchObject({
       documentType: 'privacy_policy',
-      version: '2',
+      version: '3',
       granted: true,
     });
     expect(body.current[0].consentedAt).toBeTruthy();

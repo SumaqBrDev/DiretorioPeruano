@@ -203,12 +203,13 @@ npx prisma db seed       # Popula dados iniciais
 
 ## 🔒 Governança LGPD (consentimento e privacidade)
 
-> **Status honesto (17/08/2026):** a implementação técnica de consentimento LGPD está presente
-> e coberta por testes (`npm test` — 22 arquivos, 238 testes, verde). Porém **todos os textos
-> legais são PLACEHOLDER** (`legalApproved: false` em todos os documentos do registro) e o gate
-> de release `npm run check:legal` **falha de propósito** enquanto houver documento ATIVO não
-> aprovado — **release bloqueado** até a aprovação do responsável/DPO. Este README não é
-> certificação legal.
+> **Status honesto (01/09/2026):** a implementação técnica de consentimento LGPD está presente
+> e coberta por testes (`npm test` — 24 arquivos, 253 testes, verde). Os documentos legais
+> **ativos** (privacy_policy v3, terms_of_service v2, cookie_policy v2, efetivos em 2026-09-01)
+> foram **aprovados pelo responsável** e publicados sem marcadores de placeholder; o gate de
+> release `npm run check:legal` **passa** com os 3 ativos aprovados e hashes íntegros. Versões
+> anteriores (superseded) permanecem no registro como histórico imutável e nunca resolvem como
+> ativas. Este README não é certificação legal.
 
 ### Contrato de configuração legal (fonte única — D1)
 
@@ -225,10 +226,11 @@ npx prisma db seed       # Popula dados iniciais
 | `purposes` | `service` \| `marketing` \| `analytics` |
 | `legalBases` | `contract` \| `consent` \| `legitimate_interest` |
 | `locale` | `pt-BR` (textos atuais) / `es-PE` |
-| `legalApproved` | `false` até o responsável/DPO aprovar o texto exato (D10) |
+| `legalApproved` | `true` para os documentos ATIVOS aprovados pelo responsável (D10); superseded permanecem no registro sem resolver como ativos |
 
-Versões futuras-datadas (ex.: `cookie_policy` v2, `effectiveDate` 2099) **nunca** resolvem como
-ativas — `activeLegalDocs()`/`getLegalDoc()` aplicam essa regra no client, nas Functions e no gate.
+Versões anteriores (superseded) e qualquer versão com `effectiveDate` futuro **nunca** resolvem
+como ativas — `activeLegalDocs()`/`getLegalDoc()` aplicam essa regra no client, nas Functions e
+no gate (a entrada scaffold `cookie_policy` v2/2099 foi removida na limpeza do wording).
 
 ### Migração manual idempotente
 

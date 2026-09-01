@@ -36,11 +36,11 @@ const findManyMock = vi.mocked(prisma.businessProfile.findMany);
 const recordFindManyMock = vi.mocked(prisma.consentRecord.findMany);
 
 // Current mandatory (purpose=service) consent for the mocked owner so the
-// WU2c re-consent gate passes (active versions: privacy_policy v2,
-// terms_of_service v1 — src/config/legal.ts).
+// WU2c re-consent gate passes (active versions: privacy_policy v3,
+// terms_of_service v2 — src/config/legal.ts).
 const CURRENT_SERVICE_ROWS = [
-  { id: 'c-privacy', documentType: 'privacy_policy', documentVersion: '2', purpose: 'service', granted: true, createdAt: new Date('2026-08-17T10:00:00Z') },
-  { id: 'c-terms', documentType: 'terms_of_service', documentVersion: '1', purpose: 'service', granted: true, createdAt: new Date('2026-08-17T10:00:00Z') },
+  { id: 'c-privacy', documentType: 'privacy_policy', documentVersion: '3', purpose: 'service', granted: true, createdAt: new Date('2026-09-01T10:00:00Z') },
+  { id: 'c-terms', documentType: 'terms_of_service', documentVersion: '2', purpose: 'service', granted: true, createdAt: new Date('2026-09-01T10:00:00Z') },
 ];
 
 describe('POST /api/businesses — KYC wiring', () => {
