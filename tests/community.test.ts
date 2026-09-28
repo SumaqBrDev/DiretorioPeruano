@@ -32,13 +32,7 @@ const voteUpdateMock = vi.mocked(prisma.communityVote.update);
 const voteDeleteMock = vi.mocked(prisma.communityVote.delete);
 const voteAggregateMock = vi.mocked(prisma.communityVote.aggregate);
 
-const headers = {
-  'Content-Type': 'application/json',
-  'X-Frame-Options': 'DENY',
-  'X-Content-Type-Options': 'nosniff',
-};
-
-function postEvent(body: unknown) {
+function postEvent(body: unknown): any {
   return {
     httpMethod: 'POST',
     body: JSON.stringify(body),
@@ -133,6 +127,20 @@ describe('community votes (like/dislike toggle)', () => {
       data: { targetType: 'topic', targetId: 'topic-1', userId: 'user-internal-1', value: 1 },
     });
     expect(JSON.parse(res.body).score).toBe(3);
+  });
+
+  it('handles a duplicate vote race by re-reading and flipping the existing vote', async () => {
+    topicFindMock.mockResolvedValue({ id: 'topic-1', status: 'visible' } as any);
+    voteFindMock.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: 'vote-1', value: -1 } as any);
+    voteCreateMock.mockRejectedValue({ code: 'P2002' });
+    voteUpdateMock.mockResolvedValue({ id: 'vote-1', value: 1 } as any);
+    voteAggregateMock.mockResolvedValue({ _sum: { value: 4 } } as any);
+
+    const res = await handler(postEvent({ action: 'vote', targetType: 'topic', targetId: 'topic-1', value: 1 }));
+
+    expect(res.statusCode).toBe(200);
+    expect(voteUpdateMock).toHaveBeenCalledWith({ where: { id: 'vote-1' }, data: { value: 1 } });
+    expect(JSON.parse(res.body).score).toBe(4);
   });
 
   it('removes the vote when the same value is toggled again', async () => {

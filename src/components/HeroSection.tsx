@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
+import { useTranslation, Trans } from 'react-i18next';
 import { MagnifyingGlass } from '@phosphor-icons/react';
 import { motion, useReducedMotion } from 'motion/react';
 
@@ -61,13 +61,14 @@ export const HeroSection = () => {
           <motion.h1
             {...fadeUp(0.25)}
             className="text-4xl md:text-5xl lg:text-7xl font-bold text-white mb-6 tracking-tighter leading-[1.05]"
-            dangerouslySetInnerHTML={{
-              __html: t('hero.headline', {
-                highlight:
-                  '<span class="text-oro-inca">Perú</span>',
-              }),
-            }}
-          />
+          >
+            <Trans
+              i18nKey="hero.headline"
+              components={{
+                highlight: <span className="text-oro-inca" />,
+              }}
+            />
+          </motion.h1>
 
           {/* Subtitle */}
           <motion.p

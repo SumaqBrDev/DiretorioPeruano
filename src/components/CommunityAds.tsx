@@ -144,7 +144,7 @@ export const CommunityAds = ({ variant = 'sidebar', limit = 4 }: CommunityAdsPro
           {t('ads.sidebarTitle')}
         </div>
         {ads.slice(0, limit).map((ad) => (
-          <AdCard key={ad.id} ad={ad} variant="sidebar" />
+          <AdCard key={ad.id} ad={ad} />
         ))}
       </div>
     </aside>

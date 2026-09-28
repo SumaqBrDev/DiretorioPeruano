@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ClerkProvider, useUser } from '@clerk/clerk-react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation, Trans } from 'react-i18next';
 import { HelmetProvider } from 'react-helmet-async';
 import { Navbar } from './components/Navbar';
 import { CookieBanner } from './components/CookieBanner';
@@ -91,7 +91,21 @@ function AppRoutes() {
         <footer className="bg-creme-andino dark:bg-zinc-950 border-t border-oro-inca/20 py-8 mt-auto">
           <div className="container mx-auto px-4">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <p className="text-gray-500 dark:text-gray-400 text-sm" dangerouslySetInnerHTML={{ __html: t('footer.copyright') }} />
+              <p className="text-gray-500 dark:text-gray-400 text-sm">
+                <Trans
+                  i18nKey="footer.copyright"
+                  components={{
+                    a: (
+                      <a
+                        href="https://stratai-consulting-site.netlify.app/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-aji-rojo hover:underline"
+                      />
+                    ),
+                  }}
+                />
+              </p>
               <nav className="flex items-center gap-6">
                 <a
                   href="/privacidade"

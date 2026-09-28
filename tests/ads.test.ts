@@ -40,7 +40,7 @@ const adFindMock = vi.mocked(prisma.businessAd.findUnique);
 const adUpdateMock = vi.mocked(prisma.businessAd.update);
 const configFindMock = vi.mocked(prisma.siteConfig.findUnique);
 
-function postEvent(body: unknown) {
+function postEvent(body: unknown): any {
   return {
     httpMethod: 'POST',
     body: JSON.stringify(body),

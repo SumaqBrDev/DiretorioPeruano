@@ -8,6 +8,7 @@
 import prisma from './lib/prisma';
 import { getStripe } from './lib/stripe';
 import { requireBusinessOwner } from './lib/auth';
+import type { HandlerEvent } from '@netlify/functions';
 
 const headers = {
   'Content-Type': 'application/json',
@@ -22,7 +23,7 @@ const AD_PRODUCT_NAME = process.env.AD_PRODUCT_NAME || 'Anúncio ConectaPeru (30
 
 const stripe = getStripe();
 
-export const handler = async (event: any) => {
+export const handler = async (event: HandlerEvent) => {
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
@@ -55,7 +56,7 @@ export const handler = async (event: any) => {
 
     const business = await prisma.businessProfile.findUnique({
       where: { id: businessId },
-      select: { id: true, name: true, status: true, subscriptionStatus: true },
+      select: { id: true, name: true, status: true, subscriptionStatus: true, stripeCustomerId: true },
     });
 
     if (!business) {
@@ -116,7 +117,7 @@ export const handler = async (event: any) => {
           url: '',
           betaMode: true,
           message: `Modo beta activo: anuncio de prueba activado por ${AD_DAYS} días.`,
-          endsAt: ad.endsAt.toISOString(),
+          endsAt: ad.endsAt ? ad.endsAt.toISOString() : null,
         }),
       };
     }

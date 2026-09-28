@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useClerk, useAuth } from '@clerk/clerk-react';
+import { useAuth } from '@clerk/clerk-react';
+import { deleteBusinessGalleryPhoto } from '../lib/business-gallery-delete';
+import { uploadBusinessGalleryFile } from '../lib/business-gallery-upload';
 
 interface BusinessGalleryProps {
   businessId: string;
@@ -18,18 +20,6 @@ interface FilePreview {
   progress: number;
   errorMessage?: string;
   uploadedUrl?: string;
-}
-
-interface UploadResult {
-  url: string;
-  key: string;
-}
-
-interface UploadResponse {
-  urls: UploadResult[];
-  errors?: Array<{ filename: string; error: string }>;
-  totalUploaded: number;
-  totalErrors: number;
 }
 
 const MAX_PHOTOS = 10;
@@ -137,108 +127,35 @@ export const BusinessGallery = ({ businessId, photos, onPhotosChange, onPersistP
   const uploadSingleFile = async (
     preview: FilePreview
   ): Promise<{ success: boolean; url?: string }> => {
-    return new Promise((resolve) => {
-      const formData = new FormData();
-      formData.append('file', preview.file);
-      formData.append('businessId', businessId);
+    setFilePreviews((prev) =>
+      prev.map((fp) => (fp.id === preview.id ? { ...fp, status: 'uploading', progress: 0 } : fp))
+    );
 
-      const xhr = new XMLHttpRequest();
-
-      xhr.upload.addEventListener('progress', (e) => {
-        if (e.lengthComputable) {
-          const pct = Math.round((e.loaded / e.total) * 100);
-          setFilePreviews((prev) =>
-            prev.map((fp) => (fp.id === preview.id ? { ...fp, progress: pct } : fp))
-          );
-        }
-      });
-
-      xhr.addEventListener('load', () => {
-        if (xhr.status === 200) {
-          try {
-            const response: UploadResponse = JSON.parse(xhr.responseText);
-            if (response.urls && response.urls.length > 0) {
-              const uploaded = response.urls[0];
-              setFilePreviews((prev) =>
-                prev.map((fp) =>
-                  fp.id === preview.id
-                    ? { ...fp, status: 'success', progress: 100, uploadedUrl: uploaded.url }
-                    : fp
-                )
-              );
-              resolve({ success: true, url: uploaded.url });
-            } else {
-              const errMsg = response.errors?.[0]?.error || 'Erro ao fazer upload';
-              setFilePreviews((prev) =>
-                prev.map((fp) =>
-                  fp.id === preview.id
-                    ? { ...fp, status: 'error', errorMessage: errMsg }
-                    : fp
-                )
-              );
-              resolve({ success: false });
-            }
-          } catch {
-            setFilePreviews((prev) =>
-              prev.map((fp) =>
-                fp.id === preview.id
-                  ? { ...fp, status: 'error', errorMessage: 'Erro ao processar resposta' }
-                  : fp
-              )
-            );
-            resolve({ success: false });
-          }
-        } else {
-          let errMsg = 'Erro ao fazer upload';
-          try {
-            const err = JSON.parse(xhr.responseText);
-            errMsg = err.error || errMsg;
-          } catch {
-            // use default
-          }
-          setFilePreviews((prev) =>
-            prev.map((fp) =>
-              fp.id === preview.id ? { ...fp, status: 'error', errorMessage: errMsg } : fp
-            )
-          );
-          resolve({ success: false });
-        }
-      });
-
-      xhr.addEventListener('error', () => {
+    return uploadBusinessGalleryFile({
+      file: preview.file,
+      businessId,
+      getToken,
+      onProgress: (progress) => {
+        setFilePreviews((prev) =>
+          prev.map((fp) => (fp.id === preview.id ? { ...fp, progress } : fp))
+        );
+      },
+      onSuccess: (url) => {
         setFilePreviews((prev) =>
           prev.map((fp) =>
             fp.id === preview.id
-              ? { ...fp, status: 'error', errorMessage: 'Erro de conexão' }
+              ? { ...fp, status: 'success', progress: 100, uploadedUrl: url }
               : fp
           )
         );
-        resolve({ success: false });
-      });
-
-      xhr.addEventListener('abort', () => {
+      },
+      onError: (errorMessage) => {
         setFilePreviews((prev) =>
           prev.map((fp) =>
-            fp.id === preview.id
-              ? { ...fp, status: 'error', errorMessage: 'Upload cancelado' }
-              : fp
+            fp.id === preview.id ? { ...fp, status: 'error', errorMessage } : fp
           )
         );
-        resolve({ success: false });
-      });
-
-      // Mark as uploading
-      setFilePreviews((prev) =>
-        prev.map((fp) => (fp.id === preview.id ? { ...fp, status: 'uploading', progress: 0 } : fp))
-      );
-
-      xhr.open('POST', '/api/upload-image');
-      // BUG-032c: the upload endpoint now requires an authenticated session —
-      // attach the Clerk token so the backend can scope the upload to the owner.
-      getToken().then((token) => {
-        if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-      });
-      xhr.send(formData);
+      },
     });
   };
 
@@ -309,26 +226,29 @@ export const BusinessGallery = ({ businessId, photos, onPhotosChange, onPersistP
   };
 
   const handleDelete = async (url: string) => {
-    // Extract blob key from URL
-    const key = url.replace('/.netlify/blobs/business-images/', '');
-
-    // Try to delete from blob store
     try {
-      await fetch(`/api/delete-image?key=${encodeURIComponent(key)}`, {
-        method: 'DELETE',
+      const token = await getToken();
+      const result = await deleteBusinessGalleryPhoto({
+        url,
+        businessId,
+        photos,
+        token,
       });
-    } catch {
-      // If blob delete fails, still remove from the array (user can re-upload)
-      console.warn('Could not delete blob from store; removing from array only');
-    }
 
-    const updated = photos.filter((p) => p !== url);
-    onPhotosChange(updated);
-    if (onPersistPhotos) {
-      void onPersistPhotos(businessId, updated);
+      if (!result.ok) {
+        showToast(result.error || 'Não foi possível remover a foto', 'error');
+        return;
+      }
+
+      onPhotosChange(result.photos);
+      if (onPersistPhotos) {
+        await onPersistPhotos(businessId, result.photos);
+      }
+      setConfirmDeleteUrl(null);
+      showToast('Foto removida 🗑️', 'success');
+    } catch {
+      showToast('Não foi possível remover a foto', 'error');
     }
-    setConfirmDeleteUrl(null);
-    showToast('Foto removida 🗑️', 'success');
   };
 
   // Drag & drop handlers

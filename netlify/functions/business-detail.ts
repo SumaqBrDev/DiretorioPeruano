@@ -1,8 +1,9 @@
 // netlify/functions/business-detail.ts
 // Public single-business detail by id (approved only). No Clerk auth required (public read).
 import prisma from './lib/prisma';
+import type { HandlerEvent } from '@netlify/functions';
 
-export const handler = async (event: any) => {
+export const handler = async (event: HandlerEvent) => {
   const headers = {
     'Content-Type': 'application/json',
     'X-Frame-Options': 'DENY',
@@ -46,6 +47,11 @@ export const handler = async (event: any) => {
 
     const address = (business.address as any) || {};
     const contact = (business.contact as any) || {};
+    const publicContact = {
+      phone: contact.phone || '',
+      whatsapp: contact.whatsapp || '',
+      website: contact.website || '',
+    };
 
     const mapped = {
       id: business.id,
@@ -60,18 +66,14 @@ export const handler = async (event: any) => {
         state: address.state || '',
         zip: address.zip || '',
       },
-      cnpj: business.cnpj || null,
-      ownerFullName: business.ownerFullName || '',
-      ownerBirthCity: business.ownerBirthCity || '',
       tags: business.tags || [],
       photos: business.photos || [],
-      contact: business.contact || {},
+      contact: publicContact,
       rating: business.rating || 0,
       reviewsCount: business._count.reviews,
-      email: contact.email || '',
-      phone: contact.phone || '',
-      whatsapp: contact.whatsapp || '',
-      website: contact.website || '',
+      phone: publicContact.phone,
+      whatsapp: publicContact.whatsapp,
+      website: publicContact.website,
       status: business.status,
     };
 

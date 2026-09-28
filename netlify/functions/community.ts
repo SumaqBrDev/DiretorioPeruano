@@ -1,5 +1,6 @@
 import prisma from './lib/prisma';
 import { authenticateRequest } from './lib/auth';
+import type { HandlerEvent } from '@netlify/functions';
 
 const headers = {
   'Content-Type': 'application/json',
@@ -32,6 +33,43 @@ function validatePostInput(body: any): string | null {
   return null;
 }
 
+function isUniqueConstraintError(error: unknown): boolean {
+  return Boolean(error && typeof error === 'object' && (error as { code?: unknown }).code === 'P2002');
+}
+
+async function applyVoteChange(targetType: string, targetId: string, userId: string, value: 1 | -1) {
+  const existing = await prisma.communityVote.findUnique({
+    where: {
+      targetType_targetId_userId: { targetType, targetId, userId },
+    },
+  });
+
+  if (existing) {
+    if (existing.value === value) {
+      // Same vote → remove it (toggle off)
+      await prisma.communityVote.delete({ where: { id: existing.id } });
+      return { removed: true, value: null };
+    }
+
+    // Flip the vote
+    const result = await prisma.communityVote.update({
+      where: { id: existing.id },
+      data: { value },
+    });
+    return { ...result, removed: false };
+  }
+
+  try {
+    const result = await prisma.communityVote.create({
+      data: { targetType, targetId, userId, value },
+    });
+    return { ...result, removed: false };
+  } catch (error) {
+    if (!isUniqueConstraintError(error)) throw error;
+    return applyVoteChange(targetType, targetId, userId, value);
+  }
+}
+
 /** Resolve the internal user id for the verified Clerk id (401 when missing). */
 async function resolveUser(auth: { ok: boolean; clerkId?: string }) {
   if (!auth.ok || !auth.clerkId) return null;
@@ -41,7 +79,7 @@ async function resolveUser(auth: { ok: boolean; clerkId?: string }) {
   });
 }
 
-export const handler = async (event: any) => {
+export const handler = async (event: HandlerEvent) => {
   // ── GET: list topics (public) or fetch one topic + its posts ──
   if (event.httpMethod === 'GET') {
     const params = event.queryStringParameters || {};
@@ -262,32 +300,7 @@ export const handler = async (event: any) => {
         }
       }
 
-      const existing = await prisma.communityVote.findUnique({
-        where: {
-          targetType_targetId_userId: { targetType, targetId, userId: user.id },
-        },
-      });
-
-      let result;
-      if (existing) {
-        if (existing.value === value) {
-          // Same vote → remove it (toggle off)
-          await prisma.communityVote.delete({ where: { id: existing.id } });
-          result = { removed: true, value: null };
-        } else {
-          // Flip the vote
-          result = await prisma.communityVote.update({
-            where: { id: existing.id },
-            data: { value },
-          });
-          result = { ...result, removed: false };
-        }
-      } else {
-        result = await prisma.communityVote.create({
-          data: { targetType, targetId, userId: user.id, value },
-        });
-        result = { ...result, removed: false };
-      }
+      const result = await applyVoteChange(targetType, targetId, user.id, value);
 
       const tally = await prisma.communityVote.aggregate({
         where: { targetType, targetId },
