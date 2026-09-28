@@ -1,3 +1,4 @@
+import type { HandlerEvent } from '@netlify/functions';
 import prisma from './lib/prisma';
 import { getStripe } from './lib/stripe';
 import { requireSuperAdmin } from './lib/auth';
@@ -11,7 +12,7 @@ const headers = {
 const STRIPE_PRICE_ID = process.env.STRIPE_PRICE_ID || 'price_59_brl_monthly';
 const STRIPE_TRIAL_DAYS = parseInt(process.env.STRIPE_TRIAL_DAYS || '30', 10);
 
-export const handler = async (event: any) => {
+export const handler = async (event: HandlerEvent) => {
   try {
     // Verify superadmin: validate Clerk token + superadmin role in PostgreSQL
     const auth = await requireSuperAdmin(event);
@@ -60,7 +61,6 @@ export const handler = async (event: any) => {
       // If disabling beta mode: set trialEndsAt = now + 30d for all approved businesses
       // that don't already have a subscription
       if (!betaMode) {
-        const now = new Date();
         const trialEnd = new Date();
         trialEnd.setDate(trialEnd.getDate() + STRIPE_TRIAL_DAYS);
 

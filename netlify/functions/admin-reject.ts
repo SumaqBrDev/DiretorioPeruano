@@ -1,3 +1,4 @@
+import type { HandlerEvent } from '@netlify/functions';
 import prisma from './lib/prisma';
 import { sendRejectionEmail } from './lib/email';
 import { requireSuperAdmin } from './lib/auth';
@@ -9,7 +10,7 @@ const headers = {
 };
 
 
-export const handler = async (event: any) => {
+export const handler = async (event: HandlerEvent) => {
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,

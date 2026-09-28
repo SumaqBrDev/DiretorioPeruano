@@ -1,3 +1,4 @@
+import type { HandlerEvent } from '@netlify/functions';
 import prisma from './lib/prisma';
 import { getStripe } from './lib/stripe';
 import { requireSuperAdmin } from './lib/auth';
@@ -8,7 +9,7 @@ const headers = {
   'X-Content-Type-Options': 'nosniff',
 };
 
-export const handler = async (event: any) => {
+export const handler = async (event: HandlerEvent) => {
   if (event.httpMethod !== 'DELETE') {
     return {
       statusCode: 405,

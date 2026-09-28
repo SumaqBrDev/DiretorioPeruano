@@ -4,6 +4,7 @@
 // No DATABASE_URL needed.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { HandlerEvent } from '@netlify/functions';
 
 vi.mock('../netlify/functions/lib/prisma', () => ({
   default: {
@@ -66,7 +67,7 @@ describe('POST /api/businesses — KYC wiring', () => {
         ownerFullName: 'João Silva',
         ownerBirthCity: 'Lima',
       }),
-    });
+    } as unknown as HandlerEvent);
 
     expect(res.statusCode).toBe(201);
     expect(validateCnpjMock).toHaveBeenCalledWith('11.222.333/0001-81');
@@ -88,7 +89,7 @@ describe('POST /api/businesses — KYC wiring', () => {
         ownerFullName: 'João Silva',
         ownerBirthCity: 'Lima',
       }),
-    });
+    } as unknown as HandlerEvent);
 
     expect(res.statusCode).toBe(400);
     expect(JSON.parse(res.body)).toEqual({ error: 'CNPJ inválido' });
@@ -99,7 +100,7 @@ describe('POST /api/businesses — KYC wiring', () => {
     const res = await handler({
       httpMethod: 'POST',
       body: JSON.stringify({ name: 'Chifa', description: 'Comida chinesa', ownerId: 'u1' }),
-    });
+    } as unknown as HandlerEvent);
 
     expect(res.statusCode).toBe(201);
     expect(validateCnpjMock).not.toHaveBeenCalled();
@@ -115,7 +116,7 @@ describe('POST /api/businesses — KYC wiring', () => {
     const res = await handler({
       httpMethod: 'POST',
       body: JSON.stringify({ name: 'Chifa', description: 'Comida chinesa', ownerId: 'client-supplied-owner' }),
-    });
+    } as unknown as HandlerEvent);
 
     expect(res.statusCode).toBe(201);
     expect(createMock.mock.calls[0][0].data.ownerId).toBe('user-db-id');
@@ -133,7 +134,7 @@ describe('POST /api/businesses — KYC wiring', () => {
         ownerId: 'client-supplied-owner',
         dataClassification: 'test',
       }),
-    });
+    } as unknown as HandlerEvent);
 
     expect(res.statusCode).toBe(201);
     expect(createMock.mock.calls[0][0].data.dataClassification).toBe('real');
@@ -154,7 +155,7 @@ describe('GET /api/businesses — minRating filter', () => {
     const res = await handler({
       httpMethod: 'GET',
       queryStringParameters: { minRating: '4' },
-    });
+    } as unknown as HandlerEvent);
 
     expect(res.statusCode).toBe(200);
     const where = (findManyMock.mock.calls[0]?.[0] as { where?: any })?.where;
@@ -165,14 +166,14 @@ describe('GET /api/businesses — minRating filter', () => {
 
   it('does not add a rating filter when minRating is absent', async () => {
     findManyMock.mockResolvedValue([] as any);
-    await handler({ httpMethod: 'GET', queryStringParameters: {} });
+    await handler({ httpMethod: 'GET', queryStringParameters: {} } as unknown as HandlerEvent);
     const where = (findManyMock.mock.calls[0]?.[0] as { where?: any })?.where;
     expect(where?.rating).toBeUndefined();
   });
 
   it('ignores non-numeric minRating', async () => {
     findManyMock.mockResolvedValue([] as any);
-    await handler({ httpMethod: 'GET', queryStringParameters: { minRating: 'abc' } });
+    await handler({ httpMethod: 'GET', queryStringParameters: { minRating: 'abc' } } as unknown as HandlerEvent);
     const where = (findManyMock.mock.calls[0]?.[0] as { where?: any })?.where;
     expect(where?.rating).toBeUndefined();
   });

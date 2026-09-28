@@ -28,7 +28,6 @@ import { activeLegalDocs } from '../src/config/legal';
 const TODAY = new Date('2026-08-20T12:00:00Z');
 
 const active = activeLegalDocs(TODAY);
-const activeIds = active.map((d) => d.id).sort();
 
 describe('SIGNUP_INTENT_KEY — namespaced sessionStorage key', () => {
   it('is a namespaced string (repo convention: conectaperu_ prefix)', () => {

@@ -1,8 +1,9 @@
+import type { HandlerEvent } from '@netlify/functions';
 import prisma from './lib/prisma';
 import { authenticateRequest } from './lib/auth';
 import { validateReviewInput, buildReviewCreateData } from './lib/reviews';
 
-export const handler = async (event: any) => {
+export const handler = async (event: HandlerEvent) => {
   const headers = {
     'Content-Type': 'application/json',
     'X-Frame-Options': 'DENY',

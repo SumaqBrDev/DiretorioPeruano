@@ -1,3 +1,4 @@
+import type { HandlerEvent } from '@netlify/functions';
 import prisma from './lib/prisma';
 import { requireSuperAdmin } from './lib/auth';
 
@@ -8,7 +9,7 @@ const headers = {
 };
 
 
-export const handler = async (event: any) => {
+export const handler = async (event: HandlerEvent) => {
   if (event.httpMethod !== 'GET') {
     return {
       statusCode: 405,
@@ -31,7 +32,6 @@ export const handler = async (event: any) => {
     // Extract business ID from path
     // Netlify functions: path is /.netlify/functions/admin-business-detail
     // The business ID is passed as query param ?id=xxx or from the path
-    const pathParts = event.path?.split('/') || [];
     let businessId = event.queryStringParameters?.id || '';
 
     // Try to extract from path: /api/admin/businesses/:id

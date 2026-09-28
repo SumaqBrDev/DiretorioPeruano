@@ -1,3 +1,4 @@
+import type { HandlerEvent } from '@netlify/functions';
 // netlify/functions/consent-revoke.ts
 // LGPD consent revocation endpoint (design D8; WU2b task 2.4).
 //
@@ -31,7 +32,7 @@ function unauthorized(auth: any) {
   };
 }
 
-function parseBody(event: any): any {
+function parseBody(event: HandlerEvent): any {
   try {
     return event.body ? JSON.parse(event.body) : {};
   } catch {
@@ -39,7 +40,7 @@ function parseBody(event: any): any {
   }
 }
 
-export const handler = async (event: any) => {
+export const handler = async (event: HandlerEvent) => {
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,

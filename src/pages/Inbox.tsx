@@ -528,7 +528,7 @@ export const Inbox = () => {
                 <div className="text-5xl mb-4">💬</div>
                 <p className="text-lg font-medium">Nenhuma conversa selecionada</p>
                 <p className="text-sm mt-1">
-                  Selecione uma conversa ao lado ou clique em "Novo Mensagem"
+                  Selecione uma conversa ao lado ou clique em &quot;Novo Mensagem&quot;
                 </p>
               </div>
             </div>

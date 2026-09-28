@@ -1,9 +1,10 @@
+import type { HandlerEvent } from '@netlify/functions';
 import prisma from './lib/prisma';
 import { validateCnpj } from './lib/cnpj';
 import { authenticateRequest } from './lib/auth';
 import { assertCurrentMandatoryConsent } from './lib/consent';
 
-export const handler = async (event: any) => {
+export const handler = async (event: HandlerEvent) => {
   const headers = {
     'Content-Type': 'application/json',
     'X-Frame-Options': 'DENY',

@@ -8,6 +8,7 @@
 // filters by documentType/source. Envelope { error, code? } (D6).
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { HandlerEvent } from '@netlify/functions';
 
 vi.mock('../netlify/functions/lib/prisma', () => ({
   default: {
@@ -62,7 +63,7 @@ describe('GET /api/consent/admin — governance read view (superadmin only)', ()
   it('returns 401 when the request is unauthenticated', async () => {
     superAdminMock.mockResolvedValue({ ok: false, statusCode: 401, error: 'No autorizado' } as any);
 
-    const res = await handler({ httpMethod: 'GET', queryStringParameters: {} });
+    const res = await handler({ httpMethod: 'GET', queryStringParameters: {} } as unknown as HandlerEvent);
 
     expect(res.statusCode).toBe(401);
     expect(findManyMock).not.toHaveBeenCalled();
@@ -71,7 +72,7 @@ describe('GET /api/consent/admin — governance read view (superadmin only)', ()
   it('returns 403 for an authenticated NON-superadmin', async () => {
     superAdminMock.mockResolvedValue({ ok: false, statusCode: 403, error: 'Acceso denegado — se requiere rol superadmin' } as any);
 
-    const res = await handler({ httpMethod: 'GET', queryStringParameters: {} });
+    const res = await handler({ httpMethod: 'GET', queryStringParameters: {} } as unknown as HandlerEvent);
 
     expect(res.statusCode).toBe(403);
     expect(JSON.parse(res.body).error).toContain('superadmin');
@@ -79,7 +80,7 @@ describe('GET /api/consent/admin — governance read view (superadmin only)', ()
   });
 
   it('returns the paginated governance view for a superadmin', async () => {
-    const res = await handler({ httpMethod: 'GET', queryStringParameters: {} });
+    const res = await handler({ httpMethod: 'GET', queryStringParameters: {} } as unknown as HandlerEvent);
 
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
@@ -99,7 +100,7 @@ describe('GET /api/consent/admin — governance read view (superadmin only)', ()
     await handler({
       httpMethod: 'GET',
       queryStringParameters: { documentType: 'cookie_policy', source: 'settings' },
-    });
+    } as unknown as HandlerEvent);
 
     expect(findManyMock).toHaveBeenCalledWith({
       where: { documentType: 'cookie_policy', source: 'settings' },
@@ -113,7 +114,7 @@ describe('GET /api/consent/admin — governance read view (superadmin only)', ()
     await handler({
       httpMethod: 'GET',
       queryStringParameters: { page: '3', pageSize: '10' },
-    });
+    } as unknown as HandlerEvent);
 
     expect(findManyMock).toHaveBeenCalledWith({
       where: {},
@@ -127,7 +128,7 @@ describe('GET /api/consent/admin — governance read view (superadmin only)', ()
     const res = await handler({
       httpMethod: 'GET',
       queryStringParameters: { documentType: 'no_such_doc' },
-    });
+    } as unknown as HandlerEvent);
 
     expect(res.statusCode).toBe(422);
     expect(JSON.parse(res.body).code).toBe('INVALID_PAYLOAD');
@@ -136,7 +137,7 @@ describe('GET /api/consent/admin — governance read view (superadmin only)', ()
   });
 
   it('never exposes PII beyond the subject id', async () => {
-    const res = await handler({ httpMethod: 'GET', queryStringParameters: {} });
+    const res = await handler({ httpMethod: 'GET', queryStringParameters: {} } as unknown as HandlerEvent);
 
     const body = JSON.parse(res.body);
     expect(body.records[0].userId).toBe('user-A');
@@ -148,7 +149,7 @@ describe('GET /api/consent/admin — governance read view (superadmin only)', ()
   });
 
   it('returns 405 for non-GET methods', async () => {
-    const res = await handler({ httpMethod: 'POST', body: '{}' });
+    const res = await handler({ httpMethod: 'POST', body: '{}' } as unknown as HandlerEvent);
 
     expect(res.statusCode).toBe(405);
     expect((res.headers as Record<string, string>).Allow).toContain('GET');

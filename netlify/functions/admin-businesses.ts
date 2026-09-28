@@ -1,3 +1,4 @@
+import type { HandlerEvent } from '@netlify/functions';
 import prisma from './lib/prisma';
 import { requireSuperAdmin } from './lib/auth';
 
@@ -8,7 +9,7 @@ const headers = {
 };
 
 
-export const handler = async (event: any) => {
+export const handler = async (event: HandlerEvent) => {
   // Only allow GET
   if (event.httpMethod !== 'GET') {
     return {

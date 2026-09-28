@@ -1,3 +1,4 @@
+import type { HandlerEvent } from '@netlify/functions';
 // netlify/functions/legal-docs.ts
 // Public legal document registry endpoint (design D8; WU2b task 2.4).
 //
@@ -16,7 +17,7 @@ const headers = {
   'X-Content-Type-Options': 'nosniff',
 };
 
-export const handler = async (event: any) => {
+export const handler = async (event: HandlerEvent) => {
   if (event.httpMethod !== 'GET') {
     return {
       statusCode: 405,

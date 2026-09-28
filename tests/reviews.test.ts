@@ -4,6 +4,7 @@
 // tested with minimal mocks (lib/prisma, lib/auth). No DATABASE_URL needed.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { HandlerEvent } from '@netlify/functions';
 
 vi.mock('../netlify/functions/lib/prisma', () => ({
   default: {
@@ -89,7 +90,7 @@ describe('reviews handler POST', () => {
       httpMethod: 'POST',
       headers: { authorization: 'Bearer token' },
       body: JSON.stringify({ rating: 5, comment: 'Ótimo serviço', businessId: 'b1', consumerId: 'client-fake' }),
-    });
+    } as unknown as HandlerEvent);
 
     expect(res.statusCode).toBe(201);
     expect(reviewCreateMock).toHaveBeenCalledTimes(1);
@@ -106,7 +107,7 @@ describe('reviews handler POST', () => {
       httpMethod: 'POST',
       headers: {},
       body: JSON.stringify({ rating: 5, comment: 'x', businessId: 'b1' }),
-    });
+    } as unknown as HandlerEvent);
 
     expect(res.statusCode).toBe(401);
     expect(reviewCreateMock).not.toHaveBeenCalled();
@@ -117,7 +118,7 @@ describe('reviews handler POST', () => {
       httpMethod: 'POST',
       headers: { authorization: 'Bearer token' },
       body: JSON.stringify({ rating: 9, comment: '', businessId: 'b1' }),
-    });
+    } as unknown as HandlerEvent);
 
     expect(res.statusCode).toBe(400);
     expect(reviewCreateMock).not.toHaveBeenCalled();
@@ -128,7 +129,7 @@ describe('reviews handler POST', () => {
       httpMethod: 'POST',
       headers: { authorization: 'Bearer token' },
       body: JSON.stringify({ rating: 4, comment: 'bom', businessId: 'b1' }),
-    });
+    } as unknown as HandlerEvent);
     expect(res.headers).toEqual(headers);
   });
 
@@ -138,7 +139,7 @@ describe('reviews handler POST', () => {
       httpMethod: 'POST',
       headers: { authorization: 'Bearer token' },
       body: JSON.stringify({ rating: 5, comment: 'duplicado', businessId: 'b1' }),
-    });
+    } as unknown as HandlerEvent);
     expect(res.statusCode).toBe(409);
     expect(reviewCreateMock).not.toHaveBeenCalled();
   });
@@ -149,7 +150,7 @@ describe('reviews handler POST', () => {
       httpMethod: 'POST',
       headers: { authorization: 'Bearer token' },
       body: JSON.stringify({ rating: 5, comment: 'review de business', businessId: 'b1' }),
-    });
+    } as unknown as HandlerEvent);
     expect(res.statusCode).toBe(403);
     expect(reviewCreateMock).not.toHaveBeenCalled();
   });

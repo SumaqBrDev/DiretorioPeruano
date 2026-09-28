@@ -1,3 +1,4 @@
+import type { HandlerEvent } from '@netlify/functions';
 // netlify/functions/blob-asset.ts
 // Serves Netlify Blobs through the functions API.
 //
@@ -35,7 +36,7 @@ function mimeFromKey(key: string): string {
   return EXT_MIME[ext] || 'application/octet-stream';
 }
 
-export const handler = async (event: any) => {
+export const handler = async (event: HandlerEvent) => {
   const json = (statusCode: number, obj: Record<string, unknown>) => ({
     statusCode,
     headers: baseHeaders,

@@ -1,7 +1,8 @@
+import type { HandlerEvent } from '@netlify/functions';
 import prisma from './lib/prisma';
 import { authenticateRequest } from './lib/auth';
 
-export const handler = async (event: any) => {
+export const handler = async (event: HandlerEvent) => {
   const headers = {
     'Content-Type': 'application/json',
     'X-Frame-Options': 'DENY',
@@ -83,15 +84,6 @@ export const handler = async (event: any) => {
 
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-      const whereBase: any = {
-        OR: [
-          { fromBusinessId: businessId },
-          { toBusinessId: businessId },
-        ],
-        // Exclude permanently deleted (older than 30 days)
-        OR_deleted: undefined,
-      };
 
       // Handle soft-delete filtering
       const deletedFilter: any = {};

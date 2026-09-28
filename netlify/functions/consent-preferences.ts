@@ -1,3 +1,4 @@
+import type { HandlerEvent } from '@netlify/functions';
 // netlify/functions/consent-preferences.ts
 // LGPD cookie-category preferences endpoint (design D7/D8; WU2b task 2.4).
 //
@@ -32,7 +33,7 @@ function unauthorized(auth: any) {
   };
 }
 
-function parseBody(event: any): any {
+function parseBody(event: HandlerEvent): any {
   try {
     return event.body ? JSON.parse(event.body) : {};
   } catch {
@@ -48,7 +49,7 @@ function invalidPayload(error: string) {
   };
 }
 
-async function getPreferences(event: any) {
+async function getPreferences(event: HandlerEvent) {
   const auth = await authenticateRequest(event);
   if (!auth.ok) return unauthorized(auth);
 
@@ -64,7 +65,7 @@ async function getPreferences(event: any) {
   };
 }
 
-async function postPreferences(event: any) {
+async function postPreferences(event: HandlerEvent) {
   const auth = await authenticateRequest(event);
   if (!auth.ok) return unauthorized(auth);
 
@@ -103,7 +104,7 @@ async function postPreferences(event: any) {
   return { statusCode: 200, headers, body: JSON.stringify({ preferences }) };
 }
 
-export const handler = async (event: any) => {
+export const handler = async (event: HandlerEvent) => {
   if (event.httpMethod === 'GET') return getPreferences(event);
   if (event.httpMethod === 'POST') return postPreferences(event);
 

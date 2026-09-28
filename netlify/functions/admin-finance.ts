@@ -1,3 +1,4 @@
+import type { HandlerEvent } from '@netlify/functions';
 // netlify/functions/admin-finance.ts
 // Financial dashboard for the superadmin: revenue breakdown (subscriptions
 // vs one-time ads) plus detailed tables of active subscriptions and paid ads.
@@ -14,7 +15,7 @@ const headers = {
 const SUB_PRICE_CENTS = parseInt(process.env.SUB_PRICE_CENTS || '5900', 10); // R$59/mes
 const AD_PRICE_CENTS = parseInt(process.env.AD_PRICE_CENTS || '3000', 10); // R$30
 
-export const handler = async (event: any) => {
+export const handler = async (event: HandlerEvent) => {
   if (event.httpMethod !== 'GET') {
     return {
       statusCode: 405,

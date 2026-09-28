@@ -14,6 +14,7 @@
 // mocked prisma via injected deps. Error envelope (design D6): { error, code? }.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { HandlerEvent } from '@netlify/functions';
 
 vi.mock('../netlify/functions/lib/prisma', () => ({
   default: {
@@ -83,7 +84,7 @@ describe('POST /api/businesses — LGPD re-consent gate (WU2c)', () => {
   it('blocks creation with 409 CONSENT_REQUIRED when mandatory consent is missing', async () => {
     recordFindManyMock.mockResolvedValue([] as any);
 
-    const res = await handler({ httpMethod: 'POST', body: validBody() });
+    const res = await handler({ httpMethod: 'POST', body: validBody() } as unknown as HandlerEvent);
 
     expect(res.statusCode).toBe(409);
     const body = JSON.parse(res.body);
@@ -99,7 +100,7 @@ describe('POST /api/businesses — LGPD re-consent gate (WU2c)', () => {
       CURRENT_SERVICE_ROWS[1],
     ] as any);
 
-    const res = await handler({ httpMethod: 'POST', body: validBody() });
+    const res = await handler({ httpMethod: 'POST', body: validBody() } as unknown as HandlerEvent);
 
     expect(res.statusCode).toBe(409);
     const body = JSON.parse(res.body);
@@ -111,7 +112,7 @@ describe('POST /api/businesses — LGPD re-consent gate (WU2c)', () => {
   });
 
   it('proceeds with 201 when mandatory consent is current', async () => {
-    const res = await handler({ httpMethod: 'POST', body: validBody() });
+    const res = await handler({ httpMethod: 'POST', body: validBody() } as unknown as HandlerEvent);
 
     expect(res.statusCode).toBe(201);
     expect(createMock).toHaveBeenCalledTimes(1);
@@ -123,7 +124,7 @@ describe('POST /api/businesses — LGPD re-consent gate (WU2c)', () => {
     userFindMock.mockResolvedValue({ id: 'user-db-id', role: 'admin' } as any);
     recordFindManyMock.mockResolvedValue([] as any);
 
-    const res = await handler({ httpMethod: 'POST', body: validBody() });
+    const res = await handler({ httpMethod: 'POST', body: validBody() } as unknown as HandlerEvent);
 
     expect(res.statusCode).toBe(201);
     // Admin short-circuits: consent evidence is never consulted.
@@ -135,7 +136,7 @@ describe('POST /api/businesses — LGPD re-consent gate (WU2c)', () => {
     userFindMock.mockResolvedValue({ id: 'user-db-id', role: 'superadmin' } as any);
     recordFindManyMock.mockResolvedValue([] as any);
 
-    const res = await handler({ httpMethod: 'POST', body: validBody() });
+    const res = await handler({ httpMethod: 'POST', body: validBody() } as unknown as HandlerEvent);
 
     expect(res.statusCode).toBe(201);
     expect(recordFindManyMock).not.toHaveBeenCalled();
@@ -145,7 +146,7 @@ describe('POST /api/businesses — LGPD re-consent gate (WU2c)', () => {
   it('fails closed when the local user row is missing (401, creation blocked)', async () => {
     userFindMock.mockResolvedValue(null as any);
 
-    const res = await handler({ httpMethod: 'POST', body: validBody() });
+    const res = await handler({ httpMethod: 'POST', body: validBody() } as unknown as HandlerEvent);
 
     expect(res.statusCode).toBe(401);
     expect(JSON.parse(res.body).error).toBe('Usuário não encontrado');
@@ -157,7 +158,7 @@ describe('POST /api/businesses — LGPD re-consent gate (WU2c)', () => {
   it('preserves the consumer role block after the gate passes', async () => {
     userFindMock.mockResolvedValue({ id: 'user-db-id', role: 'consumer' } as any);
 
-    const res = await handler({ httpMethod: 'POST', body: validBody() });
+    const res = await handler({ httpMethod: 'POST', body: validBody() } as unknown as HandlerEvent);
 
     expect(res.statusCode).toBe(403);
     expect(JSON.parse(res.body).error).toBe('Apenas contas empresariais podem cadastrar negócios');
@@ -167,7 +168,7 @@ describe('POST /api/businesses — LGPD re-consent gate (WU2c)', () => {
   it('returns 401 when unauthenticated (existing auth behavior preserved)', async () => {
     authMock.mockResolvedValue({ ok: false, statusCode: 401, error: 'No autorizado — token requerido' } as any);
 
-    const res = await handler({ httpMethod: 'POST', body: validBody() });
+    const res = await handler({ httpMethod: 'POST', body: validBody() } as unknown as HandlerEvent);
 
     expect(res.statusCode).toBe(401);
     expect(createMock).not.toHaveBeenCalled();

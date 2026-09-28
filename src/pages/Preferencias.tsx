@@ -126,8 +126,6 @@ export const Preferencias = () => {
   }, [hydrated, preferences]);
 
   const currentRows = resolveCurrentFromRecords(records);
-  const mandatoryRows = currentRows.filter((r) => isMandatoryPurpose(r.purpose));
-  const optionalRows = currentRows.filter((r) => isOptionalPurpose(r.purpose));
 
   const handleSaveCookies = async () => {
     if (cookieSaving) return;

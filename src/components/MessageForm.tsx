@@ -1,7 +1,7 @@
 // src/components/MessageForm.tsx
 // Modal overlay for composing a new B2B message with simple autocomplete select
 
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Send, X, ChevronDown } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -61,6 +61,13 @@ export const MessageForm = ({ isOpen, onClose, onSend, businesses, businessesLoa
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  const selectBusiness = useCallback((id: string) => {
+    setSelectedBusinessId(id)
+    setSearchQuery(businesses.find((b) => b.id === id)?.name || '')
+    setShowDropdown(false)
+    setHighlightedIndex(-1)
+  }, [businesses])
+
   // Keyboard navigation
   useEffect(() => {
     if (!showDropdown) return
@@ -82,14 +89,7 @@ export const MessageForm = ({ isOpen, onClose, onSend, businesses, businessesLoa
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [showDropdown, filteredBusinesses, highlightedIndex])
-
-  const selectBusiness = (id: string) => {
-    setSelectedBusinessId(id)
-    setSearchQuery(businesses.find((b) => b.id === id)?.name || '')
-    setShowDropdown(false)
-    setHighlightedIndex(-1)
-  }
+  }, [showDropdown, filteredBusinesses, highlightedIndex, selectBusiness])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()

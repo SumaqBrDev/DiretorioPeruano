@@ -2,7 +2,7 @@
 // Public read endpoint: active paid ads for the Comunidad section.
 // Opción A (sidebar 300x250) + Opción B (featured card) both consume this.
 // Ordering: soonest-expiring first → fair rotation, no manual curation.
-import { Handler, HandlerEvent } from '@netlify/functions';
+import { HandlerEvent } from '@netlify/functions';
 import prisma from './lib/prisma';
 
 export const handler = async (event: HandlerEvent) => {

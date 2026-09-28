@@ -1,3 +1,4 @@
+import type { HandlerEvent } from '@netlify/functions';
 import prisma from './lib/prisma';
 import Stripe from 'stripe';
 import { getStripe } from './lib/stripe';
@@ -173,7 +174,7 @@ export async function handleAdCheckoutCompleted(session: Stripe.Checkout.Session
   console.log(`BusinessAd ${adId} activated (${adDays} days) via session ${session.id}`);
 }
 
-export const handler = async (event: any) => {
+export const handler = async (event: HandlerEvent) => {
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,

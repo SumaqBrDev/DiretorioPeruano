@@ -15,6 +15,7 @@
 // Error envelope (design D6): { error: string, code?: string }.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { HandlerEvent } from '@netlify/functions';
 
 vi.mock('../netlify/functions/lib/prisma', () => ({
   default: {
@@ -90,8 +91,8 @@ function prefRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function authEvent(path = '/api/consent', overrides: Record<string, unknown> = {}) {
-  return { httpMethod: 'POST', path, body: '{}', ...overrides };
+function authEvent(path = '/api/consent', overrides: Record<string, unknown> = {}): HandlerEvent {
+  return { httpMethod: 'POST', path, body: '{}', ...overrides } as unknown as HandlerEvent;
 }
 
 const validRecordBody = {

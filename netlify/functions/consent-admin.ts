@@ -1,3 +1,4 @@
+import type { HandlerEvent } from '@netlify/functions';
 // netlify/functions/consent-admin.ts
 // LGPD governance read view (design D8; WU2b task 2.4).
 //
@@ -27,7 +28,7 @@ function toPositiveInt(raw: string | undefined, fallback: number): number {
   return parsed;
 }
 
-export const handler = async (event: any) => {
+export const handler = async (event: HandlerEvent) => {
   if (event.httpMethod !== 'GET') {
     return {
       statusCode: 405,
@@ -50,7 +51,7 @@ export const handler = async (event: any) => {
     const { documentType, source } = params;
 
     // Closed-list filter validation — unknown values are rejected (422).
-    if (documentType !== undefined && !CLOSED_LISTS.documentTypes.includes(documentType)) {
+    if (documentType !== undefined && !(CLOSED_LISTS.documentTypes as readonly string[]).includes(documentType)) {
       return {
         statusCode: 422,
         headers,
@@ -60,7 +61,7 @@ export const handler = async (event: any) => {
         }),
       };
     }
-    if (source !== undefined && !CLOSED_LISTS.sources.includes(source)) {
+    if (source !== undefined && !(CLOSED_LISTS.sources as readonly string[]).includes(source)) {
       return {
         statusCode: 422,
         headers,

@@ -1,3 +1,4 @@
+import type { HandlerEvent } from '@netlify/functions';
 // tests/finance.test.ts
 // Admin financial dashboard (admin-finance.ts) — resumen de ingresos por
 // suscripción y por anuncios + tablas detalladas. Solo superadmin puede
@@ -24,8 +25,8 @@ const superAdminMock = vi.mocked(requireSuperAdmin);
 const subsFindMock = vi.mocked(prisma.businessProfile.findMany);
 const adsFindMock = vi.mocked(prisma.businessAd.findMany);
 
-function getEvent() {
-  return { httpMethod: 'GET', headers: {} };
+function getEvent(): HandlerEvent {
+  return { httpMethod: 'GET', headers: {} } as unknown as HandlerEvent;
 }
 
 const now = new Date('2026-08-13T00:00:00Z');
@@ -45,7 +46,7 @@ afterEach(() => {
 
 describe('admin-finance access control', () => {
   it('rejects non-GET methods', async () => {
-    const res = await handler({ httpMethod: 'POST', headers: {} });
+    const res = await handler({ httpMethod: 'POST', headers: {} } as unknown as HandlerEvent);
     expect(res.statusCode).toBe(405);
   });
 

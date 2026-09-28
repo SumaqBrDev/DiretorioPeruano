@@ -1,3 +1,4 @@
+import type { HandlerEvent } from '@netlify/functions';
 import prisma from './lib/prisma';
 
 const headers = {
@@ -13,7 +14,7 @@ const headers = {
  *  - come from DISTINCT businesses (one review per business)
  * A fresh random set is produced per request.
  */
-export const handler = async (event: any) => {
+export const handler = async (event: HandlerEvent) => {
   if (event.httpMethod !== 'GET') {
     return {
       statusCode: 405,

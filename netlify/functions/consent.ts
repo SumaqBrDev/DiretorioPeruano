@@ -1,3 +1,4 @@
+import type { HandlerEvent } from '@netlify/functions';
 // netlify/functions/consent.ts
 // LGPD consent record + query endpoint (design D8; WU2b task 2.4).
 //
@@ -39,7 +40,7 @@ function unauthorized(auth: any) {
   };
 }
 
-function parseBody(event: any): any {
+function parseBody(event: HandlerEvent): any {
   try {
     return event.body ? JSON.parse(event.body) : {};
   } catch {
@@ -55,7 +56,7 @@ function invalidJson() {
   };
 }
 
-async function postRecord(event: any) {
+async function postRecord(event: HandlerEvent) {
   try {
     const auth = await authenticateRequest(event);
     if (!auth.ok) return unauthorized(auth);
@@ -131,7 +132,7 @@ async function postRecord(event: any) {
   }
 }
 
-async function getHistory(event: any) {
+async function getHistory(event: HandlerEvent) {
   try {
     const auth = await authenticateRequest(event);
     if (!auth.ok) return unauthorized(auth);
@@ -154,7 +155,7 @@ async function getHistory(event: any) {
   }
 }
 
-async function getStatus(event: any) {
+async function getStatus(event: HandlerEvent) {
   try {
     const auth = await authenticateRequest(event);
     if (!auth.ok) return unauthorized(auth);
@@ -187,7 +188,7 @@ async function getStatus(event: any) {
   }
 }
 
-export const handler = async (event: any) => {
+export const handler = async (event: HandlerEvent) => {
   const method = event.httpMethod;
   const path = event.path || '';
   const isStatus = path.endsWith('/status');

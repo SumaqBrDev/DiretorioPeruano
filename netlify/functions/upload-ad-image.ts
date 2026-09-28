@@ -1,3 +1,4 @@
+import type { HandlerEvent } from '@netlify/functions';
 // netlify/functions/upload-ad-image.ts
 // Upload ONE ad image (local file) — same security pattern as upload-image.ts
 // (Clerk auth, magic-byte validation, 5MB cap, Netlify Blobs) but scoped to a
@@ -100,7 +101,7 @@ function parseMultipart(body: Buffer, boundary: string): {
   return { files, fields };
 }
 
-export const handler = async (event: any) => {
+export const handler = async (event: HandlerEvent) => {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
@@ -161,9 +162,10 @@ export const handler = async (event: any) => {
       };
     }
 
+    const requestBody = event.body ?? '';
     const rawBody = event.isBase64Encoded
-      ? Buffer.from(event.body, 'base64')
-      : Buffer.from(event.body || '');
+      ? Buffer.from(requestBody, 'base64')
+      : Buffer.from(requestBody);
 
     const { files, fields } = parseMultipart(rawBody, boundary);
     const uploadedFiles = files.length > 0

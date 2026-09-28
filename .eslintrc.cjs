@@ -18,13 +18,27 @@ module.exports = {
   ignorePatterns: [
     'dist',
     'node_modules',
-    'netlify/**',
     'r2-upload-worker',
-    'scripts',
     'public',
     '*.d.ts',
     'tsconfig*.json',
-    'vite.config.*',
+  ],
+  overrides: [
+    {
+      files: ['**/*.{ts,tsx}'],
+      parser: '@typescript-eslint/parser',
+      parserOptions: {
+        ecmaVersion: 'latest',
+        sourceType: 'module',
+        ecmaFeatures: { jsx: true },
+      },
+      plugins: ['@typescript-eslint'],
+      rules: {
+        'no-undef': 'off',
+        'no-unused-vars': 'off',
+        '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      },
+    },
   ],
   rules: {
     'react/react-in-jsx-scope': 'off',

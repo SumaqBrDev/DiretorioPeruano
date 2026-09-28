@@ -1,3 +1,4 @@
+import type { HandlerEvent } from '@netlify/functions';
 import prisma from './lib/prisma';
 import { authenticateRequest } from './lib/auth';
 
@@ -11,7 +12,7 @@ const headers = {
  * GET/PUT "my business" for the authenticated user.
  * Maps to PRODUCT.md: GET /api/businesses/me and PUT /api/businesses/me.
  */
-export const handler = async (event: any) => {
+export const handler = async (event: HandlerEvent) => {
   const auth = await authenticateRequest(event);
   if (!auth.ok) {
     return {

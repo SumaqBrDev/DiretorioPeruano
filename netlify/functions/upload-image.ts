@@ -1,3 +1,4 @@
+import type { HandlerEvent } from '@netlify/functions';
 import { getStore } from '@netlify/blobs';
 import crypto from 'node:crypto';
 import prisma from './lib/prisma';
@@ -43,7 +44,6 @@ function parseMultipart(body: Buffer, boundary: string): {
 } {
   const files: Array<{ fieldname: string; filename: string; contentType: string; data: Buffer }> = [];
   const fields: Record<string, string> = {};
-  const boundaryStr = `--${boundary}`;
   const boundaryStrBuf = Buffer.from(`\r\n--${boundary}`);
   const endBoundaryStrBuf = Buffer.from(`\r\n--${boundary}--`);
 
@@ -121,7 +121,7 @@ function parseMultipart(body: Buffer, boundary: string): {
   return { files, fields };
 }
 
-export const handler = async (event: any) => {
+export const handler = async (event: HandlerEvent) => {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
@@ -185,10 +185,11 @@ export const handler = async (event: any) => {
       };
     }
 
+    const requestBody = event.body ?? '';
     // Handle both base64-encoded and raw body
     const rawBody = event.isBase64Encoded
-      ? Buffer.from(event.body, 'base64')
-      : Buffer.from(event.body || '');
+      ? Buffer.from(requestBody, 'base64')
+      : Buffer.from(requestBody);
 
     const { files, fields } = parseMultipart(rawBody, boundary);
 

@@ -10,12 +10,13 @@
 // purposes, legalBases, locale) — no section wording, no internal flags.
 
 import { describe, it, expect } from 'vitest';
+import type { HandlerEvent } from '@netlify/functions';
 
 import { handler } from '../netlify/functions/legal-docs';
 import { activeLegalDocs } from '../src/config/legal';
 
-function event(method = 'GET') {
-  return { httpMethod: method };
+function event(method = 'GET'): HandlerEvent {
+  return { httpMethod: method } as unknown as HandlerEvent;
 }
 
 describe('GET /api/legal-docs — public active legal registry', () => {

@@ -1,3 +1,4 @@
+import type { HandlerEvent } from '@netlify/functions';
 import prisma from './lib/prisma';
 import { getStripe } from './lib/stripe';
 import { sendApprovalEmail } from './lib/email';
@@ -15,7 +16,7 @@ const STRIPE_TRIAL_DAYS = parseInt(process.env.STRIPE_TRIAL_DAYS || '30', 10);
 // Present = applied to every subscription created on approval; remove to disable.
 const EARLY_BIRD_COUPON_ID = process.env.EARLY_BIRD_COUPON_ID || '';
 
-export const handler = async (event: any) => {
+export const handler = async (event: HandlerEvent) => {
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,

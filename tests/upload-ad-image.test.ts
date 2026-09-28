@@ -3,6 +3,7 @@
 // and store behavior. Mocked deps — no DATABASE_URL or real blobs needed.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { HandlerEvent } from '@netlify/functions';
 
 vi.mock('../netlify/functions/lib/prisma', () => ({
   default: {
@@ -108,7 +109,7 @@ describe('upload-ad-image', () => {
   });
 
   it('rejects non-POST methods', async () => {
-    const res = await handler({ httpMethod: 'GET', headers: {} });
+    const res = await handler({ httpMethod: 'GET', headers: {} } as unknown as HandlerEvent);
     expect(res.statusCode).toBe(405);
   });
 });
