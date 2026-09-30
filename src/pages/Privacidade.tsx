@@ -109,10 +109,10 @@ export const Privacidade = () => {
             <p className="text-gray-500 dark:text-gray-400 text-sm">
               Dúvidas sobre privacidade? Entre em contato:{' '}
               <a
-                href="mailto:privacidade@conectaperu.com.br"
+                href="mailto:negocionobrasilperu@gmail.com"
                 className="text-aji-rojo hover:underline font-medium"
               >
-                privacidade@conectaperu.com.br
+                negocionobrasilperu@gmail.com
               </a>
             </p>
           </div>

@@ -109,10 +109,10 @@ export const Termos = () => {
             <p className="text-gray-500 dark:text-gray-400 text-sm">
               Dúvidas sobre os Termos de Serviço? Entre em contato:{' '}
               <a
-                href="mailto:contato@conectaperu.com.br"
+                href="mailto:negocionobrasilperu@gmail.com"
                 className="text-aji-rojo hover:underline font-medium"
               >
-                contato@conectaperu.com.br
+                negocionobrasilperu@gmail.com
               </a>
             </p>
           </div>
