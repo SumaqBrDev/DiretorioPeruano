@@ -73,6 +73,49 @@ describe('stripe-checkout upgrade flow', () => {
     expect(stripeMocks.sessionsCreate.mock.calls[0][0]).not.toHaveProperty('subscription_data');
   });
 
+  // Stripe rejects setup-mode sessions without `currency` with
+  // 400 parameter_missing (param: currency); the handler then returned 500 and
+  // the owner saw an alert right after the business was created successfully.
+  it('sends the subscription currency so Stripe accepts the setup session', async () => {
+    businessFindMock.mockResolvedValue({
+      id: 'biz-1',
+      name: 'Mi Negocio',
+      status: 'pending',
+      ownerId: 'user-1',
+      stripeCustomerId: null,
+      owner: { id: 'user-1', email: 'owner@example.test', name: 'Owner' },
+    } as never);
+    businessUpdateMock.mockResolvedValue({ id: 'biz-1', stripeCustomerId: 'cus_new' } as never);
+
+    const res = await handler(postEvent());
+
+    expect(res.statusCode).toBe(200);
+    expect(stripeMocks.sessionsCreate.mock.calls[0][0]).toMatchObject({ currency: 'brl' });
+  });
+
+  it('reports a retryable payment-setup failure instead of a bare 500 when Stripe rejects the session', async () => {
+    businessFindMock.mockResolvedValue({
+      id: 'biz-1',
+      name: 'Mi Negocio',
+      status: 'pending',
+      ownerId: 'user-1',
+      stripeCustomerId: 'cus_existing',
+      owner: { id: 'user-1', email: 'owner@example.test', name: 'Owner' },
+    } as never);
+    stripeMocks.sessionsCreate.mockRejectedValue(
+      Object.assign(new Error('Missing required param: currency.'), { type: 'StripeInvalidRequestError' })
+    );
+
+    const res = await handler(postEvent());
+
+    expect(res.statusCode).toBe(502);
+    const payload = JSON.parse(res.body);
+    expect(payload.code).toBe('PAYMENT_SETUP_UNAVAILABLE');
+    // The business is already created and pending: the message must say the
+    // request is saved and the payment method can be retried, not that saving failed.
+    expect(payload.error).toMatch(/pendente|pendiente/i);
+  });
+
   it('does not create checkout when the business already has a subscription', async () => {
     businessFindMock.mockResolvedValue({
       id: 'biz-1',

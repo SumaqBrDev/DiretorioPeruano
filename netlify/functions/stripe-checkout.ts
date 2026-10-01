@@ -11,6 +11,10 @@ const headers = {
 
 const STRIPE_PRICE_ID = process.env.STRIPE_PRICE_ID || 'price_59_brl_monthly';
 const STRIPE_TRIAL_DAYS = parseInt(process.env.STRIPE_TRIAL_DAYS || '30', 10);
+// Currency of the subscription price charged after approval (R$59/month).
+// Setup-mode Checkout has no price to infer it from, so it must be passed
+// explicitly and kept in sync with the configured Stripe price.
+const SUBSCRIPTION_CURRENCY = (process.env.STRIPE_CURRENCY || 'brl').toLowerCase();
 
 const stripe = getStripe();
 
@@ -137,9 +141,15 @@ export const handler = async (event: HandlerEvent) => {
 
     // Create Checkout session in setup mode only: collect and save a payment
     // method without creating a subscription or charging while pending.
+    //
+    // `currency` is REQUIRED in setup mode: Stripe has no price to infer it
+    // from, and omitting it fails with 400 parameter_missing (param: currency).
+    // It must match the subscription price created on approval, otherwise the
+    // saved payment method may not be usable for that currency.
     const session = await stripe.checkout.sessions.create({
       mode: 'setup',
       customer: customerId,
+      currency: SUBSCRIPTION_CURRENCY,
       metadata: { businessId: business.id, plan, priceId },
       setup_intent_data: {
         metadata: { businessId: business.id, plan, priceId },
@@ -155,10 +165,18 @@ export const handler = async (event: HandlerEvent) => {
     };
   } catch (error: any) {
     console.error('Error in stripe-checkout:', error);
+    // The business row is already created and pending at this point, so a
+    // checkout failure must NOT read as "saving failed". Report it as a
+    // retryable payment-setup problem and keep the request intact.
     return {
-      statusCode: 500,
+      statusCode: 502,
       headers,
-      body: JSON.stringify({ error: 'Error al crear el checkout', details: error.message }),
+      body: JSON.stringify({
+        error:
+          'Sua solicitação foi salva e está pendente de aprovação. Não conseguimos abrir o checkout para salvar o método de pagamento agora; tente novamente pelo painel Meu Negócio.',
+        code: 'PAYMENT_SETUP_UNAVAILABLE',
+        details: error.message,
+      }),
     };
   }
 };
