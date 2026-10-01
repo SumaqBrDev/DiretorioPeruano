@@ -14,7 +14,15 @@ const STRIPE_PRICE_ID = process.env.STRIPE_PRICE_ID || 'price_59_brl_monthly';
 const STRIPE_TRIAL_DAYS = parseInt(process.env.STRIPE_TRIAL_DAYS || '30', 10);
 // Early-bird launch offer: coupon id (amount_off R$20, duration repeating 3 months).
 // Present = applied to every subscription created on approval; remove to disable.
-const EARLY_BIRD_COUPON_ID = process.env.EARLY_BIRD_COUPON_ID || '';
+// Read at call time so the configured value is honoured per request.
+const getEarlyBirdCouponId = () => process.env.EARLY_BIRD_COUPON_ID || '';
+
+// Version of the subscription-create payload sent to Stripe. Stripe binds an
+// idempotency key to the exact parameters it was first used with and answers
+// `idempotency_error` when a reused key carries a different payload. Earlier
+// attempts burned the unversioned key with a now-invalid payload, so the key
+// must change whenever the payload shape does. Bump this on every such change.
+const APPROVAL_PAYLOAD_VERSION = 2;
 
 type StripeCustomerWithDefaultPaymentMethod = {
   deleted?: boolean;
@@ -177,14 +185,17 @@ export const handler = async (event: HandlerEvent) => {
           default_payment_method: defaultPaymentMethodId,
           items: [{ price: STRIPE_PRICE_ID }],
           trial_period_days: STRIPE_TRIAL_DAYS,
-          ...(EARLY_BIRD_COUPON_ID ? { coupon: EARLY_BIRD_COUPON_ID } : {}),
+          // Stripe removed the top-level `coupon` param on subscription create:
+          // it now answers "Received unknown parameter: coupon. Did you mean to
+          // use `discounts` instead?" and the approval fails with 502.
+          ...(getEarlyBirdCouponId() ? { discounts: [{ coupon: getEarlyBirdCouponId() }] } : {}),
           metadata: {
             businessId: business.id,
           },
           payment_settings: {
             save_default_payment_method: 'on_subscription',
           },
-        }, { idempotencyKey: `business-approval-${business.id}` });
+        }, { idempotencyKey: `business-approval-${business.id}-v${APPROVAL_PAYLOAD_VERSION}` });
 
         subscriptionId = subscription.id;
         trialEndsAt = subscription.trial_end

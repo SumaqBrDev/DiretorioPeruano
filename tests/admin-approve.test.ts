@@ -138,7 +138,7 @@ describe('admin-approve existing checkout subscription', () => {
       items: [{ price: 'price_59_brl_monthly' }],
       trial_period_days: 30,
       metadata: { businessId: 'biz-1' },
-    }), { idempotencyKey: 'business-approval-biz-1' });
+    }), { idempotencyKey: 'business-approval-biz-1-v2' });
     expect(businessUpdateMock).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
         status: 'approved',
@@ -147,6 +147,52 @@ describe('admin-approve existing checkout subscription', () => {
         trialEndsAt: new Date(1790812800 * 1000),
       }),
     }));
+  });
+
+  // Stripe's current API rejects a top-level `coupon` on subscription create
+  // with "Received unknown parameter: coupon. Did you mean to use `discounts`
+  // instead?", so approval failed with 502 and the business stayed pending.
+  it('applies the early-bird coupon through discounts, not the removed top-level coupon param', async () => {
+    const previousCoupon = process.env.EARLY_BIRD_COUPON_ID;
+    process.env.EARLY_BIRD_COUPON_ID = 'early-bird';
+    businessFindMock.mockResolvedValue(pendingBusiness as never);
+    stripeMocks.customersRetrieve.mockResolvedValue({
+      id: 'cus_existing',
+      deleted: false,
+      invoice_settings: { default_payment_method: 'pm_saved' },
+    } as never);
+
+    try {
+      const res = await handler(postEvent());
+
+      expect(res.statusCode).toBe(200);
+      const payload = stripeMocks.subscriptionsCreate.mock.calls[0][0];
+      expect(payload).not.toHaveProperty('coupon');
+      expect(payload.discounts).toEqual([{ coupon: 'early-bird' }]);
+    } finally {
+      if (previousCoupon === undefined) delete process.env.EARLY_BIRD_COUPON_ID;
+      else process.env.EARLY_BIRD_COUPON_ID = previousCoupon;
+    }
+  });
+
+  // Stripe rejects a reused idempotency key whose parameters changed with
+  // "Keys for idempotent requests can only be used with the same parameters".
+  // The failed coupon attempt already burned `business-approval-<id>`, so the
+  // corrected payload MUST use a distinct, versioned key or every retry fails.
+  it('uses a payload-versioned idempotency key so the corrected request is not blocked by the failed one', async () => {
+    businessFindMock.mockResolvedValue(pendingBusiness as never);
+    stripeMocks.customersRetrieve.mockResolvedValue({
+      id: 'cus_existing',
+      deleted: false,
+      invoice_settings: { default_payment_method: 'pm_saved' },
+    } as never);
+
+    const res = await handler(postEvent());
+
+    expect(res.statusCode).toBe(200);
+    const options = stripeMocks.subscriptionsCreate.mock.calls[0][1];
+    expect(options.idempotencyKey).not.toBe('business-approval-biz-1');
+    expect(options.idempotencyKey).toMatch(/^business-approval-biz-1-v\d+$/);
   });
 
   it('keeps the business pending when setup checkout has not saved a default payment method', async () => {
