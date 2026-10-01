@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   getBusinessAccountNavEntry,
+  resolveSubmissionErrorMessage,
   runBusinessUpgradeSubmission,
   runPaymentMethodSetup,
 } from '../src/lib/businessUpgradeFlow';
@@ -258,5 +259,45 @@ describe('runPaymentMethodSetup', () => {
         openStripeCheckout: vi.fn(async () => ({ url: '', betaMode: true, message: 'Modo beta' })),
       })
     ).resolves.toEqual({ kind: 'no-url', message: 'Modo beta' });
+  });
+});
+
+describe('resolveSubmissionErrorMessage', () => {
+  const fallback = 'Erro ao salvar. Tente novamente.';
+
+  it('surfaces the validation reason the API returned instead of a generic message', () => {
+    expect(resolveSubmissionErrorMessage(new ApiError(400, 'CNPJ inválido'), fallback)).toBe('CNPJ inválido');
+  });
+
+  it('surfaces the business-intent requirement so the user learns the next step', () => {
+    const err = new ApiError(
+      403,
+      'Para cadastrar um negócio você precisa iniciar o cadastro empresarial, que inclui a assinatura com 30 dias de teste grátis.',
+      'BUSINESS_INTENT_REQUIRED'
+    );
+    expect(resolveSubmissionErrorMessage(err, fallback)).toBe(
+      'Para cadastrar um negócio você precisa iniciar o cadastro empresarial, que inclui a assinatura com 30 dias de teste grátis.'
+    );
+  });
+
+  it('surfaces the network failure reason', () => {
+    expect(resolveSubmissionErrorMessage(new ApiError(0, 'Falha de rede ao acessar a API'), fallback)).toBe(
+      'Falha de rede ao acessar a API'
+    );
+  });
+
+  it('falls back to the generic message when the API sent no usable reason', () => {
+    expect(resolveSubmissionErrorMessage(new ApiError(500, ''), fallback)).toBe(fallback);
+  });
+
+  it('hides raw non-API runtime failures behind the generic message', () => {
+    expect(resolveSubmissionErrorMessage(new TypeError("Cannot read properties of undefined (reading 'id')"), fallback)).toBe(
+      fallback
+    );
+  });
+
+  it('falls back to the generic message for unknown thrown values', () => {
+    expect(resolveSubmissionErrorMessage('boom', fallback)).toBe(fallback);
+    expect(resolveSubmissionErrorMessage(null, fallback)).toBe(fallback);
   });
 });

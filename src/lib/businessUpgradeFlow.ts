@@ -1,4 +1,25 @@
-import type { ApiBusiness, CreateBusinessInput } from './api';
+import { ApiError, type ApiBusiness, type CreateBusinessInput } from './api';
+
+/**
+ * Picks the message to show the user after a failed business submission.
+ *
+ * The API answers validation and policy failures with a human-readable reason
+ * in the `{error}` envelope (e.g. "CNPJ inválido", or the business-intent
+ * requirement). Collapsing those into a generic "try again" string strands the
+ * user: the screen gives no reason and no next step, so the same submission is
+ * retried unchanged.
+ *
+ * Only ApiError messages are surfaced. Other thrown values are runtime bugs
+ * whose text is meaningless (or leaks internals) to the user, so they keep the
+ * generic fallback and stay in the console for diagnosis.
+ */
+export function resolveSubmissionErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof ApiError) {
+    const message = error.message.trim();
+    if (message) return message;
+  }
+  return fallback;
+}
 
 export type BusinessAccountNavEntry = {
   path: '/registrar-negocio' | '/meu-negocio';

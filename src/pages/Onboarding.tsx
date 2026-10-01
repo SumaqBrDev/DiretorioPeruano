@@ -5,7 +5,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
 import { createBusiness, getMyBusiness, getConsentStatus, recordConsent, ApiError, markBusinessIntent, openStripeCheckout } from '../lib/api';
-import { runBusinessUpgradeSubmission } from '../lib/businessUpgradeFlow';
+import { resolveSubmissionErrorMessage, runBusinessUpgradeSubmission } from '../lib/businessUpgradeFlow';
 import { ConsentCheckboxes } from '../components/ConsentCheckboxes';
 import { activeLegalDocs } from '../config/legal';
 import {
@@ -457,7 +457,7 @@ export const Onboarding = () => {
         navigate('/reconsent', { state: { from: isBusinessUpgrade ? '/registrar-negocio' : '/onboarding' } });
         return;
       }
-      setToast({ message: 'Erro ao salvar. Tente novamente.', type: 'error' });
+      setToast({ message: resolveSubmissionErrorMessage(err, 'Erro ao salvar. Tente novamente.'), type: 'error' });
       return;
     }
   };
