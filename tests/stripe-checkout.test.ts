@@ -6,6 +6,7 @@ const { stripeMocks } = vi.hoisted(() => ({
   stripeMocks: {
     customersCreate: vi.fn(),
     sessionsCreate: vi.fn(),
+    pricesRetrieve: vi.fn(),
   },
 }));
 
@@ -20,6 +21,7 @@ vi.mock('../netlify/functions/lib/stripe', () => ({
   getStripe: () => ({
     customers: { create: stripeMocks.customersCreate },
     checkout: { sessions: { create: stripeMocks.sessionsCreate } },
+    prices: { retrieve: stripeMocks.pricesRetrieve },
   }),
 }));
 
@@ -38,6 +40,12 @@ const postEvent = (businessId = 'biz-1') => ({
   body: JSON.stringify({ businessId, plan: 'monthly' }),
 }) as unknown as HandlerEvent;
 
+const yearlyEvent = (businessId = 'biz-1') => ({
+  httpMethod: 'POST',
+  headers: { origin: 'https://example.test' },
+  body: JSON.stringify({ businessId, plan: 'yearly' }),
+}) as unknown as HandlerEvent;
+
 describe('stripe-checkout upgrade flow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -45,6 +53,7 @@ describe('stripe-checkout upgrade flow', () => {
     siteConfigFindMock.mockResolvedValue({ id: 'singleton', betaMode: false } as never);
     stripeMocks.customersCreate.mockResolvedValue({ id: 'cus_new' });
     stripeMocks.sessionsCreate.mockResolvedValue({ id: 'cs_1', url: 'https://checkout.stripe.test/session' });
+    stripeMocks.pricesRetrieve.mockResolvedValue({ id: 'price_59_brl_monthly', active: true });
   });
 
   it('creates a setup checkout session for a pending business without starting a subscription', async () => {
@@ -114,6 +123,38 @@ describe('stripe-checkout upgrade flow', () => {
     // The business is already created and pending: the message must say the
     // request is saved and the payment method can be retried, not that saving failed.
     expect(payload.error).toMatch(/pendente|pendiente/i);
+  });
+
+  // A plan whose price id is misconfigured must be rejected up front. The old
+  // `STRIPE_PRICE_ID_YEARLY || STRIPE_PRICE_ID` fallback only covered an EMPTY
+  // variable: a present-but-invalid id passed straight through, so setup mode
+  // (which never validates the price) saved a card for a price that does not
+  // exist, and approval failed later with "No such price".
+  it('rejects a plan whose configured price id does not exist instead of saving a card for it', async () => {
+    const previous = process.env.STRIPE_PRICE_ID_YEARLY;
+    process.env.STRIPE_PRICE_ID_YEARLY = 'price_does_not_exist';
+    stripeMocks.pricesRetrieve.mockRejectedValue(
+      Object.assign(new Error("No such price: 'price_does_not_exist'"), { code: 'resource_missing' })
+    );
+    businessFindMock.mockResolvedValue({
+      id: 'biz-1',
+      name: 'Mi Negocio',
+      status: 'pending',
+      ownerId: 'user-1',
+      stripeCustomerId: 'cus_existing',
+      owner: { id: 'user-1', email: 'owner@example.test', name: 'Owner' },
+    } as never);
+
+    try {
+      const res = await handler(yearlyEvent());
+
+      expect(res.statusCode).toBe(503);
+      expect(JSON.parse(res.body).code).toBe('PLAN_UNAVAILABLE');
+      expect(stripeMocks.sessionsCreate).not.toHaveBeenCalled();
+    } finally {
+      if (previous === undefined) delete process.env.STRIPE_PRICE_ID_YEARLY;
+      else process.env.STRIPE_PRICE_ID_YEARLY = previous;
+    }
   });
 
   it('does not create checkout when the business already has a subscription', async () => {

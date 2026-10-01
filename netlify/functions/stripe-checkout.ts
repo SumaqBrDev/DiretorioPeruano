@@ -117,9 +117,33 @@ export const handler = async (event: HandlerEvent) => {
       };
     }
 
-    // Resolve price id for the requested plan
-    const priceId =
-      plan === 'monthly' ? STRIPE_PRICE_ID : process.env.STRIPE_PRICE_ID_YEARLY || STRIPE_PRICE_ID;
+    // Resolve price id for the requested plan.
+    //
+    // A `||` fallback only covers an EMPTY variable: a present-but-invalid id
+    // passes straight through. Setup mode never validates the price, so the
+    // card would be saved for a price that does not exist and approval would
+    // fail later with "No such price". Validate the price up front instead.
+    const configuredYearlyPriceId = process.env.STRIPE_PRICE_ID_YEARLY || '';
+    const priceId = plan === 'monthly' ? STRIPE_PRICE_ID : configuredYearlyPriceId || STRIPE_PRICE_ID;
+
+    try {
+      const price = await stripe.prices.retrieve(priceId);
+      if (price.active === false) {
+        throw new Error(`Price ${priceId} is not active`);
+      }
+    } catch (priceError: any) {
+      console.error('Configured price unusable:', priceId, priceError?.message);
+      return {
+        statusCode: 503,
+        headers,
+        body: JSON.stringify({
+          error:
+            'Este plano está temporariamente indisponível. Sua solicitação foi salva; tente novamente pelo painel Meu Negócio ou escolha o plano mensal.',
+          code: 'PLAN_UNAVAILABLE',
+          developer_details: priceError?.message,
+        }),
+      };
+    }
 
     // Create Stripe customer if the business doesn't have one yet
     let customerId = business.stripeCustomerId;
