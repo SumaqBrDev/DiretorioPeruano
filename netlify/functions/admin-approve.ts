@@ -235,7 +235,9 @@ export const handler = async (event: HandlerEvent) => {
       },
     });
 
-    // Send approval email
+    // Send approval email. A missing address must NOT reach Resend: it answers
+    // 422 validation_error for an empty `to`, producing a misleading ERROR log
+    // on an approval that actually succeeded.
     const ownerEmail = business.owner.email ?? '';
     const ownerName = business.owner.name || business.ownerFullName || 'Usuario';
     const formattedTrialEnd = trialEndsAt
@@ -248,7 +250,11 @@ export const handler = async (event: HandlerEvent) => {
         ? 'No aplica (modo beta)'
         : '30 días desde ahora';
 
-    await sendApprovalEmail(ownerEmail, business.name ?? '', ownerName, formattedTrialEnd);
+    if (ownerEmail.trim()) {
+      await sendApprovalEmail(ownerEmail, business.name ?? '', ownerName, formattedTrialEnd);
+    } else {
+      console.warn(`Approval email skipped: owner ${business.ownerId} has no stored email address.`);
+    }
 
     return {
       statusCode: 200,

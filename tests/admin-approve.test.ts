@@ -28,8 +28,10 @@ vi.mock('../netlify/functions/lib/stripe', () => ({
 import { handler } from '../netlify/functions/admin-approve';
 import prisma from '../netlify/functions/lib/prisma';
 import { requireSuperAdmin } from '../netlify/functions/lib/auth';
+import { sendApprovalEmail } from '../netlify/functions/lib/email';
 
 const superAdminMock = vi.mocked(requireSuperAdmin);
+const sendApprovalEmailMock = vi.mocked(sendApprovalEmail);
 const businessFindMock = vi.mocked(prisma.businessProfile.findUnique);
 const businessUpdateMock = vi.mocked(prisma.businessProfile.update);
 const businessUpdateManyMock = vi.mocked(prisma.businessProfile.updateMany);
@@ -193,6 +195,21 @@ describe('admin-approve existing checkout subscription', () => {
     const options = stripeMocks.subscriptionsCreate.mock.calls[0][1];
     expect(options.idempotencyKey).not.toBe('business-approval-biz-1');
     expect(options.idempotencyKey).toMatch(/^business-approval-biz-1-v\d+$/);
+  });
+
+  // `business.owner.email ?? ''` turned a null email into an empty string and
+  // still called Resend, which answered 422 validation_error on every approval
+  // of an owner without a stored email. Approval itself must still succeed.
+  it('skips the approval email when the owner has no stored address instead of calling Resend with an empty one', async () => {
+    businessFindMock.mockResolvedValue({
+      ...pendingBusiness,
+      owner: { id: 'user-1', name: 'Owner', email: null },
+    } as never);
+
+    const res = await handler(postEvent());
+
+    expect(res.statusCode).toBe(200);
+    expect(sendApprovalEmailMock).not.toHaveBeenCalled();
   });
 
   it('keeps the business pending when setup checkout has not saved a default payment method', async () => {

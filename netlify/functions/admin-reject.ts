@@ -122,11 +122,16 @@ export const handler = async (event: HandlerEvent) => {
       },
     });
 
-    // Send rejection email
+    // Send rejection email. Same guard as approval: an empty `to` makes Resend
+    // answer 422 validation_error and logs an error for a rejection that worked.
     const ownerEmail = business.owner.email ?? '';
     const ownerName = business.owner.name || business.ownerFullName || 'Usuario';
 
-    await sendRejectionEmail(ownerEmail, business.name ?? '', ownerName, reason);
+    if (ownerEmail.trim()) {
+      await sendRejectionEmail(ownerEmail, business.name ?? '', ownerName, reason);
+    } else {
+      console.warn(`Rejection email skipped: owner ${business.ownerId} has no stored email address.`);
+    }
 
     return {
       statusCode: 200,
