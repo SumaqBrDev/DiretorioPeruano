@@ -142,6 +142,14 @@ export const Navbar = () => {
                       >
                         💬 {t('nav.inbox')}
                       </Link>
+                      {/* LGPD rights hub — every data subject, regardless of role */}
+                      <Link
+                        to="/preferencias"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-aji-rojo/10 hover:text-aji-rojo"
+                      >
+                        🔒 {t('nav.privacy_preferences')}
+                      </Link>
                       {isAdmin && (
                         <Link
                           to="/admin"
@@ -278,6 +286,14 @@ export const Navbar = () => {
                         👑 SuperAdmin
                       </Link>
                     )}
+                    {/* LGPD rights hub — every data subject, regardless of role */}
+                    <Link
+                      to="/preferencias"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="w-full border border-oro-inca/40 text-gray-700 dark:text-gray-300 py-2.5 rounded-lg font-medium text-sm text-center"
+                    >
+                      🔒 {t('nav.privacy_preferences')}
+                    </Link>
                     <button
                       onClick={() => { signOut(); setMobileMenuOpen(false); }}
                       className="w-full text-gray-600 dark:text-gray-400 py-2.5 font-medium text-sm flex items-center justify-center gap-2"
