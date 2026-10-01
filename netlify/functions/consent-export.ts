@@ -11,7 +11,7 @@ import type { HandlerEvent } from '@netlify/functions';
 // data (including password hashes, roles, Stripe ids) can never leak.
 
 import prisma from './lib/prisma';
-import { authenticateRequest } from './lib/auth';
+import { authenticateRequest, fetchClerkUserProfile } from './lib/auth';
 import { ensureUserByClerkId, buildExport } from './lib/consent';
 
 const headers = {
@@ -39,7 +39,7 @@ export const handler = async (event: HandlerEvent) => {
       };
     }
 
-    const user = await ensureUserByClerkId(auth.clerkId!, auth.claims ?? {}, { prisma });
+    const user = await ensureUserByClerkId(auth.clerkId!, auth.claims ?? {}, { prisma, fetchClerkUser: fetchClerkUserProfile });
 
     // Own data only: both queries are scoped to the server-derived subject.
     const [consents, cookiePreferences] = await Promise.all([

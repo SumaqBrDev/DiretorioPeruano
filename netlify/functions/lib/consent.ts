@@ -34,8 +34,18 @@ export interface ConsentPrisma {
   };
 }
 
+export interface ClerkUserProfile {
+  email?: string | null;
+  name?: string | null;
+}
+
 export interface ConsentDeps {
   prisma: ConsentPrisma;
+  /**
+   * Resolves a user's profile from Clerk when the session token omits it.
+   * Injected for testability; defaults to the real Clerk lookup.
+   */
+  fetchClerkUser?: (clerkId: string) => Promise<ClerkUserProfile | null>;
 }
 
 // ── Closed-list validation (consent-api: "MUST validate purpose, legalBasis,
@@ -82,6 +92,12 @@ export interface ClerkClaims {
  * Upsert a user row keyed by the verified Clerk id (server-derived subject).
  * Called by consent flows on the first authenticated operation; idempotent —
  * an existing user is updated, never duplicated.
+ *
+ * Clerk's DEFAULT session token carries only `sub`: no email, no name. Relying
+ * on claims alone provisioned users with NULL email/name, which silently broke
+ * owner notifications and left data subjects unidentifiable for LGPD requests.
+ * When the claims omit them, resolve the profile from the Clerk API. That
+ * lookup is best-effort: provisioning must never fail because Clerk is down.
  */
 export async function ensureUserByClerkId(
   clerkId: string,
@@ -91,6 +107,28 @@ export async function ensureUserByClerkId(
   const data: { email?: string | null; name?: string | null } = {};
   if (claims.email !== undefined) data.email = claims.email;
   if (claims.name !== undefined) data.name = claims.name;
+
+  const needsEmail = data.email === undefined || data.email === null;
+  const needsName = data.name === undefined || data.name === null;
+
+  if (needsEmail || needsName) {
+    const lookup = deps.fetchClerkUser;
+    if (lookup) {
+      try {
+        const profile = await lookup(clerkId);
+        if (profile) {
+          if (needsEmail && profile.email) data.email = profile.email;
+          if (needsName && profile.name) data.name = profile.name;
+        }
+      } catch (err) {
+        console.warn(
+          `[consent] Clerk profile lookup failed for ${clerkId}; provisioning without it:`,
+          (err as Error).message
+        );
+      }
+    }
+  }
+
   return deps.prisma.user.upsert({
     where: { clerkId },
     update: data,

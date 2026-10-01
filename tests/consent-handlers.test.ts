@@ -27,6 +27,10 @@ vi.mock('../netlify/functions/lib/prisma', () => ({
 
 vi.mock('../netlify/functions/lib/auth', () => ({
   authenticateRequest: vi.fn(),
+  // Default session claims carry no email/name, so the handlers resolve the
+  // profile from Clerk. Resolve to null here: these tests assert handler
+  // behaviour, not profile enrichment.
+  fetchClerkUserProfile: vi.fn().mockResolvedValue(null),
 }));
 
 import { handler as consentHandler } from '../netlify/functions/consent';

@@ -694,6 +694,56 @@ describe('ensureUserByClerkId — server-derived user provisioning', () => {
     expect(call.create).toEqual({ clerkId: 'user_clerk_1' });
     expect(call.update).toEqual({});
   });
+
+  // Clerk's DEFAULT session token carries only `sub` — no email, no name.
+  // Relying on claims alone therefore provisions users with NULL email/name,
+  // which silently breaks owner notifications and LGPD subject identification.
+  // When the claims omit them, resolve the profile from the Clerk API.
+  it('resolves email and name from Clerk when the token claims omit them', async () => {
+    const fetchClerkUser = vi.fn().mockResolvedValue({
+      email: 'owner@example.com',
+      name: 'Owner Name',
+    });
+
+    await ensureUserByClerkId('user_clerk_1', {}, { prisma: prisma as any, fetchClerkUser } as any);
+
+    expect(fetchClerkUser).toHaveBeenCalledWith('user_clerk_1');
+    const call = (prisma.user.upsert as any).mock.calls[0][0];
+    expect(call.create).toEqual({
+      clerkId: 'user_clerk_1',
+      email: 'owner@example.com',
+      name: 'Owner Name',
+    });
+    expect(call.update).toEqual({ email: 'owner@example.com', name: 'Owner Name' });
+  });
+
+  it('prefers token claims over the Clerk lookup and does not call it when claims are complete', async () => {
+    const fetchClerkUser = vi.fn();
+
+    await ensureUserByClerkId(
+      'user_clerk_1',
+      { email: 'claim@example.com', name: 'Claim Name' },
+      { prisma: prisma as any, fetchClerkUser } as any
+    );
+
+    expect(fetchClerkUser).not.toHaveBeenCalled();
+    const call = (prisma.user.upsert as any).mock.calls[0][0];
+    expect(call.update).toEqual({ email: 'claim@example.com', name: 'Claim Name' });
+  });
+
+  // Provisioning must never fail because the Clerk lookup is unavailable.
+  it('still provisions the user when the Clerk lookup fails', async () => {
+    const fetchClerkUser = vi.fn().mockRejectedValue(new Error('clerk unavailable'));
+
+    const res = await ensureUserByClerkId('user_clerk_1', {}, {
+      prisma: prisma as any,
+      fetchClerkUser,
+    } as any);
+
+    expect(res.id).toBe('user-new');
+    const call = (prisma.user.upsert as any).mock.calls[0][0];
+    expect(call.create).toEqual({ clerkId: 'user_clerk_1' });
+  });
 });
 
 describe('buildExport — own-data export without secrets', () => {

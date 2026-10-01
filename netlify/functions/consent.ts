@@ -16,7 +16,7 @@ import type { HandlerEvent } from '@netlify/functions';
 // nothing. Envelope {error, code?} (D6). No IP/userAgent capture (D5).
 
 import prisma from './lib/prisma';
-import { authenticateRequest } from './lib/auth';
+import { authenticateRequest, fetchClerkUserProfile } from './lib/auth';
 import {
   ensureUserByClerkId,
   recordConsent,
@@ -65,7 +65,7 @@ async function postRecord(event: HandlerEvent) {
     if (!body) return invalidJson();
 
     // Server-derived subject: provision/refresh the user from verified claims.
-    const user = await ensureUserByClerkId(auth.clerkId!, auth.claims ?? {}, { prisma });
+    const user = await ensureUserByClerkId(auth.clerkId!, auth.claims ?? {}, { prisma, fetchClerkUser: fetchClerkUserProfile });
 
     // Cross-user targeting: the body may MATCH the subject but never name
     // another user (403 + nothing recorded).
@@ -137,7 +137,7 @@ async function getHistory(event: HandlerEvent) {
     const auth = await authenticateRequest(event);
     if (!auth.ok) return unauthorized(auth);
 
-    const user = await ensureUserByClerkId(auth.clerkId!, auth.claims ?? {}, { prisma });
+    const user = await ensureUserByClerkId(auth.clerkId!, auth.claims ?? {}, { prisma, fetchClerkUser: fetchClerkUserProfile });
     // Own rows only, newest first (spec: query own history).
     const records = await prisma.consentRecord.findMany({
       where: { userId: user.id },
@@ -160,7 +160,7 @@ async function getStatus(event: HandlerEvent) {
     const auth = await authenticateRequest(event);
     if (!auth.ok) return unauthorized(auth);
 
-    const user = await ensureUserByClerkId(auth.clerkId!, auth.claims ?? {}, { prisma });
+    const user = await ensureUserByClerkId(auth.clerkId!, auth.claims ?? {}, { prisma, fetchClerkUser: fetchClerkUserProfile });
     const gate = await assertCurrentMandatoryConsent(user.id, { prisma });
     const current = await resolveCurrentConsents(user.id, { prisma });
 

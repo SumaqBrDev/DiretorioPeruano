@@ -160,10 +160,37 @@ export async function requireBusinessOwner(
   return { ...auth, ownerBusinessId: user.business.id, userId: user.id };
 }
 
+/**
+ * Resolve a user's email and name from the Clerk API.
+ *
+ * Clerk's default session token contains only `sub`, so callers that need the
+ * profile must fetch it. Returns null when it cannot be resolved; callers treat
+ * this as best-effort and must not fail because of it.
+ */
+export async function fetchClerkUserProfile(
+  clerkId: string
+): Promise<{ email: string | null; name: string | null } | null> {
+  if (!clerkId || !CLERK_SECRET_KEY) return null;
+  const clerkClient = getClerkClient();
+  const user: any = await clerkClient.users.getUser(clerkId);
+  if (!user) return null;
+
+  const primaryId = user.primaryEmailAddressId;
+  const addresses: any[] = user.emailAddresses || [];
+  const primary = addresses.find((a) => a.id === primaryId) || addresses[0];
+  const email = primary?.emailAddress ?? null;
+
+  const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
+  const name = fullName || user.username || null;
+
+  return { email, name };
+}
+
 export default {
   authenticateRequest,
   requireSuperAdmin,
   requireBusinessOwner,
   verifyClerkToken,
   extractBearerToken,
+  fetchClerkUserProfile,
 };

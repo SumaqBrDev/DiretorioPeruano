@@ -13,7 +13,7 @@ import type { HandlerEvent } from '@netlify/functions';
 // append-only rows — the prior grant row is never updated.
 
 import prisma from './lib/prisma';
-import { authenticateRequest } from './lib/auth';
+import { authenticateRequest, fetchClerkUserProfile } from './lib/auth';
 import { ensureUserByClerkId, revokeConsent } from './lib/consent';
 
 const headers = {
@@ -62,7 +62,7 @@ export const handler = async (event: HandlerEvent) => {
       };
     }
 
-    const user = await ensureUserByClerkId(auth.clerkId!, auth.claims ?? {}, { prisma });
+    const user = await ensureUserByClerkId(auth.clerkId!, auth.claims ?? {}, { prisma, fetchClerkUser: fetchClerkUserProfile });
 
     if (body.userId !== undefined && body.userId !== user.id) {
       return {

@@ -13,7 +13,7 @@ import type { HandlerEvent } from '@netlify/functions';
 // Envelope {error, code?} (D6).
 
 import prisma from './lib/prisma';
-import { authenticateRequest } from './lib/auth';
+import { authenticateRequest, fetchClerkUserProfile } from './lib/auth';
 import { ensureUserByClerkId } from './lib/consent';
 import { COOKIE_CATEGORIES, CLOSED_LISTS } from '../../src/config/legal';
 
@@ -53,7 +53,7 @@ async function getPreferences(event: HandlerEvent) {
   const auth = await authenticateRequest(event);
   if (!auth.ok) return unauthorized(auth);
 
-  const user = await ensureUserByClerkId(auth.clerkId!, auth.claims ?? {}, { prisma });
+  const user = await ensureUserByClerkId(auth.clerkId!, auth.claims ?? {}, { prisma, fetchClerkUser: fetchClerkUserProfile });
   const preferences = await prisma.cookiePreference.findUnique({
     where: { userId: user.id },
   });
@@ -94,7 +94,7 @@ async function postPreferences(event: HandlerEvent) {
     return invalidPayload(`locale '${locale}' is not allowed`);
   }
 
-  const user = await ensureUserByClerkId(auth.clerkId!, auth.claims ?? {}, { prisma });
+  const user = await ensureUserByClerkId(auth.clerkId!, auth.claims ?? {}, { prisma, fetchClerkUser: fetchClerkUserProfile });
   const preferences = await prisma.cookiePreference.upsert({
     where: { userId: user.id },
     update: { policyVersion: body.policyVersion, categories, locale },
