@@ -16,6 +16,26 @@ const STRIPE_TRIAL_DAYS = parseInt(process.env.STRIPE_TRIAL_DAYS || '30', 10);
 // Present = applied to every subscription created on approval; remove to disable.
 const EARLY_BIRD_COUPON_ID = process.env.EARLY_BIRD_COUPON_ID || '';
 
+type StripeCustomerWithDefaultPaymentMethod = {
+  deleted?: boolean;
+  invoice_settings?: {
+    default_payment_method?: string | { id?: string } | null;
+  } | null;
+};
+
+function getDefaultPaymentMethodId(customer: StripeCustomerWithDefaultPaymentMethod): string | null {
+  const paymentMethod = customer.invoice_settings?.default_payment_method;
+  if (typeof paymentMethod === 'string') return paymentMethod;
+  return paymentMethod?.id ?? null;
+}
+
+async function releaseApprovalClaim(businessId: string): Promise<void> {
+  await prisma.businessProfile.updateMany({
+    where: { id: businessId, subscriptionStatus: 'approval_processing', status: 'pending' },
+    data: { subscriptionStatus: null },
+  });
+}
+
 export const handler = async (event: HandlerEvent) => {
   if (event.httpMethod !== 'POST') {
     return {
@@ -90,50 +110,98 @@ export const handler = async (event: HandlerEvent) => {
 
     let stripeCustomerId = business.stripeCustomerId;
     let subscriptionId = business.subscriptionId;
-    let trialEndsAt: Date | null = null;
+    let trialEndsAt: Date | null = business.trialEndsAt ?? null;
 
-    // Only create Stripe customer + subscription if NOT in beta mode
-    if (!betaMode) {
+    // In paid mode, approval is responsible for creating the Stripe
+    // subscription. Checkout previously saved the customer's payment method but
+    // did not create a subscription or start the trial while pending.
+    if (!betaMode && !subscriptionId) {
+      const claim = await prisma.businessProfile.updateMany({
+        where: {
+          id: businessId,
+          status: 'pending',
+          subscriptionId: null,
+          OR: [
+            { subscriptionStatus: null },
+            { subscriptionStatus: { not: 'approval_processing' } },
+          ],
+        },
+        data: { subscriptionStatus: 'approval_processing' },
+      });
+
+      if (claim.count !== 1) {
+        return {
+          statusCode: 409,
+          headers,
+          body: JSON.stringify({
+            error: 'La aprobación ya está en proceso o el negocio cambió de estado',
+            code: 'APPROVAL_ALREADY_IN_PROGRESS',
+          }),
+        };
+      }
+
       try {
         const stripe = getStripe();
 
-        // Create Stripe Customer if not exists
         if (!stripeCustomerId) {
-          const customer = await stripe.customers.create({
-            email: business.owner.email ?? undefined,
-            name: business.name ?? undefined,
-            metadata: {
-              businessId: business.id,
-              ownerId: business.ownerId,
-            },
-          });
-          stripeCustomerId = customer.id;
+          await releaseApprovalClaim(businessId);
+          return {
+            statusCode: 409,
+            headers,
+            body: JSON.stringify({
+              error: 'Completa Checkout para guardar un método de pago antes de aprobar el negocio',
+              code: 'SETUP_PAYMENT_METHOD_REQUIRED',
+            }),
+          };
         }
 
-        // Create Stripe Subscription with 30-day trial
+        const customer = await stripe.customers.retrieve(stripeCustomerId) as StripeCustomerWithDefaultPaymentMethod;
+        const defaultPaymentMethodId = customer.deleted ? null : getDefaultPaymentMethodId(customer);
+        if (!defaultPaymentMethodId) {
+          await releaseApprovalClaim(businessId);
+          return {
+            statusCode: 409,
+            headers,
+            body: JSON.stringify({
+              error: 'Completa Checkout para guardar un método de pago antes de aprobar el negocio',
+              code: 'SETUP_PAYMENT_METHOD_REQUIRED',
+            }),
+          };
+        }
+
+        // Create Stripe Subscription with 30-day trial. This is the first time
+        // the subscription exists: checkout only saved a payment method while
+        // the business was pending.
         const subscription = await stripe.subscriptions.create({
           customer: stripeCustomerId,
+          default_payment_method: defaultPaymentMethodId,
           items: [{ price: STRIPE_PRICE_ID }],
           trial_period_days: STRIPE_TRIAL_DAYS,
           ...(EARLY_BIRD_COUPON_ID ? { coupon: EARLY_BIRD_COUPON_ID } : {}),
           metadata: {
             businessId: business.id,
           },
-          payment_behavior: 'default_incomplete',
           payment_settings: {
             save_default_payment_method: 'on_subscription',
           },
-        });
+        }, { idempotencyKey: `business-approval-${business.id}` });
 
         subscriptionId = subscription.id;
-
-        // Calculate trial end date
-        trialEndsAt = new Date();
-        trialEndsAt.setDate(trialEndsAt.getDate() + STRIPE_TRIAL_DAYS);
+        trialEndsAt = subscription.trial_end
+          ? new Date(subscription.trial_end * 1000)
+          : new Date(Date.now() + STRIPE_TRIAL_DAYS * 24 * 60 * 60 * 1000);
       } catch (stripeError: any) {
+        await releaseApprovalClaim(businessId);
         console.error('Stripe error during approval:', stripeError);
-        // Continue with approval even if Stripe fails
-        // Business gets approved but without subscription
+        return {
+          statusCode: 502,
+          headers,
+          body: JSON.stringify({
+            error: 'No se pudo crear la suscripción de Stripe; el negocio permanece pendiente',
+            code: 'SUBSCRIPTION_CREATE_FAILED',
+            details: stripeError.message,
+          }),
+        };
       }
     }
 

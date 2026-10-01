@@ -67,6 +67,7 @@ function AppRoutes() {
             <Route path="/busca" element={<Busca />} />
             <Route path="/negocio/:id" element={<Negocio />} />
             <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/registrar-negocio" element={<Onboarding />} />
             <Route path="/meu-negocio" element={<MeuNegocio />} />
             <Route path="/inbox" element={<Inbox />} />
             <Route path="/admin" element={<Admin />} />

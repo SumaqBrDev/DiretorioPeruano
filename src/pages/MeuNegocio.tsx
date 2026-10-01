@@ -2,8 +2,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useUser, useAuth } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Flask, XCircle, Prohibit } from '@phosphor-icons/react';
 import { getMyBusinessWithAds, updateMyBusiness, openStripeCheckout, openStripePortal, createBusinessAdCheckout, uploadAdImage, type ApiBusinessWithAds as Business, type MyBusinessAd } from '../lib/api';
+import { runPaymentMethodSetup } from '../lib/businessUpgradeFlow';
 import { BusinessGallery } from '../components/BusinessGallery';
 import { showToast } from '../lib/toast';
 
@@ -39,6 +41,7 @@ export const MeuNegocio = () => {
   const { user, isLoaded } = useUser();
   const { getToken } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [business, setBusiness] = useState<Business | null>(null);
   const [myAds, setMyAds] = useState<MyBusinessAd[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,6 +57,7 @@ export const MeuNegocio = () => {
   const [uploadingAdImage, setUploadingAdImage] = useState(false);
   const [adTargetUrl, setAdTargetUrl] = useState('');
   const [buyingAd, setBuyingAd] = useState(false);
+  const [settingUpPayment, setSettingUpPayment] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -206,6 +210,25 @@ export const MeuNegocio = () => {
     }
   };
 
+  const handleSetupPaymentMethod = async () => {
+    if (!business) return;
+    setSettingUpPayment(true);
+    try {
+      const token = await getToken();
+      if (!token) throw new Error('Sem sessão');
+      const result = await runPaymentMethodSetup({ token, business, openStripeCheckout });
+      if (result.kind === 'redirect') {
+        window.open(result.url, '_blank', 'noopener,noreferrer');
+        return;
+      }
+      showToast(result.message || t('businessUpgrade.ownerPanel.checkoutUnavailable'), 'error');
+    } catch (err: any) {
+      showToast(err?.message || t('businessUpgrade.ownerPanel.checkoutError'), 'error');
+    } finally {
+      setSettingUpPayment(false);
+    }
+  };
+
   const handleAdImageFile = (file: File | null) => {
     // Clean up any previous object URL
     if (adImagePreview && adImagePreview.startsWith('blob:')) {
@@ -331,13 +354,13 @@ export const MeuNegocio = () => {
           Você ainda não tem um negócio cadastrado
         </h1>
         <p className="text-gray-600 dark:text-gray-400 mb-8 max-w-md mx-auto">
-          Cadastre seu negócio gratuitamente e apareça no diretório para milhares de clientes.
+          Registre seu negócio pelo fluxo próprio para empresários e solicite a avaliação da listagem no diretório.
         </p>
         <button
-          onClick={() => navigate('/onboarding')}
+          onClick={() => navigate('/registrar-negocio')}
           className="bg-aji-rojo text-white px-8 py-3 rounded-xl font-semibold hover:bg-aji-rojo/90 transition-colors"
         >
-          Cadastrar Meu Negócio
+          Registrar Meu Negócio
         </button>
       </div>
     );
@@ -350,6 +373,25 @@ export const MeuNegocio = () => {
       </h1>
 
       {/* Status badge — mais visível */}
+      {business.status === 'pending' && (
+        <div className="mb-6 p-5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h3 className="font-semibold text-amber-800 dark:text-amber-200">{t('businessUpgrade.ownerPanel.pendingTitle')}</h3>
+              <p className="text-amber-700 dark:text-amber-300 text-sm mt-1 max-w-2xl">
+                {t('businessUpgrade.ownerPanel.pendingBody')}
+              </p>
+            </div>
+            <button
+              onClick={handleSetupPaymentMethod}
+              disabled={settingUpPayment}
+              className="shrink-0 rounded-lg bg-aji-rojo px-4 py-2 text-sm font-semibold text-white hover:bg-aji-rojo/90 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {settingUpPayment ? t('businessUpgrade.ownerPanel.openingCheckout') : t('businessUpgrade.ownerPanel.setupPayment')}
+            </button>
+          </div>
+        </div>
+      )}
       {business.status === 'rejected' && (
         <div className="mb-6 p-4 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-xl">
           <div className="flex items-start gap-3">
@@ -547,7 +589,7 @@ export const MeuNegocio = () => {
           <div>
             <p className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide mb-0.5">Status</p>
             <p className="font-semibold capitalize text-noche-lima dark:text-white">
-              {business.subscriptionStatus || 'none'}
+              {business.status === 'pending' ? t('businessUpgrade.ownerPanel.awaitingApproval') : business.subscriptionStatus || 'none'}
               {business.subscriptionStatus === 'active' && <span className="text-emerald-600 dark:text-emerald-400"> ●</span>}
             </p>
           </div>
@@ -556,12 +598,21 @@ export const MeuNegocio = () => {
             <p className="font-semibold text-noche-lima dark:text-white">R$59/mês</p>
           </div>
           <div>
-            <p className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide mb-0.5">Trial termina</p>
+            <p className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide mb-0.5">Trial</p>
             <p className="font-semibold text-noche-lima dark:text-white">
-              {business.trialEndsAt ? new Date(business.trialEndsAt).toLocaleDateString('pt-BR') : '—'}
+              {business.status === 'pending'
+                ? t('businessUpgrade.ownerPanel.trialNotStarted')
+                : business.trialEndsAt
+                ? new Date(business.trialEndsAt).toLocaleDateString('pt-BR')
+                : '—'}
             </p>
           </div>
         </div>
+        {business.status === 'pending' && (
+          <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">
+            {t('businessUpgrade.ownerPanel.paymentMethodNote')}
+          </p>
+        )}
         {business.status === 'approved' && (
           <button
             onClick={handleManageSubscription}

@@ -11,9 +11,6 @@ const headers = {
 
 const STRIPE_PRICE_ID = process.env.STRIPE_PRICE_ID || 'price_59_brl_monthly';
 const STRIPE_TRIAL_DAYS = parseInt(process.env.STRIPE_TRIAL_DAYS || '30', 10);
-// Early-bird launch offer: coupon id (amount_off R$20, duration repeating 3 months).
-// Present = applied to every new checkout; remove the env var to disable the offer.
-const EARLY_BIRD_COUPON_ID = process.env.EARLY_BIRD_COUPON_ID || '';
 
 const stripe = getStripe();
 
@@ -72,12 +69,27 @@ export const handler = async (event: HandlerEvent) => {
       };
     }
 
-    if (business.status !== 'approved') {
+    // Checkout only collects and saves a payment method. The paid subscription
+    // is created later, atomically with admin approval, so pending businesses
+    // are never charged and never start their 30-day trial early.
+    if (business.status === 'rejected' || business.status === 'disabled') {
       return {
         statusCode: 400,
         headers,
         body: JSON.stringify({
-          error: 'El negocio debe estar aprobado para activar la suscripción.',
+          error: 'Este negócio não pode ativar uma assinatura no estado atual.',
+          code: 'BUSINESS_NOT_ELIGIBLE',
+        }),
+      };
+    }
+
+    if (business.subscriptionId) {
+      return {
+        statusCode: 409,
+        headers,
+        body: JSON.stringify({
+          error: 'Este negocio ya tiene una suscripción registrada.',
+          code: 'SUBSCRIPTION_ALREADY_EXISTS',
         }),
       };
     }
@@ -123,19 +135,15 @@ export const handler = async (event: HandlerEvent) => {
       });
     }
 
-    // Create Checkout session for a subscription with a 30-day trial
+    // Create Checkout session in setup mode only: collect and save a payment
+    // method without creating a subscription or charging while pending.
     const session = await stripe.checkout.sessions.create({
-      mode: 'subscription',
+      mode: 'setup',
       customer: customerId,
-      line_items: [{ price: priceId, quantity: 1 }],
-      subscription_data: {
-        trial_period_days: STRIPE_TRIAL_DAYS,
-        metadata: { businessId: business.id },
+      metadata: { businessId: business.id, plan, priceId },
+      setup_intent_data: {
+        metadata: { businessId: business.id, plan, priceId },
       },
-      ...(EARLY_BIRD_COUPON_ID
-        ? { discounts: [{ coupon: EARLY_BIRD_COUPON_ID }] }
-        : {}),
-      metadata: { businessId: business.id },
       success_url: `${event.headers?.origin || process.env.APP_URL || 'https://conectaperu.com'}/meu-negocio?checkout=success`,
       cancel_url: `${event.headers?.origin || process.env.APP_URL || 'https://conectaperu.com'}/meu-negocio?checkout=cancel`,
     });

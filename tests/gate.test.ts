@@ -155,13 +155,16 @@ describe('POST /api/businesses — LGPD re-consent gate (WU2c)', () => {
     expect(recordFindManyMock).not.toHaveBeenCalled();
   });
 
-  it('preserves the consumer role block after the gate passes', async () => {
-    userFindMock.mockResolvedValue({ id: 'user-db-id', role: 'consumer' } as any);
+  it('preserves the actionable consumer intent block after the gate passes', async () => {
+    userFindMock.mockResolvedValue({ id: 'user-db-id', role: 'consumer', businessIntentAt: null } as any);
 
     const res = await handler({ httpMethod: 'POST', body: validBody() } as unknown as HandlerEvent);
 
     expect(res.statusCode).toBe(403);
-    expect(JSON.parse(res.body).error).toBe('Apenas contas empresariais podem cadastrar negócios');
+    expect(JSON.parse(res.body)).toMatchObject({
+      code: 'BUSINESS_INTENT_REQUIRED',
+      next: '/registrar-negocio',
+    });
     expect(createMock).not.toHaveBeenCalled();
   });
 

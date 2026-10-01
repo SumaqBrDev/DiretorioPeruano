@@ -2,6 +2,7 @@ import type { HandlerEvent } from '@netlify/functions';
 import prisma from './lib/prisma';
 import { sendRejectionEmail } from './lib/email';
 import { requireSuperAdmin } from './lib/auth';
+import { getStripe } from './lib/stripe';
 
 const headers = {
   'Content-Type': 'application/json',
@@ -83,12 +84,34 @@ export const handler = async (event: HandlerEvent) => {
       };
     }
 
+    const shouldCancelSubscription =
+      !!business.subscriptionId &&
+      (business.subscriptionStatus === 'trial' || business.subscriptionStatus === 'active');
+
+    if (shouldCancelSubscription) {
+      try {
+        const stripe = getStripe();
+        await stripe.subscriptions.cancel(business.subscriptionId!);
+      } catch (stripeError: any) {
+        console.error('Stripe error during rejection cancellation:', stripeError);
+        return {
+          statusCode: 502,
+          headers,
+          body: JSON.stringify({
+            error: 'No se pudo cancelar la suscripción antes de rechazar el negocio',
+            details: stripeError.message,
+          }),
+        };
+      }
+    }
+
     // Update business status to rejected
     const updatedBusiness = await prisma.businessProfile.update({
       where: { id: businessId },
       data: {
         status: 'rejected',
         rejectionReason: reason,
+        ...(shouldCancelSubscription ? { subscriptionStatus: 'canceled', subscriptionId: null } : {}),
       },
       select: {
         id: true,

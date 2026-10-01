@@ -20,7 +20,9 @@
     "logout": "Salir",
     "hello": "Hola",
     "community": "Comunidad",
-    "communityModeration": "Moderación de la Comunidad"
+    "communityModeration": "Moderación de la Comunidad",
+    "register_business": "Registrar negocio",
+    "business_request_status": "Solicitud del negocio"
   },
   "hero": {
     "badge": "Conectando Negocios Peruanos en Brasil",
@@ -274,6 +276,32 @@
       "exporting": "Generando exportación...",
       "done": "Exportación descargada.",
       "error": "No se pudo generar la exportación. Inténtalo de nuevo."
+    }
+  },
+  "businessUpgrade": {
+    "title": "Registra tu negocio",
+    "subtitle": "Completa la información para solicitar la creación de tu negocio. Primero guardamos un método de pago en modo setup; la suscripción y el trial de 30 días solo empiezan después de la aprobación administrativa.",
+    "consentOnlyTitle": "Consentimiento confirmado",
+    "consentOnlySubtitle": "Tu registro de consumidor continúa normal. El registro de negocio solo empieza cuando entras a /registrar-negocio.",
+    "consentComplete": "Consentimiento registrado. Tu cuenta permanece como consumidor; no necesitas registrar un negocio para usar ConectaPerú.",
+    "backHome": "Ir al inicio",
+    "reviewNoticeTitle": "Tu negocio quedará en revisión privada",
+    "reviewNoticeBody": "La página no aparece en el directorio público hasta la aprobación del admin. El checkout siguiente solo guarda el método de pago; no hay suscripción, cobro ni inicio de trial mientras la solicitud esté pendiente.",
+    "checkout": {
+      "submit": "Guardar método de pago y enviar a revisión",
+      "starting": "Preparando checkout...",
+      "retryNeeded": "Negocio creado como pendiente. No pudimos abrir el checkout ahora; inténtalo de nuevo desde el panel Mi Negocio."
+    },
+    "ownerPanel": {
+      "pendingTitle": "Solicitud en revisión",
+      "pendingBody": "Tu negocio aún es privado y no aparece en el directorio público hasta la aprobación administrativa. El checkout de configuración solo guarda un método de pago; la suscripción y el trial de 30 días solo empiezan si el admin aprueba.",
+      "setupPayment": "Configurar método de pago",
+      "openingCheckout": "Abriendo checkout...",
+      "awaitingApproval": "Esperando aprobación",
+      "trialNotStarted": "No iniciado",
+      "paymentMethodNote": "Guardar un método de pago ahora no inicia la suscripción ni el trial. El cobro queda bloqueado hasta la aprobación administrativa.",
+      "checkoutUnavailable": "Checkout no disponible ahora. Inténtalo de nuevo en unos minutos.",
+      "checkoutError": "Error al abrir el checkout de configuración."
     }
   }
 }

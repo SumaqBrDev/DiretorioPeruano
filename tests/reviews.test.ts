@@ -9,7 +9,7 @@ import type { HandlerEvent } from '@netlify/functions';
 vi.mock('../netlify/functions/lib/prisma', () => ({
   default: {
     user: { findUnique: vi.fn() },
-    review: { create: vi.fn(), findFirst: vi.fn() },
+    review: { create: vi.fn(), findFirst: vi.fn(), findMany: vi.fn() },
   },
 }));
 
@@ -26,6 +26,7 @@ const authMock = vi.mocked(authenticateRequest);
 const userFindMock = vi.mocked(prisma.user.findUnique);
 const reviewCreateMock = vi.mocked(prisma.review.create);
 const reviewFindMock = vi.mocked(prisma.review.findFirst);
+const reviewFindManyMock = vi.mocked(prisma.review.findMany);
 
 const headers = {
   'Content-Type': 'application/json',
@@ -153,5 +154,32 @@ describe('reviews handler POST', () => {
     } as unknown as HandlerEvent);
     expect(res.statusCode).toBe(403);
     expect(reviewCreateMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('reviews handler GET', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    reviewFindManyMock.mockResolvedValue([] as any);
+  });
+
+  it('requests only approved reviews belonging to approved businesses', async () => {
+    const res = await handler({
+      httpMethod: 'GET',
+      queryStringParameters: { businessId: 'business-pending' },
+    } as unknown as HandlerEvent);
+
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toEqual([]);
+    expect(reviewFindManyMock).toHaveBeenCalledTimes(1);
+    expect(reviewFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          businessId: 'business-pending',
+          status: 'approved',
+          business: { status: 'approved' },
+        },
+      })
+    );
   });
 });

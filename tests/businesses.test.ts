@@ -140,6 +140,48 @@ describe('POST /api/businesses — KYC wiring', () => {
     expect(createMock.mock.calls[0][0].data.dataClassification).toBe('real');
     expect(createMock.mock.calls[0][0].data).not.toHaveProperty('ownerId', 'client-supplied-owner');
   });
+
+  it('allows a consumer WITH business intent to create a business', async () => {
+    authMock.mockResolvedValue({ ok: true, clerkId: 'user_intent', claims: {} } as never);
+    userFindMock.mockResolvedValue({
+      id: 'u-intent',
+      role: 'consumer',
+      businessIntentAt: new Date('2026-10-01T00:00:00Z'),
+      dataClassification: 'real',
+    } as never);
+    recordFindManyMock.mockResolvedValue(CURRENT_SERVICE_ROWS as never);
+    createMock.mockResolvedValue({ id: 'b-new', status: 'pending' } as never);
+
+    const res = await handler({
+      httpMethod: 'POST',
+      headers: { authorization: 'Bearer t' },
+      body: JSON.stringify({ name: 'Mi Negocio', description: 'Una descripcion valida' }),
+    } as unknown as HandlerEvent);
+
+    expect(res.statusCode).toBe(201);
+    expect(createMock).toHaveBeenCalled();
+  });
+
+  it('rejects a consumer WITHOUT business intent with 403', async () => {
+    authMock.mockResolvedValue({ ok: true, clerkId: 'user_plain', claims: {} } as never);
+    userFindMock.mockResolvedValue({
+      id: 'u-plain',
+      role: 'consumer',
+      businessIntentAt: null,
+      dataClassification: 'real',
+    } as never);
+    recordFindManyMock.mockResolvedValue(CURRENT_SERVICE_ROWS as never);
+
+    const res = await handler({
+      httpMethod: 'POST',
+      headers: { authorization: 'Bearer t' },
+      body: JSON.stringify({ name: 'X', description: 'Otra descripcion valida' }),
+    } as unknown as HandlerEvent);
+
+    expect(res.statusCode).toBe(403);
+    expect(JSON.parse(res.body).code).toBe('BUSINESS_INTENT_REQUIRED');
+    expect(createMock).not.toHaveBeenCalled();
+  });
 });
 
 describe('GET /api/businesses — minRating filter', () => {

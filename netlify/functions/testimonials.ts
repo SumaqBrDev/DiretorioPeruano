@@ -16,7 +16,10 @@ export const handler = async (event: HandlerEvent) => {
 
   try {
     const reviews = await prisma.review.findMany({
-      where: { status: 'approved' },
+      where: {
+        status: 'approved',
+        business: { status: 'approved' },
+      },
       include: {
         consumer: { select: { name: true } },
         business: { select: { name: true } },

@@ -52,15 +52,25 @@ export const handler = async (event: HandlerEvent) => {
         };
       }
 
-      // Business rule (payment model): consumer accounts cannot register
-      // businesses — revenue comes from businesses paying for internal
-      // resources. A consumer that registers would get owner benefits
-      // without entering the subscription funnel.
-      if (owner.role === 'consumer') {
+      // Business rule (payment model): revenue comes from businesses paying a
+      // subscription, so a plain consumer cannot register a business. The
+      // upgrade funnel marks `businessIntentAt` when the user starts the
+      // registration flow, which is what authorises this POST; the account is
+      // only promoted to role='business' later, by the Stripe webhook, once
+      // the subscription actually exists.
+      //
+      // The message is actionable on purpose: a blocked user must learn WHY
+      // they are blocked and WHERE to go next, never just "not allowed".
+      if (owner.role === 'consumer' && !owner.businessIntentAt) {
         return {
           statusCode: 403,
           headers,
-          body: JSON.stringify({ error: 'Apenas contas empresariais podem cadastrar negócios' }),
+          body: JSON.stringify({
+            error:
+              'Para cadastrar um negócio você precisa iniciar o cadastro empresarial, que inclui a assinatura com 30 dias de teste grátis.',
+            code: 'BUSINESS_INTENT_REQUIRED',
+            next: '/registrar-negocio',
+          }),
         };
       }
 

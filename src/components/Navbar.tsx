@@ -1,24 +1,58 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useUser, useClerk } from '@clerk/clerk-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { List, X, SignOut } from '@phosphor-icons/react';
 import { LanguageToggle } from './LanguageToggle';
+import { getMyBusiness, type ApiBusiness } from '../lib/api';
+import { getBusinessAccountNavEntry } from '../lib/businessUpgradeFlow';
 
 export const Navbar = () => {
   const { t } = useTranslation();
   const { user, isLoaded } = useUser();
-  const { openSignIn, openSignUp, signOut } = useClerk();
+  const { openSignIn, openSignUp, signOut, session } = useClerk();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-
-  if (!isLoaded) return null;
+  const [myBusiness, setMyBusiness] = useState<ApiBusiness | null>(null);
+  const [businessLoaded, setBusinessLoaded] = useState(false);
 
   const SUPERADMIN_CLERK_ID = 'user_3GsBXtg23VQOhHPN3HCF1oCN4Eq';
   const isSuperAdmin = user?.id === SUPERADMIN_CLERK_ID;
   const publicMeta = user?.publicMetadata || {};
   const isAdmin = (publicMeta.role === 'admin' || publicMeta.rol === 'admin') && !isSuperAdmin;
+  const businessEntry = getBusinessAccountNavEntry({ business: myBusiness, isAdmin, isSuperAdmin });
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadBusiness = async () => {
+      if (!user || isAdmin || isSuperAdmin) {
+        setMyBusiness(null);
+        setBusinessLoaded(true);
+        return;
+      }
+      setBusinessLoaded(false);
+      try {
+        const token = await session?.getToken();
+        if (!token) {
+          if (!cancelled) setMyBusiness(null);
+          return;
+        }
+        const business = await getMyBusiness(token);
+        if (!cancelled) setMyBusiness(business);
+      } catch (error: unknown) {
+        if (!cancelled) setMyBusiness(null);
+      } finally {
+        if (!cancelled) setBusinessLoaded(true);
+      }
+    };
+    loadBusiness();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, session, isAdmin, isSuperAdmin]);
+
+  if (!isLoaded) return null;
 
   const navLinks = [
     { path: '/', label: t('nav.home') },
@@ -92,13 +126,13 @@ export const Navbar = () => {
                         <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user.primaryEmailAddress?.emailAddress || ''}</p>
                       </div>
                       {/* Superadmin/Admin não precisa de Meu Negócio — têm painéis próprios */}
-                      {!isAdmin && !isSuperAdmin && (
+                      {businessEntry && businessLoaded && (
                         <Link
-                          to="/meu-negocio"
+                          to={businessEntry.path}
                           onClick={() => setUserMenuOpen(false)}
                           className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-aji-rojo/10 hover:text-aji-rojo"
                         >
-                          🏪 Meu Negócio
+                          {businessEntry.state === 'approved' ? '🏪' : businessEntry.state === 'none' ? '➕' : '📋'} {t(businessEntry.labelKey)}
                         </Link>
                       )}
                       <Link
@@ -217,13 +251,13 @@ export const Navbar = () => {
                 ) : (
                   <>
                     {/* Superadmin/Admin não precisa de Meu Negócio — têm painéis próprios */}
-                    {!isAdmin && !isSuperAdmin && (
+                    {businessEntry && businessLoaded && (
                       <Link
-                        to="/onboarding"
+                        to={businessEntry.path}
                         onClick={() => setMobileMenuOpen(false)}
                         className="w-full bg-aji-rojo text-white py-2.5 rounded-lg font-medium text-sm text-center"
                       >
-                        {t('nav.my_business')}
+                        {t(businessEntry.labelKey)}
                       </Link>
                     )}
                     {isAdmin && (

@@ -336,6 +336,13 @@ export async function createBusiness(token: string, data: CreateBusinessInput): 
   });
 }
 
+/** POST /api/business-intent — explicit consumer intent to start a business upgrade. */
+export async function markBusinessIntent(token: string): Promise<{ ok: boolean; role?: string; businessIntentAt?: string | null }> {
+  return request<{ ok: boolean; role?: string; businessIntentAt?: string | null }>('business-intent', token, {
+    method: 'POST',
+  });
+}
+
 // ── Search & Business detail (Busca / Negocio) ──
 
 export interface BusinessSearchResult {

@@ -114,6 +114,7 @@ export const handler = async (event: HandlerEvent) => {
         where: {
           businessId,
           status: 'approved',
+          business: { status: 'approved' },
         },
         orderBy: { createdAt: 'desc' },
         include: {

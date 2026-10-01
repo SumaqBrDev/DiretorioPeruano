@@ -20,7 +20,9 @@
     "logout": "Sair",
     "hello": "Olá",
     "community": "Comunidade",
-    "communityModeration": "Moderação da Comunidade"
+    "communityModeration": "Moderação da Comunidade",
+    "register_business": "Cadastrar negócio",
+    "business_request_status": "Solicitação do negócio"
   },
   "hero": {
     "badge": "Conectando Negócios Peruanos no Brasil",
@@ -274,6 +276,32 @@
       "exporting": "Gerando exportação...",
       "done": "Exportação baixada.",
       "error": "Não foi possível gerar a exportação. Tente novamente."
+    }
+  },
+  "businessUpgrade": {
+    "title": "Cadastre seu Negócio",
+    "subtitle": "Preencha as informações para solicitar a criação do seu negócio. Primeiro salvamos um método de pagamento em modo setup; assinatura e trial de 30 dias só começam após aprovação administrativa.",
+    "consentOnlyTitle": "Consentimento confirmado",
+    "consentOnlySubtitle": "Seu cadastro de consumidor continua normal. O registro de negócio só começa quando você acessa /registrar-negocio.",
+    "consentComplete": "Consentimento registrado. Sua conta permanece como consumidor; você não precisa cadastrar um negócio para usar o ConectaPeru.",
+    "backHome": "Ir para o início",
+    "reviewNoticeTitle": "Seu negócio ficará em análise privada",
+    "reviewNoticeBody": "A página não aparece no diretório público até aprovação do admin. O checkout a seguir salva apenas o método de pagamento; não há assinatura, cobrança nem início de trial enquanto a solicitação estiver pendente.",
+    "checkout": {
+      "submit": "Salvar método de pagamento e enviar para análise",
+      "starting": "Preparando checkout...",
+      "retryNeeded": "Negócio criado como pendente. Não conseguimos abrir o checkout agora; tente novamente pelo painel Meu Negócio."
+    },
+    "ownerPanel": {
+      "pendingTitle": "Solicitação em análise",
+      "pendingBody": "Seu negócio ainda é privado e não aparece no diretório público até a aprovação administrativa. O checkout de configuração salva apenas um método de pagamento; a assinatura e o trial de 30 dias só começam se o admin aprovar.",
+      "setupPayment": "Configurar método de pagamento",
+      "openingCheckout": "Abrindo checkout...",
+      "awaitingApproval": "Aguardando aprovação",
+      "trialNotStarted": "Não iniciado",
+      "paymentMethodNote": "Método de pagamento salvo agora não inicia assinatura nem trial. A cobrança fica bloqueada até a aprovação administrativa.",
+      "checkoutUnavailable": "Checkout não disponível agora. Tente novamente em alguns minutos.",
+      "checkoutError": "Erro ao abrir o checkout de configuração."
     }
   }
 }

@@ -12,58 +12,141 @@ const headers = {
   'X-Content-Type-Options': 'nosniff',
 };
 
-const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
-
 const stripe = getStripe();
+
+class DeferredBusinessApprovalError extends Error {
+  constructor(public readonly businessId: string, public readonly status: string) {
+    super(`Business ${businessId} is ${status}; retry subscription event after approval commits`);
+    this.name = 'DeferredBusinessApprovalError';
+  }
+}
+
+/**
+ * Promote the business owner to role='business'.
+ *
+ * This is the only place in the codebase that grants the business role: Stripe
+ * confirming a subscription is the single trustworthy signal that the upgrade
+ * funnel completed. The browser never decides this.
+ *
+ * Idempotent: an owner already promoted is left untouched.
+ */
+async function promoteOwnerToBusiness(businessId: string): Promise<void> {
+  const business = await prisma.businessProfile.findUnique({
+    where: { id: businessId },
+    select: { ownerId: true, status: true, owner: { select: { id: true, role: true } } },
+  });
+
+  if (!business?.owner) {
+    console.warn(`[webhook] business ${businessId} has no owner; skipping role promotion`);
+    return;
+  }
+
+  if (business.status !== 'approved') {
+    console.warn(`[webhook] business ${businessId} is ${business.status}; skipping role promotion`);
+    return;
+  }
+
+  if (business.owner.role !== 'consumer') {
+    return;
+  }
+
+  await prisma.user.update({
+    where: { id: business.owner.id },
+    data: { role: 'business', businessIntentAt: null },
+  });
+  console.log(`[webhook] promoted user ${business.owner.id} to role=business`);
+}
+
+function isTerminalBusinessStatus(status?: string | null): boolean {
+  return status === 'rejected' || status === 'disabled';
+}
+
+function isStaleSubscription(currentSubscriptionId: string | null | undefined, eventSubscriptionId: string): boolean {
+  return !!currentSubscriptionId && currentSubscriptionId !== eventSubscriptionId;
+}
 
 /**
  * Sync subscription status to database
  */
-async function syncSubscriptionStatus(subscription: Stripe.Subscription): Promise<void> {
+export async function syncSubscriptionStatus(subscription: Stripe.Subscription): Promise<void> {
   const businessId = subscription.metadata?.businessId;
-  if (!businessId) {
-    console.warn('No businessId in subscription metadata, skipping sync');
-    // Try to find by customer ID
-    const customerId = typeof subscription.customer === 'string'
-      ? subscription.customer
-      : subscription.customer?.id;
+  const customerId = typeof subscription.customer === 'string'
+    ? subscription.customer
+    : subscription.customer?.id;
+  const newStatus = mapSubscriptionStatus(subscription.status);
+  const trialEndsAt = subscription.trial_end
+    ? new Date(subscription.trial_end * 1000)
+    : undefined;
 
-    if (customerId) {
-      const business = await prisma.businessProfile.findFirst({
-        where: { stripeCustomerId: customerId },
-      });
-      if (business) {
-        const newStatus = mapSubscriptionStatus(subscription.status);
-        await prisma.businessProfile.update({
-          where: { id: business.id },
-          data: {
-            subscriptionStatus: newStatus,
-            subscriptionId: subscription.id,
-            trialEndsAt: subscription.trial_end
-              ? new Date(subscription.trial_end * 1000)
-              : undefined,
-          },
-        });
-        console.log(`Synced subscription ${subscription.id} for business ${business.id}: ${newStatus}`);
-      }
+  if (!businessId) {
+    console.warn('No businessId in subscription metadata, trying customer fallback');
+    if (!customerId) return;
+
+    const business = await prisma.businessProfile.findFirst({
+      where: { stripeCustomerId: customerId },
+    });
+    if (!business) return;
+
+    if (isTerminalBusinessStatus((business as any).status)) {
+      console.warn(`[webhook] business ${business.id} is ${(business as any).status}; skipping subscription sync`);
+      return;
+    }
+    if ((business as any).status !== 'approved') {
+      throw new DeferredBusinessApprovalError(business.id, (business as any).status ?? 'unknown');
+    }
+    if (isStaleSubscription((business as any).subscriptionId, subscription.id)) {
+      console.warn(`[webhook] subscription ${subscription.id} is stale for business ${business.id}; skipping sync`);
+      return;
+    }
+
+    await prisma.businessProfile.update({
+      where: { id: business.id },
+      data: {
+        subscriptionStatus: newStatus,
+        subscriptionId: subscription.id,
+        trialEndsAt,
+      },
+    });
+    console.log(`Synced subscription ${subscription.id} for business ${business.id}: ${newStatus}`);
+    if (newStatus === 'trial' || newStatus === 'active') {
+      await promoteOwnerToBusiness(business.id);
     }
     return;
   }
 
-  const newStatus = mapSubscriptionStatus(subscription.status);
+  const business = await prisma.businessProfile.findUnique({
+    where: { id: businessId },
+    select: { id: true, status: true, subscriptionId: true },
+  });
+  if (!business) {
+    console.warn(`No business found for subscription metadata businessId ${businessId}`);
+    return;
+  }
+  if (isTerminalBusinessStatus(business.status)) {
+    console.warn(`[webhook] business ${businessId} is ${business.status}; skipping subscription sync`);
+    return;
+  }
+  if (business.status !== 'approved') {
+    throw new DeferredBusinessApprovalError(business.id, business.status ?? 'unknown');
+  }
+  if (isStaleSubscription(business.subscriptionId, subscription.id)) {
+    console.warn(`[webhook] subscription ${subscription.id} is stale for business ${businessId}; skipping sync`);
+    return;
+  }
 
   await prisma.businessProfile.update({
     where: { id: businessId },
     data: {
       subscriptionStatus: newStatus,
       subscriptionId: subscription.id,
-      trialEndsAt: subscription.trial_end
-        ? new Date(subscription.trial_end * 1000)
-        : undefined,
+      trialEndsAt,
     },
   });
 
   console.log(`Synced subscription ${subscription.id} for business ${businessId}: ${newStatus}`);
+  if (newStatus === 'trial' || newStatus === 'active') {
+    await promoteOwnerToBusiness(businessId);
+  }
 }
 
 /**
@@ -105,7 +188,7 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice): Promise<void
 /**
  * Handle subscription deleted
  */
-async function handleSubscriptionDeleted(subscription: Stripe.Subscription): Promise<void> {
+export async function handleSubscriptionDeleted(subscription: Stripe.Subscription): Promise<void> {
   const businessId = subscription.metadata?.businessId;
   const customerId = typeof subscription.customer === 'string'
     ? subscription.customer
@@ -117,11 +200,20 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription): Pro
 
   const business = await prisma.businessProfile.findFirst({
     where: whereClause,
-    select: { id: true, name: true },
+    select: { id: true, name: true, status: true, subscriptionId: true },
   });
 
   if (!business) {
     console.warn('No business found for deleted subscription');
+    return;
+  }
+
+  if (business.status === 'rejected') {
+    console.warn(`[webhook] business ${business.id} is rejected; subscription.deleted will not overwrite status`);
+    return;
+  }
+  if (isStaleSubscription(business.subscriptionId, subscription.id)) {
+    console.warn(`[webhook] subscription.deleted ${subscription.id} is stale for business ${business.id}; skipping`);
     return;
   }
 
@@ -143,6 +235,40 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription): Pro
  * BusinessAd (pending → active, endsAt = now + AD_DAYS).
  * Exported for unit tests.
  */
+export async function handleSetupCheckoutCompleted(session: Stripe.Checkout.Session): Promise<void> {
+  const businessId = session.metadata?.businessId;
+  const customerId = typeof session.customer === 'string'
+    ? session.customer
+    : session.customer?.id;
+  const setupIntentId = typeof session.setup_intent === 'string'
+    ? session.setup_intent
+    : session.setup_intent?.id;
+
+  if (!businessId || !customerId || !setupIntentId) {
+    console.warn('setup checkout missing businessId, customer, or setup_intent; skipping');
+    return;
+  }
+
+  const setupIntent = await stripe.setupIntents.retrieve(setupIntentId);
+  const paymentMethodId = typeof setupIntent.payment_method === 'string'
+    ? setupIntent.payment_method
+    : setupIntent.payment_method?.id;
+
+  if (!paymentMethodId) {
+    console.warn(`setup_intent ${setupIntentId} has no payment method; skipping default payment setup`);
+    return;
+  }
+
+  await stripe.customers.update(customerId, {
+    invoice_settings: { default_payment_method: paymentMethodId },
+  });
+
+  await prisma.businessProfile.update({
+    where: { id: businessId },
+    data: { stripeCustomerId: customerId },
+  });
+}
+
 export async function handleAdCheckoutCompleted(session: Stripe.Checkout.Session): Promise<void> {
   const adId = session.metadata?.adId;
   if (!adId) {
@@ -188,7 +314,8 @@ export const handler = async (event: HandlerEvent) => {
     const sig = event.headers['stripe-signature'] || '';
     const rawBody = event.body || '';
 
-    if (!STRIPE_WEBHOOK_SECRET) {
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
+    if (!webhookSecret) {
       console.warn('STRIPE_WEBHOOK_SECRET not configured, skipping signature verification');
       return {
         statusCode: 500,
@@ -200,7 +327,7 @@ export const handler = async (event: HandlerEvent) => {
     let stripeEvent: Stripe.Event;
 
     try {
-      stripeEvent = stripe.webhooks.constructEvent(rawBody, sig, STRIPE_WEBHOOK_SECRET);
+      stripeEvent = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
     } catch (err: any) {
       console.error('Stripe signature verification failed:', err.message);
       return {
@@ -230,7 +357,11 @@ export const handler = async (event: HandlerEvent) => {
     switch (stripeEvent.type) {
       case 'checkout.session.completed': {
         const session = stripeEvent.data.object as Stripe.Checkout.Session;
-        await handleAdCheckoutCompleted(session);
+        if (session.mode === 'setup' || session.setup_intent) {
+          await handleSetupCheckoutCompleted(session);
+        } else {
+          await handleAdCheckoutCompleted(session);
+        }
         await markEventProcessed(eventId, stripeEvent.type, stripeEvent.data.object);
         break;
       }
@@ -242,9 +373,28 @@ export const handler = async (event: HandlerEvent) => {
         break;
       }
 
+      case 'customer.subscription.created':
       case 'customer.subscription.updated': {
         const subscription = stripeEvent.data.object as Stripe.Subscription;
-        await syncSubscriptionStatus(subscription);
+        try {
+          await syncSubscriptionStatus(subscription);
+        } catch (error) {
+          if (error instanceof DeferredBusinessApprovalError) {
+            console.warn(`[webhook] deferring ${stripeEvent.type} ${eventId}: ${error.message}`);
+            return {
+              statusCode: 503,
+              headers,
+              body: JSON.stringify({
+                received: false,
+                retry: true,
+                code: 'BUSINESS_APPROVAL_NOT_COMMITTED',
+                businessId: error.businessId,
+                status: error.status,
+              }),
+            };
+          }
+          throw error;
+        }
         await markEventProcessed(eventId, stripeEvent.type, stripeEvent.data.object);
         break;
       }

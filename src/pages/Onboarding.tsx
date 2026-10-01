@@ -1,10 +1,11 @@
 // src/pages/Onboarding.tsx
 import { useState, useEffect, useCallback } from 'react';
 import { useUser, useAuth } from '@clerk/clerk-react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
-import { createBusiness, getConsentStatus, recordConsent, ApiError } from '../lib/api';
+import { createBusiness, getMyBusiness, getConsentStatus, recordConsent, ApiError, markBusinessIntent, openStripeCheckout } from '../lib/api';
+import { runBusinessUpgradeSubmission } from '../lib/businessUpgradeFlow';
 import { ConsentCheckboxes } from '../components/ConsentCheckboxes';
 import { activeLegalDocs } from '../config/legal';
 import {
@@ -178,6 +179,8 @@ export const Onboarding = () => {
   const { getToken } = useAuth();
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isBusinessUpgrade = location.pathname === '/registrar-negocio';
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<OnboardingFormData>({
     name: '',
@@ -220,6 +223,7 @@ export const Onboarding = () => {
         // Already current — nothing to record; drop any stale intent.
         sessionStorage.removeItem(SIGNUP_INTENT_KEY);
         setConsentPhase('recorded');
+        if (!isBusinessUpgrade) navigate('/');
         return;
       }
       // Rehydrate the pre-signup intent so the user does not re-read the docs.
@@ -235,7 +239,7 @@ export const Onboarding = () => {
       console.error('Erro ao verificar consentimento:', err);
       setConsentPhase('error');
     }
-  }, [isLoaded, user, getToken]);
+  }, [isLoaded, user, getToken, isBusinessUpgrade, navigate]);
 
   useEffect(() => {
     checkConsent();
@@ -276,6 +280,7 @@ export const Onboarding = () => {
       }
       sessionStorage.removeItem(SIGNUP_INTENT_KEY);
       setConsentPhase('recorded');
+      if (!isBusinessUpgrade) navigate('/');
     } catch (err) {
       console.error('Erro ao registrar consentimento:', err);
       setConsentError(t('consent.onboarding.error'));
@@ -403,32 +408,58 @@ export const Onboarding = () => {
         setToast({ message: 'Sessão expirada. Entre novamente.', type: 'error' });
         return;
       }
-      await createBusiness(token, businessData);
-    } catch (err: any) {
+      if (!isBusinessUpgrade) {
+        setSubmitting(false);
+        navigate('/');
+        return;
+      }
+
+      const result = await runBusinessUpgradeSubmission({
+        token,
+        businessData,
+        getMyBusiness,
+        markBusinessIntent,
+        createBusiness,
+        openStripeCheckout,
+      });
+
+      if (result.kind === 'existing-business') {
+        setSubmitting(false);
+        navigate('/meu-negocio');
+        return;
+      }
+
+      analytics.trackBusinessSignupCompleted({
+        category: formData.category,
+        tagsCount: formData.tags.length,
+        hasPhotos: photoDataUrls.length > 0,
+      });
+
+      if (result.kind === 'redirect') {
+        window.location.assign(result.url);
+        return;
+      }
+
+      setToast({
+        message: result.message || t('businessUpgrade.checkout.retryNeeded'),
+        type: 'error',
+      });
+      setTimeout(() => {
+        setSubmitting(false);
+        navigate('/meu-negocio');
+      }, 1200);
+      return;
+    } catch (err: unknown) {
       console.error('Erro ao cadastrar negócio:', err);
       setSubmitting(false);
       if (err instanceof ApiError && err.code === 'CONSENT_REQUIRED') {
         // Stale/missing mandatory consent — dedicated re-consent screen.
-        navigate('/reconsent', { state: { from: '/onboarding' } });
+        navigate('/reconsent', { state: { from: isBusinessUpgrade ? '/registrar-negocio' : '/onboarding' } });
         return;
       }
       setToast({ message: 'Erro ao salvar. Tente novamente.', type: 'error' });
       return;
     }
-
-    // Show success toast
-    analytics.trackBusinessSignupCompleted({
-      category: formData.category,
-      tagsCount: formData.tags.length,
-      hasPhotos: photoDataUrls.length > 0,
-    });
-    setToast({ message: 'Negócio cadastrado com sucesso! 🎉', type: 'success' });
-
-    // Navigate after a short delay
-    setTimeout(() => {
-      setSubmitting(false);
-      navigate('/');
-    }, 1500);
   };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -792,7 +823,16 @@ export const Onboarding = () => {
             disabled={submitting}
             className="bg-aji-rojo text-white px-6 py-2 rounded-xl font-semibold hover:bg-aji-rojo/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            {submitting ? (
+            {isBusinessUpgrade ? (
+              submitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                  {t('businessUpgrade.checkout.starting')}
+                </>
+              ) : (
+                t('businessUpgrade.checkout.submit')
+              )
+            ) : submitting ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
                 Salvando...
@@ -864,11 +904,17 @@ export const Onboarding = () => {
       />
 
       <h1 className="font-playfair text-3xl md:text-4xl font-bold text-aji-rojo mb-8 text-center">
-        Cadastre seu Negócio
+        {isBusinessUpgrade ? t('businessUpgrade.title') : t('businessUpgrade.consentOnlyTitle')}
       </h1>
-      <p className="text-center text-gray-600 dark:text-gray-400 mb-12 max-w-2xl mx-auto">
-        Preencha as informações abaixo para cadastrar seu negócio gratuitamente no SaborPeruano
+      <p className="text-center text-gray-600 dark:text-gray-400 mb-6 max-w-2xl mx-auto">
+        {isBusinessUpgrade ? t('businessUpgrade.subtitle') : t('businessUpgrade.consentOnlySubtitle')}
       </p>
+      {isBusinessUpgrade && (
+        <div className="mb-8 rounded-2xl border border-oro-inca/30 bg-white dark:bg-noche-lima p-5 text-sm text-gray-700 dark:text-gray-300 shadow-sm">
+          <p className="font-semibold text-noche-lima dark:text-white mb-2">{t('businessUpgrade.reviewNoticeTitle')}</p>
+          <p>{t('businessUpgrade.reviewNoticeBody')}</p>
+        </div>
+      )}
 
       {/* Consent evidence step 0 — blocks steps 1-3 until recorded */}
       {consentPhase === 'loading' && (
@@ -893,6 +939,7 @@ export const Onboarding = () => {
       {consentPhase === 'needed' && renderConsentStep()}
 
       {consentPhase === 'recorded' && (
+        isBusinessUpgrade ? (
         <>
           {/* Progress indicator */}
           <div className="flex justify-center items-center gap-2 mb-8">
@@ -932,6 +979,18 @@ export const Onboarding = () => {
             </AnimatePresence>
           </form>
         </>
+        ) : (
+          <div className="rounded-2xl border border-oro-inca/20 bg-white dark:bg-noche-lima p-8 text-center shadow-lg">
+            <p className="text-gray-700 dark:text-gray-300 mb-6">{t('businessUpgrade.consentComplete')}</p>
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="bg-aji-rojo text-white px-6 py-3 rounded-xl font-semibold hover:bg-aji-rojo/90 transition-colors"
+            >
+              {t('businessUpgrade.backHome')}
+            </button>
+          </div>
+        )
       )}
     </div>
   );

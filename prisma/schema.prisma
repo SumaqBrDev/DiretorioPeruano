@@ -25,6 +25,9 @@ model User {
   email              String?
   name               String?
   role               String           @default("consumer") // consumer, business, admin, superadmin
+  // Upgrade funnel: set when the user starts the business registration flow.
+  // Cleared once the Stripe webhook promotes the account to role='business'.
+  businessIntentAt   DateTime?
   language           String           @default("pt-BR")
   dataClassification String           @default("real")
   dataClassifiedAt   DateTime         @default(now())
