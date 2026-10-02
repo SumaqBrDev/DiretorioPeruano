@@ -6,6 +6,15 @@ import { useAuth } from '@clerk/clerk-react';
 import { SkeletonCard } from '../components/SkeletonCard';
 import { searchBusinesses } from '../lib/api';
 import { analytics } from '../lib/posthog';
+import {
+  normalizeForMatch,
+  canonicalCategory,
+  matchesCategory,
+  matchesCity,
+  categoryLabelKey,
+  deriveCityOptions,
+  deriveCategoryOptions,
+} from '../lib/searchFilters';
 
 interface SearchResult {
   id: string;
@@ -20,53 +29,9 @@ interface SearchResult {
   description: string;
 }
 
-const CATEGORIES = [
-  { value: '', labelKey: 'search.all_categories' },
-  { value: 'restaurante', label: 'Restaurantes' },
-  { value: 'mercado', label: 'Mercados' },
-  { value: 'salon', label: 'Salões de Beleza' },
-  { value: 'servicos', label: 'Serviços Profissionais' },
-  { value: 'salud', label: 'Saúde' },
-  { value: 'juridico', label: 'Jurídico' },
-  { value: 'financiero', label: 'Financeiro' },
-  { value: 'imuebles', label: 'Imóveis' },
-];
-
-// Canonical category vocabulary = the values stored in BusinessProfile.category.
-// The home grid and /api/categories expose display slugs (plurals / ES variants);
-// normalize any variant here so the sidebar select reflects the URL filter and
-// the API filter matches the DB (BUG-030b).
-const CATEGORY_ALIASES: Record<string, string> = {
-  restaurante: 'restaurante',
-  restaurantes: 'restaurante',
-  mercado: 'mercado',
-  mercados: 'mercado',
-  cafe: 'cafe',
-  salon: 'salon',
-  servicos: 'servicos',
-  servicios: 'servicos',
-  salud: 'salud',
-  juridico: 'juridico',
-  financiero: 'financiero',
-  imuebles: 'imuebles',
-  inmuebles: 'imuebles',
-};
-
-const CITIES = [
-  { value: '', label: 'Todas as cidades' },
-  { value: 'sao paulo', label: 'São Paulo - SP' },
-  { value: 'rio de janeiro', label: 'Rio de Janeiro - RJ' },
-  { value: 'brasilia', label: 'Brasília - DF' },
-  { value: 'curitiba', label: 'Curitiba - PR' },
-  { value: 'belo horizonte', label: 'Belo Horizonte - MG' },
-  { value: 'porto alegre', label: 'Porto Alegre - RS' },
-  { value: 'salvador', label: 'Salvador - BA' },
-  { value: 'fortaleza', label: 'Fortaleza - CE' },
-  { value: 'recife', label: 'Recife - PE' },
-  { value: 'manaus', label: 'Manaus - AM' },
-  { value: 'florianopolis', label: 'Florianópolis - SC' },
-  { value: 'goiania', label: 'Goiânia - GO' },
-];
+// Category/city vocabularies and matching live in src/lib/searchFilters.ts.
+// Options are derived from the actual results instead of a hardcoded list, so
+// a business in an unlisted city (e.g. "ayacucho") stays filterable.
 
 const RATINGS = [
   { value: '', label: 'Qualquer avaliação' },
@@ -74,14 +39,6 @@ const RATINGS = [
   { value: '4.0', label: '4.0+ estrelas' },
   { value: '3.5', label: '3.5+ estrelas' },
 ];
-
-/** Normalize a city string for comparison */
-const normalizeCity = (city: string) =>
-  city.toLowerCase().replace(/[^a-záéíóúãõâêîôûà0-9\s]/g, '').trim();
-
-/** Normalize text for search matching */
-const normalizeText = (text: string) =>
-  text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
 /** Build fallback results from localStorage only */
 export const Busca = () => {
@@ -95,10 +52,10 @@ export const Busca = () => {
 
   // Read URL params using the CORRECT keys: q, category, city, minRating (back-compat: rating)
   const query = searchParams.get('q') || '';
-  // Normalize the category param to the canonical DB vocabulary (BUG-030b):
-  // home links and shared URLs may carry 'mercados'/'servicios'/'inmuebles'.
-  const categoryParam = searchParams.get('category') || '';
-  const category = CATEGORY_ALIASES[categoryParam.toLowerCase()] || '';
+  // Keep the raw param: canonicalCategory() collapses spelling variants at
+  // comparison time, so an unknown category narrows results instead of being
+  // silently dropped (the old alias map mapped misses to '').
+  const category = searchParams.get('category') || '';
   const city = searchParams.get('city') || '';
   const minRating = searchParams.get('minRating') || searchParams.get('rating') || '';
 
@@ -111,32 +68,25 @@ export const Busca = () => {
 
     // Text search (fuzzy match on name, tags, city)
     if (searchInput.trim()) {
-      const q = normalizeText(searchInput);
+      const q = normalizeForMatch(searchInput);
       filtered = filtered.filter((item) => {
-        const name = normalizeText(item.name);
-        const tags = item.tags.map((t) => normalizeText(t)).join(' ');
-        const cityText = normalizeText(item.city);
-        const stateText = normalizeText(item.state || '');
+        const name = normalizeForMatch(item.name);
+        const tags = item.tags.map((t) => normalizeForMatch(t)).join(' ');
+        const cityText = normalizeForMatch(item.city);
+        const stateText = normalizeForMatch(item.state || '');
         const haystack = `${name} ${tags} ${cityText} ${stateText}`;
         return haystack.includes(q);
       });
     }
 
-    // Category filter
+    // Category filter — collapses 'servicios'/'servicos' and singular/plural
     if (category) {
-      filtered = filtered.filter(
-        (item) => item.category.toLowerCase() === category.toLowerCase()
-      );
+      filtered = filtered.filter((item) => matchesCategory(item.category, category));
     }
 
-    // City filter
+    // City filter — accent-insensitive, so 'sao paulo' matches 'São Paulo'
     if (city) {
-      const nc = normalizeCity(city);
-      filtered = filtered.filter((item) => {
-        const itemCity = normalizeCity(item.city);
-        const full = normalizeCity(`${item.city} ${item.state || ''}`);
-        return itemCity.includes(nc) || full.includes(nc);
-      });
+      filtered = filtered.filter((item) => matchesCity(item.city, item.state, city));
     }
 
     // Rating filter
@@ -148,8 +98,23 @@ export const Busca = () => {
     return filtered;
   }, [results, searchInput, category, city, minRating]);
 
+  // Options come from the actual results, so a business in a city the old
+  // hardcoded list omitted (e.g. "ayacucho") is still filterable. Derived from
+  // `results` rather than `filteredResults` so choosing one option does not
+  // erase the others from the select.
+  const cityOptions = useMemo(() => deriveCityOptions(results), [results]);
+  const categoryOptions = useMemo(() => deriveCategoryOptions(results), [results]);
+
   // ── Fetch from API (if configured) ────────────────────────────
 
+  // Fetch WITHOUT the city/category filters and narrow on the client.
+  //
+  // Two reasons: the backend matches `address.city` with a case- and
+  // accent-sensitive `string_contains`, so 'sao paulo' never matched the
+  // stored 'São Paulo'; and sending the filters would return an already
+  // narrowed list, collapsing the derived select options to the current
+  // selection. `q` and `minRating` stay server-side — they do not feed the
+  // option lists.
   const fetchResults = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -157,8 +122,6 @@ export const Busca = () => {
       const token = await getToken().catch(() => null);
       const data = await searchBusinesses(token || '', {
         q: query || undefined,
-        category: category || undefined,
-        city: city || undefined,
         minRating: minRating || undefined,
       });
       setResults(data);
@@ -168,7 +131,7 @@ export const Busca = () => {
     } finally {
       setLoading(false);
     }
-  }, [getToken, query, category, city, minRating]);
+  }, [getToken, query, minRating]);
 
   useEffect(() => {
     fetchResults();
@@ -207,7 +170,8 @@ export const Busca = () => {
   };
 
   const getCategoryBadge = (cat: string) => {
-    const c = cat.toLowerCase();
+    // Compare canonically: the DB holds both 'servicios' and 'servicos'.
+    const c = canonicalCategory(cat);
     if (c === 'restaurante') return 'bg-aji-rojo/10 text-aji-rojo';
     if (c === 'mercado') return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
     if (c === 'salon') return 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400';
@@ -286,9 +250,10 @@ export const Busca = () => {
                 onChange={(e) => updateFilter('category', e.target.value)}
                 className="w-full p-3 rounded-xl border border-oro-inca/30 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-aji-rojo/30 focus:border-aji-rojo/50 transition-all text-sm"
               >
-                {CATEGORIES.map((cat) => (
+                <option value="">{t('search.all_categories')}</option>
+                {categoryOptions.map((cat) => (
                   <option key={cat.value} value={cat.value}>
-                    {cat.label || t(cat.labelKey || '')}
+                    {cat.labelKey ? t(cat.labelKey) : cat.value}
                   </option>
                 ))}
               </select>
@@ -304,7 +269,8 @@ export const Busca = () => {
                 onChange={(e) => updateFilter('city', e.target.value)}
                 className="w-full p-3 rounded-xl border border-oro-inca/30 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-aji-rojo/30 focus:border-aji-rojo/50 transition-all text-sm"
               >
-                {CITIES.map((c) => (
+                <option value="">{t('search.all_cities')}</option>
+                {cityOptions.map((c) => (
                   <option key={c.value} value={c.value}>
                     {c.label}
                   </option>
@@ -400,7 +366,9 @@ export const Busca = () => {
                       </div>
                       <div className="absolute top-3 left-3">
                         <span className={`px-3 py-1 rounded-full text-xs font-medium shadow-sm ${getCategoryBadge(item.category)}`}>
-                          {item.category}
+                          {categoryLabelKey(item.category)
+                            ? t(categoryLabelKey(item.category) as string)
+                            : item.category}
                         </span>
                       </div>
                     </div>
