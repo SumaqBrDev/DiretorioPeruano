@@ -69,6 +69,14 @@
     "subtitle": "Regístrate gratuitamente en ConectaPerú y conéctate con la comunidad peruana en Brasil. Aumenta tu visibilidad y alcanza más clientes.",
     "button": "Registrar mi negocio gratis"
   },
+  "onboarding": {
+    "auth_required": {
+      "title": "Crea tu cuenta para registrar tu negocio",
+      "reason": "El registro es gratuito. Necesitamos una cuenta para vincular el negocio a su titular y permitirte consultar y editar los datos después. Durante la fase beta no hay cobro ni tarjeta.",
+      "sign_up": "Crear cuenta gratis",
+      "sign_in": "Ya tengo cuenta"
+    }
+  },
   "search": {
     "title": "Buscar Negocios",
     "subtitle": "Encuentra restaurantes peruanos, mercados y servicios de la comunidad peruana en Brasil",

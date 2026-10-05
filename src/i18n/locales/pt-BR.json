@@ -69,6 +69,14 @@
     "subtitle": "Cadastre-se gratuitamente no ConectaPeru e conecte-se com a comunidade peruana no Brasil. Aumente sua visibilidade e alcance mais clientes.",
     "button": "Cadastrar meu negócio grátis"
   },
+  "onboarding": {
+    "auth_required": {
+      "title": "Crie sua conta para cadastrar seu negócio",
+      "reason": "O cadastro é gratuito. Precisamos de uma conta para vincular o negócio ao seu titular e permitir que você acompanhe e edite os dados depois. Durante a fase beta não há cobrança nem cartão.",
+      "sign_up": "Criar conta grátis",
+      "sign_in": "Já tenho conta"
+    }
+  },
   "search": {
     "title": "Buscar Negócios",
     "subtitle": "Encontre restaurantes peruanos, mercados e serviços da comunidade peruana no Brasil",

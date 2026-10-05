@@ -1,11 +1,12 @@
 // src/pages/Onboarding.tsx
 import { useState, useEffect, useCallback } from 'react';
-import { useUser, useAuth } from '@clerk/clerk-react';
+import { useUser, useAuth, useClerk } from '@clerk/clerk-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
 import { createBusiness, getMyBusiness, getConsentStatus, recordConsent, ApiError, markBusinessIntent, openStripeCheckout } from '../lib/api';
 import { resolveSubmissionErrorMessage, runBusinessUpgradeSubmission } from '../lib/businessUpgradeFlow';
+import { getOnboardingAccessState } from '../lib/onboardingAccess';
 import { ConsentCheckboxes } from '../components/ConsentCheckboxes';
 import { activeLegalDocs } from '../config/legal';
 import {
@@ -177,6 +178,7 @@ interface OnboardingFormData {
 export const Onboarding = () => {
   const { user, isLoaded } = useUser();
   const { getToken } = useAuth();
+  const { openSignIn, openSignUp } = useClerk();
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
@@ -480,9 +482,15 @@ export const Onboarding = () => {
     }
   };
 
-  // --- Loading State ---
+  // --- Access Gate ---
+  //
+  // Both homepage calls-to-action land here, so a signed-out visitor is the
+  // common case, not an error. The gate explains why an account is needed and
+  // returns the visitor to this screen once Clerk finishes.
 
-  if (!isLoaded) {
+  const access = getOnboardingAccessState({ isLoaded, hasUser: Boolean(user) });
+
+  if (access.kind === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-creme-andino">
         <div className="animate-spin rounded-full h-12 w-12 border-4 border-aji-rojo border-t-transparent" />
@@ -490,10 +498,33 @@ export const Onboarding = () => {
     );
   }
 
-  if (!user) {
+  if (access.kind === 'signup-required') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-creme-andino">
-        <p className="text-gray-600 dark:text-gray-400">Acesso negado</p>
+      <div className="min-h-screen flex items-center justify-center bg-creme-andino dark:bg-zinc-950 px-4">
+        <div className="w-full max-w-md bg-white dark:bg-noche-lima rounded-2xl shadow-lg p-8 border border-oro-inca/20 text-center">
+          <h1 className="font-playfair text-2xl font-bold text-aji-rojo mb-4">
+            {t(access.titleKey)}
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 mb-8 leading-relaxed">
+            {t(access.reasonKey)}
+          </p>
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => openSignUp({ redirectUrl: access.redirectUrl })}
+              className="w-full bg-aji-rojo text-white px-6 py-3 rounded-xl font-semibold hover:bg-aji-rojo/90 active:scale-[0.98] transition-all shadow-lg"
+            >
+              {t(access.signUpLabelKey)}
+            </button>
+            <button
+              type="button"
+              onClick={() => openSignIn({ redirectUrl: access.redirectUrl })}
+              className="w-full text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-aji-rojo transition-colors px-6 py-2"
+            >
+              {t(access.signInLabelKey)}
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
