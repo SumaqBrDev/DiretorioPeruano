@@ -23,6 +23,7 @@ import { Cookies } from './pages/Cookies';
 import { Preferencias } from './pages/Preferencias';
 import { Privacidade } from './pages/Privacidade';
 import { Termos } from './pages/Termos';
+import { NotFound } from './pages/NotFound';
 import { analytics } from './lib/posthog';
 import { useConsentStore } from './stores/useConsentStore';
 import './App.css';
@@ -86,6 +87,13 @@ function AppRoutes() {
             {/* Legacy billing link (older emails/portal return URLs) — the
                 subscription UI lives in the owner panel. */}
             <Route path="/admin/facturacion" element={<Navigate to="/meu-negocio" replace />} />
+            {/* Intuitive spellings visitors type by hand. Without these the
+                router matched nothing and rendered a blank page. */}
+            <Route path="/buscar" element={<Navigate to="/busca" replace />} />
+            <Route path="/comunidade" element={<Navigate to="/comunidad" replace />} />
+            <Route path="/cadastro" element={<Navigate to="/onboarding" replace />} />
+            {/* Anything else: an explained dead end beats a blank screen. */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
         <CookieBanner />

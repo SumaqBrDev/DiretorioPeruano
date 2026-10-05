@@ -6,6 +6,7 @@ import { useAuth } from '@clerk/clerk-react';
 import { SkeletonCard } from '../components/SkeletonCard';
 import { searchBusinesses } from '../lib/api';
 import { analytics } from '../lib/posthog';
+import { normalizeSearchResults, type NormalizedSearchResult } from '../lib/businessDisplay';
 import {
   normalizeForMatch,
   canonicalCategory,
@@ -15,23 +16,6 @@ import {
   deriveCityOptions,
   deriveCategoryOptions,
 } from '../lib/searchFilters';
-
-interface SearchResult {
-  id: string;
-  name: string;
-  category: string;
-  city: string;
-  state: string;
-  rating: number;
-  reviewsCount: number;
-  tags: string[];
-  coverImage: string;
-  description: string;
-}
-
-// Category/city vocabularies and matching live in src/lib/searchFilters.ts.
-// Options are derived from the actual results instead of a hardcoded list, so
-// a business in an unlisted city (e.g. "ayacucho") stays filterable.
 
 const RATINGS = [
   { value: '', label: 'Qualquer avaliação' },
@@ -45,7 +29,7 @@ export const Busca = () => {
   const { t } = useTranslation();
   const { getToken } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [results, setResults] = useState<SearchResult[]>([]);
+  const [results, setResults] = useState<NormalizedSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
@@ -120,11 +104,11 @@ export const Busca = () => {
     setError(null);
     try {
       const token = await getToken().catch(() => null);
-      const data = await searchBusinesses(token || '', {
-        q: query || undefined,
-        minRating: minRating || undefined,
-      });
-      setResults(data);
+            const data = await searchBusinesses(token || '', {
+              q: query || undefined,
+              minRating: minRating || undefined,
+            });
+            setResults(normalizeSearchResults(data));
     } catch (err: any) {
       setError(err?.message || 'Erro ao buscar resultados');
       setResults([]);

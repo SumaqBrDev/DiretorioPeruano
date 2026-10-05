@@ -81,18 +81,20 @@ export const HeroSection = () => {
           {/* Search Bar */}
           <motion.div {...fadeUp(0.55)}>
             <form onSubmit={handleSearch} className="max-w-2xl mx-auto">
-              <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-2 flex items-center gap-2 transition-all duration-300">
-                <MagnifyingGlass size={24} className="ml-4 text-white/60 shrink-0" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={t('hero.search_placeholder')}
-                  className="flex-1 bg-transparent placeholder-white/50 text-lg focus:outline-none text-white"
-                />
+              <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 transition-all duration-300">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <MagnifyingGlass size={24} className="ml-2 sm:ml-4 text-white/60 shrink-0" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder={t('hero.search_placeholder')}
+                    className="w-full min-w-0 bg-transparent placeholder-white/50 text-base sm:text-lg focus:outline-none text-white"
+                  />
+                </div>
                 <button
                   type="submit"
-                  className="px-6 py-3 bg-oro-inca text-noche-lima rounded-xl font-semibold text-base hover:bg-oro-inca/90 active:scale-[0.98] transition-all shadow-lg shrink-0"
+                  className="w-full sm:w-auto px-6 py-3 bg-oro-inca text-noche-lima rounded-xl font-semibold text-base hover:bg-oro-inca/90 active:scale-[0.98] transition-all shadow-lg shrink-0"
                 >
                   {t('hero.search_button')}
                 </button>

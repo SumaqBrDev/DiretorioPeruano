@@ -2,11 +2,12 @@ import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useHomeStore } from '../stores/useHomeStore';
 import { useAnimatedCounter } from '../hooks/useAnimatedCounter';
+import { formatStatValue } from '../lib/businessDisplay';
 import { SkeletonCard } from './SkeletonCard';
 
 function StatCard({ label, value, suffix }: { label: string; value: number; suffix?: string }) {
   const { t } = useTranslation();
-  const { ref, displayValue } = useAnimatedCounter({ end: value, suffix: suffix || '' });
+  const { ref, count } = useAnimatedCounter({ end: value, suffix: suffix || '' });
 
   return (
     <div
@@ -14,7 +15,7 @@ function StatCard({ label, value, suffix }: { label: string; value: number; suff
       className="bg-white/80 dark:bg-zinc-800/80 backdrop-blur-sm rounded-xl p-6 border border-oro-inca/20 text-center"
     >
       <p className="text-3xl md:text-4xl font-bold text-aji-rojo mb-1 tabular-nums">
-        {displayValue}
+        {formatStatValue({ value: count, suffix })}
       </p>
       <p className="text-gray-600 dark:text-gray-400 text-sm">
         {t(label)}

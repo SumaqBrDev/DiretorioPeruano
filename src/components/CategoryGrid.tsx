@@ -13,6 +13,7 @@ import {
 } from '@phosphor-icons/react';
 import { motion, useReducedMotion } from 'motion/react';
 import { useHomeStore } from '../stores/useHomeStore';
+import { formatCategoryCount } from '../lib/businessDisplay';
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   restaurantes: <Storefront size={28} weight="duotone" />,
@@ -172,9 +173,12 @@ export const CategoryGrid = () => {
                           {cat.name?.['pt-BR'] || cat.slug}
                         </h3>
                         <p className="text-white/70 text-sm font-medium">
-                          {cat.count > 0
-                            ? `${cat.count} ${t('categories.coming_soon').toLowerCase() || 'opções'}`
-                            : t('categories.coming_soon')}
+                          {formatCategoryCount({
+                            count: cat.count,
+                            comingSoonLabel: t('categories.coming_soon'),
+                            listingsLabel: t('categories.listings'),
+                            singularLabel: t('categories.listing'),
+                          })}
                         </p>
                       </div>
                     </div>

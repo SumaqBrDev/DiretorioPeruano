@@ -44,7 +44,9 @@
     "juridico": "Jurídico",
     "financiero": "Financiero",
     "inmuebles": "Inmuebles",
-    "coming_soon": "Pronto"
+    "coming_soon": "Pronto",
+    "listings": "negocios",
+    "listing": "negocio"
   },
   "featured": {
     "title": "Negocios Destacados",
@@ -68,6 +70,12 @@
     "title": "¿Tienes un negocio peruano en Brasil?",
     "subtitle": "Regístrate gratuitamente en ConectaPerú y conéctate con la comunidad peruana en Brasil. Aumenta tu visibilidad y alcanza más clientes.",
     "button": "Registrar mi negocio gratis"
+  },
+  "not_found": {
+    "title": "Página no encontrada",
+    "description": "La dirección que abriste no existe o fue movida. Revisa el enlace o comienza por la página de inicio.",
+    "home": "Ir al inicio",
+    "search": "Buscar negocios"
   },
   "onboarding": {
     "auth_required": {

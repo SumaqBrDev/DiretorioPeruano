@@ -44,7 +44,9 @@
     "juridico": "Jurídico",
     "financiero": "Financeiro",
     "inmuebles": "Imóveis",
-    "coming_soon": "Em breve"
+    "coming_soon": "Em breve",
+    "listings": "negócios",
+    "listing": "negócio"
   },
   "featured": {
     "title": "Negócios em Destaque",
@@ -68,6 +70,12 @@
     "title": "Tem um negócio peruano no Brasil?",
     "subtitle": "Cadastre-se gratuitamente no ConectaPeru e conecte-se com a comunidade peruana no Brasil. Aumente sua visibilidade e alcance mais clientes.",
     "button": "Cadastrar meu negócio grátis"
+  },
+  "not_found": {
+    "title": "Página não encontrada",
+    "description": "O endereço que você abriu não existe ou foi movido. Verifique o link ou comece pela página inicial.",
+    "home": "Ir para o início",
+    "search": "Buscar negócios"
   },
   "onboarding": {
     "auth_required": {

@@ -14,6 +14,7 @@ import { ReviewsSection } from '@/components/ReviewsSection';
 import { Sidebar } from '@/components/Sidebar';
 import { CaretRight } from '@phosphor-icons/react';
 import { analytics } from '@/lib/posthog';
+import { formatBusinessAddress } from '@/lib/businessDisplay';
 
 // Rich shape consumed by the detail section components (matches the former
 // DisplayBusiness contract so PhotoGallery, AboutSection, HoursSection,
@@ -67,7 +68,7 @@ export const Negocio = () => {
           name: detail.name,
           category: detail.category,
           city: detail.city ? `${detail.city} - ${detail.state}` : detail.state,
-          address: `${detail.address.street}, ${detail.address.city} - ${detail.address.state}, ${detail.address.zip}`.replace(/^,\s*/, ''),
+          address: formatBusinessAddress(detail.address),
           rating: detail.rating || 0,
           reviewsCount: detail.reviewsCount || reviews.length,
           tags: detail.tags || [],
