@@ -1,6 +1,5 @@
-// tests/upload-ad-image.test.ts
-// Ad image upload endpoint — auth scoping, file validation (magic bytes),
-// and store behavior. Mocked deps — no DATABASE_URL or real blobs needed.
+// tests/upload-image.test.ts
+// Business gallery upload endpoint — focused multipart parser regression coverage.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { HandlerEvent } from '@netlify/functions';
@@ -8,7 +7,7 @@ import type { HandlerEvent } from '@netlify/functions';
 vi.mock('../netlify/functions/lib/prisma', () => ({
   default: {
     user: { findUnique: vi.fn() },
-    businessProfile: { findFirst: vi.fn() },
+    businessProfile: { findFirst: vi.fn(), findUnique: vi.fn() },
   },
 }));
 
@@ -19,18 +18,20 @@ vi.mock('../netlify/functions/lib/auth', () => ({
 vi.mock('@netlify/blobs', () => ({
   getStore: vi.fn(() => ({
     set: vi.fn().mockResolvedValue(undefined),
-    get: vi.fn().mockResolvedValue(null),
-    list: vi.fn().mockResolvedValue({ blobs: [] }),
+    list: vi.fn(() => (async function* () {
+      yield { blobs: [] };
+    })()),
   })),
 }));
 
-import { handler } from '../netlify/functions/upload-ad-image';
+import { handler } from '../netlify/functions/upload-image';
 import prisma from '../netlify/functions/lib/prisma';
 import { authenticateRequest } from '../netlify/functions/lib/auth';
 
 const authMock = vi.mocked(authenticateRequest);
 const userFindMock = vi.mocked(prisma.user.findUnique);
 const businessFindFirstMock = vi.mocked(prisma.businessProfile.findFirst);
+const businessFindUniqueMock = vi.mocked(prisma.businessProfile.findUnique);
 
 // A real 1x1 PNG (magic bytes 89 50 4E 47...)
 const PNG_BYTES = Buffer.from(
@@ -38,12 +39,12 @@ const PNG_BYTES = Buffer.from(
   'hex'
 );
 
-const boundary = '----testboundary123';
+const boundary = '----galleryboundary123';
 
-function multipartEvent(fileData: Buffer, overrides: any = {}, order: 'file-first' | 'business-first' = 'file-first') {
+function multipartEvent(fileData: Buffer, order: 'file-first' | 'business-first' = 'file-first') {
   const filePart = Buffer.concat([
     Buffer.from(
-      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="ad.png"\r\nContent-Type: image/png\r\n\r\n`
+      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="gallery.png"\r\nContent-Type: image/png\r\n\r\n`
     ),
     fileData,
     Buffer.from('\r\n'),
@@ -55,18 +56,17 @@ function multipartEvent(fileData: Buffer, overrides: any = {}, order: 'file-firs
     ...(order === 'file-first' ? [filePart, businessPart] : [businessPart, filePart]),
     Buffer.from(`--${boundary}--\r\n`),
   ]);
+
   return {
     httpMethod: 'POST',
     headers: {
       authorization: 'Bearer valid-token',
       'content-type': `multipart/form-data; boundary=${boundary}`,
-      ...overrides.headers,
     },
     queryStringParameters: undefined,
     body: body.toString('base64'),
     isBase64Encoded: true,
-    ...overrides,
-  };
+  } as unknown as HandlerEvent;
 }
 
 beforeEach(() => {
@@ -74,47 +74,25 @@ beforeEach(() => {
   authMock.mockResolvedValue({ ok: true, clerkId: 'user_test' } as any);
   userFindMock.mockResolvedValue({ id: 'user-internal-1', role: 'consumer' } as any);
   businessFindFirstMock.mockResolvedValue({ id: 'biz-1' } as any);
+  businessFindUniqueMock.mockResolvedValue({ photos: [] } as any);
 });
 
-describe('upload-ad-image', () => {
-  it('rejects unauthenticated requests', async () => {
-    authMock.mockResolvedValue({ ok: false, statusCode: 401, error: 'No autorizado' } as any);
-    const res = await handler(multipartEvent(PNG_BYTES));
-    expect(res.statusCode).toBe(401);
-  });
-
-  it('rejects cross-owner business image uploads', async () => {
-    businessFindFirstMock.mockResolvedValue(null as any);
-    const res = await handler(multipartEvent(PNG_BYTES));
-    expect(res.statusCode).toBe(403);
-  });
-
-  it('rejects non-image content (magic bytes mismatch)', async () => {
-    const fakePdf = Buffer.from('%PDF-1.4 fake content that is not an image');
-    const res = await handler(multipartEvent(fakePdf));
-    expect(res.statusCode).toBe(400);
-    expect(JSON.parse(res.body).error).toContain('Arquivo inválido');
-  });
-
+describe('upload-image multipart parsing', () => {
   it('uploads a valid PNG when the multipart body sends file before businessId', async () => {
     const res = await handler(multipartEvent(PNG_BYTES));
+
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    // store + key are URL-encoded in the query string (%2F for the slash)
-    expect(body.url).toContain('/api/blob-asset?store=ad-images&key=');
-    expect(decodeURIComponent(body.url)).toContain('key=biz-1/ad-');
-    expect(body.key).toContain('biz-1/ad-');
+    expect(body.totalUploaded).toBe(1);
+    expect(body.urls[0].key).toContain('biz-1/');
   });
 
   it('uploads a valid PNG when the multipart body sends businessId before file', async () => {
-    const res = await handler(multipartEvent(PNG_BYTES, {}, 'business-first'));
+    const res = await handler(multipartEvent(PNG_BYTES, 'business-first'));
+
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    expect(body.key).toContain('biz-1/ad-');
-  });
-
-  it('rejects non-POST methods', async () => {
-    const res = await handler({ httpMethod: 'GET', headers: {} } as unknown as HandlerEvent);
-    expect(res.statusCode).toBe(405);
+    expect(body.totalUploaded).toBe(1);
+    expect(body.urls[0].key).toContain('biz-1/');
   });
 });

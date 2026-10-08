@@ -66,7 +66,7 @@ function parseMultipart(body: Buffer, boundary: string): {
     const rawPart = body.subarray(contentStart, partEnd);
     const headerEnd = rawPart.indexOf('\r\n\r\n');
     if (headerEnd === -1) {
-      pos = partEnd + boundaryStrBuf.length;
+      pos = partEnd + 2;
       continue;
     }
 
@@ -93,10 +93,10 @@ function parseMultipart(body: Buffer, boundary: string): {
       fields[fieldname] = data.toString().trim();
     }
 
-    if (endBoundaryPos !== -1 && endBoundaryPos <= partEnd + boundaryStrBuf.length) {
+    if (endBoundaryPos !== -1 && endBoundaryPos <= partEnd + 2) {
       break;
     }
-    pos = partEnd + boundaryStrBuf.length;
+    pos = partEnd + 2;
   }
 
   return { files, fields };
