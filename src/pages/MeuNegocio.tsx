@@ -7,6 +7,8 @@ import { Flask, XCircle, Prohibit } from '@phosphor-icons/react';
 import { getMyBusinessWithAds, updateMyBusiness, openStripeCheckout, openStripePortal, createBusinessAdCheckout, uploadAdImage, type ApiBusinessWithAds as Business, type MyBusinessAd } from '../lib/api';
 import { runPaymentMethodSetup } from '../lib/businessUpgradeFlow';
 import { BusinessGallery } from '../components/BusinessGallery';
+import { AdPublicationTerms } from '../components/AdPublicationTerms';
+import { getAdStatusPresentation, AD_STATUS_TONE_CLASSES } from '../lib/adStatus';
 import { showToast } from '../lib/toast';
 
 const CATEGORIES = [
@@ -56,6 +58,10 @@ export const MeuNegocio = () => {
   const [adImageFile, setAdImageFile] = useState<File | null>(null);
   const [uploadingAdImage, setUploadingAdImage] = useState(false);
   const [adTargetUrl, setAdTargetUrl] = useState('');
+  // Terms acceptance, required to submit an ad for review (not for a draft).
+  // The version comes from the backend so the client cannot submit a stale one.
+  const [adTermsAccepted, setAdTermsAccepted] = useState(false);
+  const [adTermsVersion, setAdTermsVersion] = useState<string | null>(null);
   const [buyingAd, setBuyingAd] = useState(false);
   const [settingUpPayment, setSettingUpPayment] = useState(false);
   const [formData, setFormData] = useState({
@@ -253,8 +259,10 @@ export const MeuNegocio = () => {
     setAdImageUrl('');
   };
 
-  const handleBuyAd = async () => {
+  const handleBuyAd = async (saveAsDraft = false) => {
     if (!business || !adTitle.trim()) return;
+    // Submitting for publication requires the terms; a draft does not.
+    if (!saveAsDraft && (!adTermsAccepted || !adTermsVersion)) return;
     setBuyingAd(true);
     try {
       const token = await getToken();
@@ -271,9 +279,12 @@ export const MeuNegocio = () => {
         title: adTitle.trim(),
         imageUrl,
         targetUrl: adTargetUrl.trim() || undefined,
+        ...(saveAsDraft
+          ? { saveAsDraft: true }
+          : { acceptedTermsVersion: adTermsVersion as string }),
       });
-      if (res.betaMode) {
-        showToast(res.message || 'Modo Beta ativo — anúncio de teste ativado por 30 dias. 🧪', 'success');
+
+      const resetForm = () => {
         setShowAdForm(false);
         setAdTitle('');
         setAdImageUrl('');
@@ -281,16 +292,20 @@ export const MeuNegocio = () => {
         if (adImagePreview && adImagePreview.startsWith('blob:')) URL.revokeObjectURL(adImagePreview);
         setAdImagePreview(null);
         setAdTargetUrl('');
+        setAdTermsAccepted(false);
+      };
+
+      if (res.status === 'draft') {
+        showToast(res.message || 'Rascunho salvo. Ele não foi enviado para análise.', 'success');
+        resetForm();
+        refresh();
+      } else if (res.betaMode) {
+        showToast(res.message || 'Anúncio enviado para análise. 🧪', 'success');
+        resetForm();
         refresh();
       } else if (res.url) {
         window.open(res.url, '_blank', 'noopener,noreferrer');
-        setShowAdForm(false);
-        setAdTitle('');
-        setAdImageUrl('');
-        setAdImageFile(null);
-        if (adImagePreview && adImagePreview.startsWith('blob:')) URL.revokeObjectURL(adImagePreview);
-        setAdImagePreview(null);
-        setAdTargetUrl('');
+        resetForm();
       }
     } catch (err: any) {
       showToast(err?.message || 'Erro ao criar o anúncio.', 'error');
@@ -458,12 +473,14 @@ export const MeuNegocio = () => {
             🔑 {business.subscriptionStatus === 'active' || business.subscriptionStatus === 'past_due' ? 'Gerenciar Assinatura' : 'Assinar / Ativar'}
           </button>
         )}
-        {business.status === 'approved' && business.subscriptionStatus === 'active' && (
+        {/* Ads are a complementary product, NOT a subscription benefit, so the
+            subscription status is deliberately not consulted here. */}
+        {business.status === 'approved' && (
           <button
             onClick={() => setShowAdForm(!showAdForm)}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-aji-rojo/10 text-aji-rojo hover:bg-aji-rojo/20 border border-aji-rojo/30 transition-colors"
           >
-            📢 {showAdForm ? 'Cancelar' : 'Impulsionar anúncio R$30/mês'}
+            📢 {showAdForm ? 'Cancelar' : 'Impulsionar anúncio R$30/30 dias'}
           </button>
         )}
         <span className="text-sm text-gray-500 dark:text-gray-400">
@@ -471,14 +488,21 @@ export const MeuNegocio = () => {
         </span>
       </div>
 
-      {/* Ad purchase form (Opción A+B) — only for active subscribers */}
-      {showAdForm && business.subscriptionStatus === 'active' && (
+      {/* Ad form — open to any approved business, regardless of subscription:
+          ads are a complementary product, not a subscription benefit. */}
+      {showAdForm && (
         <div className="mb-8 p-5 rounded-xl border border-aji-rojo/30 bg-aji-rojo/5 dark:bg-aji-rojo/10">
           <h3 className="font-semibold text-noche-lima dark:text-white mb-1 flex items-center gap-2">
             <span className="text-lg">📢</span> Anúncio na Comunidade — R$30 / 30 dias
           </h3>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
             Seu anúncio aparece no sidebar da Comunidade e como card patrocinado acima da lista de temas (desktop e mobile).
+          </p>
+          {/* Stating the review step up front: an ad that does not appear
+              immediately after payment would otherwise look like a failure. */}
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            <strong>Todo anúncio passa por análise antes de ser publicado.</strong> Os 30 dias
+            começam a contar a partir da aprovação — você não perde dias durante a análise.
           </p>
           <div className="space-y-3">
             <div>
@@ -565,13 +589,37 @@ export const MeuNegocio = () => {
                 className="w-full p-3 rounded-lg border border-oro-inca/30 bg-white dark:bg-noche-lima text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-aji-rojo"
               />
             </div>
-            <button
-              onClick={handleBuyAd}
-              disabled={buyingAd || !adTitle.trim()}
-              className="px-5 py-2.5 bg-aji-rojo hover:bg-aji-rojo/90 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {buyingAd ? 'Processando...' : 'Pagar R$30 e ativar anúncio'}
-            </button>
+            {/* Legal warning + acceptance, immediately above the submit
+                button so it is read at the moment of commitment. */}
+            <AdPublicationTerms
+              accepted={adTermsAccepted}
+              onAcceptedChange={setAdTermsAccepted}
+              onVersionLoaded={setAdTermsVersion}
+            />
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={() => handleBuyAd(false)}
+                disabled={buyingAd || !adTitle.trim() || !adTermsAccepted || !adTermsVersion}
+                className="px-5 py-2.5 bg-aji-rojo hover:bg-aji-rojo/90 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {buyingAd ? 'Processando...' : 'Pagar R$30 e enviar para análise'}
+              </button>
+              {/* A draft commits to nothing, so it needs no acceptance and is
+                  never charged. */}
+              <button
+                onClick={() => handleBuyAd(true)}
+                disabled={buyingAd || !adTitle.trim()}
+                className="px-5 py-2.5 rounded-lg font-semibold border border-oro-inca/40 text-gray-700 dark:text-gray-300 hover:border-aji-rojo/50 hover:text-aji-rojo transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Salvar rascunho
+              </button>
+            </div>
+            {!adTermsAccepted && (
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Para enviar o anúncio é necessário aceitar as normas de publicação acima.
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -658,22 +706,42 @@ export const MeuNegocio = () => {
                 </tr>
               </thead>
               <tbody>
-                {myAds.map((ad) => (
+                {myAds.map((ad) => {
+                  const presentation = getAdStatusPresentation(ad.status);
+                  const tone = AD_STATUS_TONE_CLASSES[presentation.tone];
+                  return (
                   <tr key={ad.id} className="border-b border-oro-inca/10 hover:bg-gray-50 dark:hover:bg-zinc-800/30 transition-colors">
-                    <td className="p-3 font-medium text-noche-lima dark:text-white max-w-[220px] truncate">{ad.title}</td>
+                    <td className="p-3 font-medium text-noche-lima dark:text-white max-w-[220px]">
+                      <div className="truncate">{ad.title}</div>
+                      {/* The rejection reason belongs next to the ad it blocks:
+                          an unexplained block cannot be acted on. */}
+                      {ad.moderationReason && (
+                        <p className="mt-1 text-xs font-normal text-red-600 dark:text-red-400 whitespace-pre-line">
+                          <strong>Motivo:</strong> {ad.moderationReason}
+                        </p>
+                      )}
+                      {ad.status === 'inactive_for_review' && (
+                        <p className="mt-0.5 text-[11px] font-normal text-gray-500 dark:text-gray-400">
+                          Análises usadas: {ad.reviewAttempts} de 3. Na terceira reprovação o
+                          anúncio é encerrado e o valor pago é devolvido.
+                        </p>
+                      )}
+                      {ad.refundedAt && (
+                        <p className="mt-0.5 text-[11px] font-normal text-emerald-600 dark:text-emerald-400">
+                          Valor devolvido em {new Date(ad.refundedAt).toLocaleDateString('pt-BR')}.
+                        </p>
+                      )}
+                    </td>
                     <td className="p-3">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ring-1 ring-inset ${
-                        ad.status === 'active'
-                          ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-300 dark:ring-emerald-400/20'
-                          : ad.status === 'pending'
-                          ? 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-300 dark:ring-amber-400/20'
-                          : 'bg-zinc-100 text-zinc-600 ring-zinc-500/20 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-400/20'
-                      }`}>
-                        <span className={`h-1.5 w-1.5 rounded-full ${
-                          ad.status === 'active' ? 'bg-emerald-500' : ad.status === 'pending' ? 'bg-amber-500' : 'bg-zinc-400'
-                        }`} />
-                        {ad.status === 'active' ? 'Ativo' : ad.status === 'pending' ? 'Pagamento pendente' : ad.status}
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ring-1 ring-inset ${tone.badge}`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${tone.dot}`} />
+                        {presentation.label}
                       </span>
+                      {presentation.hint && (
+                        <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400 max-w-[220px]">
+                          {presentation.hint}
+                        </p>
+                      )}
                     </td>
                     <td className="p-3 text-gray-600 dark:text-gray-400 text-xs hidden sm:table-cell">
                       {ad.startsAt && ad.endsAt
@@ -684,7 +752,8 @@ export const MeuNegocio = () => {
                       {new Date(ad.createdAt).toLocaleDateString('pt-BR')}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

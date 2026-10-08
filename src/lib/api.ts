@@ -606,16 +606,86 @@ export interface CommunityAd {
   endsAt: string | null;
 }
 
-/** POST /api/ad-checkout — create a paid ad (one-time R$30/30 days, active subscription required). */
+/** Ad publication terms, versioned. Source of truth: GET /api/ad-terms. */
+export interface AdPublicationTerms {
+  version: string;
+  title: string;
+  sections: { title: string; body: string }[];
+  acknowledgement: string;
+}
+
+/** GET /api/ad-terms — the current publication rules shown before paying. */
+export async function getAdTerms(): Promise<AdPublicationTerms> {
+  return request<AdPublicationTerms>('ad-terms', '', { method: 'GET' });
+}
+
+/**
+ * POST /api/ad-checkout — create an ad.
+ *
+ * `businessId` is optional: a confirmed community user can advertise without
+ * owning a business. Submitting for publication requires
+ * `acceptedTermsVersion` to match the current terms; `saveAsDraft` stores the
+ * ad without charging or reviewing it.
+ */
 export async function createBusinessAdCheckout(
   token: string,
-  data: { businessId: string; title: string; imageUrl?: string; targetUrl?: string }
-): Promise<{ adId: string; url?: string; clientSecret?: string; betaMode?: boolean; message?: string; endsAt?: string }> {
-  return request<{ adId: string; url?: string; clientSecret?: string; betaMode?: boolean; message?: string; endsAt?: string }>(
-    'ad-checkout',
-    token,
-    { method: 'POST', body: data }
-  );
+  data: {
+    businessId?: string;
+    title: string;
+    imageUrl?: string;
+    targetUrl?: string;
+    acceptedTermsVersion?: string;
+    saveAsDraft?: boolean;
+  }
+): Promise<{
+  adId: string;
+  url?: string;
+  betaMode?: boolean;
+  status?: string;
+  message?: string;
+  requiredTermsVersion?: string;
+}> {
+  return request<{
+    adId: string;
+    url?: string;
+    betaMode?: boolean;
+    status?: string;
+    message?: string;
+    requiredTermsVersion?: string;
+  }>('ad-checkout', token, { method: 'POST', body: data });
+}
+
+/**
+ * POST /api/admin-moderate-ad — approve or reject a submitted ad.
+ *
+ * A reason is MANDATORY when rejecting: the advertiser cannot correct what
+ * they were never told, and an unexplained block reads as a system error.
+ */
+export async function adminModerateAd(
+  token: string,
+  adId: string,
+  action: 'approve' | 'reject',
+  reason?: string
+): Promise<{
+  adId: string;
+  status: string;
+  attemptsUsed?: number;
+  attemptsRemaining?: number;
+  terminal?: boolean;
+  refunded?: boolean;
+  refundError?: string;
+  endsAt?: string;
+}> {
+  return request<{
+    adId: string;
+    status: string;
+    attemptsUsed?: number;
+    attemptsRemaining?: number;
+    terminal?: boolean;
+    refunded?: boolean;
+    refundError?: string;
+    endsAt?: string;
+  }>('admin-moderate-ad', token, { method: 'POST', body: { adId, action, reason } });
 }
 
 /** POST /api/upload-ad-image — upload ONE local ad image (multipart). Returns the blob URL. */
@@ -662,6 +732,12 @@ export interface MyBusinessAd {
   targetUrl: string | null;
   status: string;
   stripePaymentId: string | null;
+  /** Why moderation rejected it. Shown to the owner so it can be corrected. */
+  moderationReason: string | null;
+  /** Reviews already consumed, out of 3. */
+  reviewAttempts: number;
+  /** Set when a final rejection returned the money. */
+  refundedAt: string | null;
   startsAt: string | null;
   endsAt: string | null;
   createdAt: string;
@@ -694,10 +770,17 @@ export interface FinanceSubscriptionRow {
 
 export interface FinanceAdRow {
   id: string;
-  businessId: string;
+  /** null for a community ad — there is no business behind it. */
+  businessId: string | null;
   businessName: string;
   title: string;
   status: string;
+  /** Why moderation rejected it, if it did. */
+  moderationReason: string | null;
+  /** Reviews already consumed, out of 3. */
+  reviewAttempts: number;
+  /** Set when a final rejection returned the money. */
+  refundedAt: string | null;
   startsAt: string | null;
   endsAt: string | null;
   createdAt: string;

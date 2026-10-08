@@ -96,7 +96,11 @@ describe('admin-finance revenue summary', () => {
         endsAt: future,
         createdAt: past,
         stripePaymentId: 'cs_test_1',
+        refundedAt: null,
+        moderationReason: null,
+        reviewAttempts: 0,
         business: { id: 'biz-1', name: 'Cantina Don José' },
+        user: { name: 'Owner' },
       },
       {
         id: 'ad-2',
@@ -107,7 +111,11 @@ describe('admin-finance revenue summary', () => {
         endsAt: past,
         createdAt: past,
         stripePaymentId: 'cs_test_2',
+        refundedAt: null,
+        moderationReason: null,
+        reviewAttempts: 0,
         business: { id: 'biz-2', name: 'Mercado Andino' },
+        user: { name: 'Otro Owner' },
       },
     ] as any);
 
@@ -130,6 +138,133 @@ describe('admin-finance revenue summary', () => {
 
     expect(body.ads.length).toBe(2);
     expect(body.ads[0].businessName).toBe('Cantina Don José');
+  });
+
+  // Revenue must reflect money that actually arrived AND stayed. The previous
+  // rule (`status !== 'cancelled'`) counted drafts, unpaid and refunded ads as
+  // income — reporting revenue that does not exist is worse than none.
+  it('excludes drafts, unpaid, refunded and finally-rejected ads from revenue', async () => {
+    const past = new Date(Date.now() - 86400000);
+    subsFindMock.mockResolvedValue([]);
+    adsFindMock.mockResolvedValue([
+      // Counts: paid, published, kept.
+      {
+        id: 'paid',
+        businessId: 'b1',
+        title: 'Pago',
+        status: 'active',
+        startsAt: past,
+        endsAt: new Date(Date.now() + 86400000),
+        createdAt: past,
+        stripePaymentId: 'cs_1',
+        refundedAt: null,
+        moderationReason: null,
+        reviewAttempts: 0,
+        business: { id: 'b1', name: 'Negócio' },
+        user: { name: 'A' },
+      },
+      // Never submitted, never charged.
+      {
+        id: 'draft',
+        businessId: 'b1',
+        title: 'Rascunho',
+        status: 'draft',
+        startsAt: null,
+        endsAt: null,
+        createdAt: past,
+        stripePaymentId: null,
+        refundedAt: null,
+        moderationReason: null,
+        reviewAttempts: 0,
+        business: { id: 'b1', name: 'Negócio' },
+        user: { name: 'A' },
+      },
+      // Checkout opened, never completed.
+      {
+        id: 'unpaid',
+        businessId: 'b1',
+        title: 'Sem pagamento',
+        status: 'pending_payment',
+        startsAt: null,
+        endsAt: null,
+        createdAt: past,
+        stripePaymentId: 'cs_2',
+        refundedAt: null,
+        moderationReason: null,
+        reviewAttempts: 0,
+        business: { id: 'b1', name: 'Negócio' },
+        user: { name: 'A' },
+      },
+      // Third strike: money was returned, so it is not revenue.
+      {
+        id: 'refunded',
+        businessId: 'b1',
+        title: 'Devolvido',
+        status: 'rejected_final',
+        startsAt: null,
+        endsAt: null,
+        createdAt: past,
+        stripePaymentId: 'cs_3',
+        refundedAt: past,
+        moderationReason: 'Conteúdo proibido.',
+        reviewAttempts: 3,
+        business: { id: 'b1', name: 'Negócio' },
+        user: { name: 'A' },
+      },
+      // Published then disabled for breach: the service WAS delivered, so the
+      // money is legitimately kept and still counts.
+      {
+        id: 'breach',
+        businessId: 'b1',
+        title: 'Infração',
+        status: 'disabled_breach',
+        startsAt: past,
+        endsAt: past,
+        createdAt: past,
+        stripePaymentId: 'cs_4',
+        refundedAt: null,
+        moderationReason: 'Violação após publicação.',
+        reviewAttempts: 0,
+        business: { id: 'b1', name: 'Negócio' },
+        user: { name: 'A' },
+      },
+    ] as any);
+
+    const res = await handler(getEvent());
+    const body = JSON.parse(res.body);
+
+    // Only 'paid' and 'breach' are real revenue: 2 × R$30 = 6000.
+    expect(body.summary.totalAdsPaid).toBe(2);
+    expect(body.summary.adRevenueCents).toBe(6000);
+    // All five still show in the table — revenue filtering is not row hiding.
+    expect(body.ads.length).toBe(5);
+  });
+
+  it('labels a community ad by its purchaser, since it has no business', async () => {
+    subsFindMock.mockResolvedValue([]);
+    adsFindMock.mockResolvedValue([
+      {
+        id: 'ad-c',
+        businessId: null,
+        title: 'Clases de quechua',
+        status: 'pending_review',
+        startsAt: null,
+        endsAt: null,
+        createdAt: new Date(),
+        stripePaymentId: 'cs_c',
+        refundedAt: null,
+        moderationReason: null,
+        reviewAttempts: 0,
+        business: null,
+        user: { name: 'María' },
+      },
+    ] as any);
+
+    const res = await handler(getEvent());
+    const body = JSON.parse(res.body);
+
+    expect(body.ads[0].businessName).toBe('María');
+    expect(body.ads[0].businessId).toBeNull();
   });
 
   it('handles empty data (no subscriptions, no ads)', async () => {

@@ -61,6 +61,8 @@ export const handler = async (event: HandlerEvent) => {
         business: {
           select: { id: true, name: true },
         },
+        // Community ads have no business, so the purchaser supplies the name.
+        user: { select: { name: true } },
       },
     });
 
@@ -69,9 +71,27 @@ export const handler = async (event: HandlerEvent) => {
     );
 
     // Revenue: subscriptions counted as monthly base (active × plan price);
-    // ads as the one-time purchase price per ad ever paid for (active + pending
-    // with a stripe session + expired are all paid; cancelled are not).
-    const paidAds = allAds.filter((ad) => ad.status !== 'cancelled');
+    // ads as the one-time purchase price per ad ACTUALLY paid and not refunded.
+    //
+    // An ad counts as revenue only if money really arrived and stayed:
+    //  - it has a Stripe payment (beta ads are free, drafts never charged),
+    //  - it is past the payment step (not 'draft'/'pending_payment'),
+    //  - it was not refunded (a third-strike rejection returns the money).
+    // The previous rule was `status !== 'cancelled'`, which counted drafts,
+    // unpaid ads and refunded ones as income — reporting revenue that does
+    // not exist is worse than reporting none.
+    const NON_REVENUE_STATUSES = new Set([
+      'draft',
+      'pending_payment',
+      'cancelled',
+      'rejected_final',
+    ]);
+    const paidAds = allAds.filter(
+      (ad) =>
+        Boolean(ad.stripePaymentId) &&
+        !NON_REVENUE_STATUSES.has(ad.status) &&
+        ad.refundedAt === null
+    );
     const subRevenueCents = activeSubs.length * SUB_PRICE_CENTS;
     const adRevenueCents = paidAds.length * AD_PRICE_CENTS;
     const totalRevenueCents = subRevenueCents + adRevenueCents;
@@ -79,9 +99,13 @@ export const handler = async (event: HandlerEvent) => {
     const fmtAds = allAds.map((ad) => ({
       id: ad.id,
       businessId: ad.businessId,
-      businessName: ad.business?.name || '—',
+      // Community ads have no business; fall back to the purchaser's name.
+      businessName: ad.business?.name || ad.user?.name || 'Anunciante da comunidade',
       title: ad.title,
       status: ad.status,
+      moderationReason: ad.moderationReason || null,
+      reviewAttempts: ad.reviewAttempts ?? 0,
+      refundedAt: ad.refundedAt?.toISOString() || null,
       startsAt: ad.startsAt?.toISOString() || null,
       endsAt: ad.endsAt?.toISOString() || null,
       createdAt: ad.createdAt.toISOString(),

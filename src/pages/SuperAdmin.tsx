@@ -26,6 +26,8 @@ import {
   type ApiBusiness as Business,
   type FinanceDashboard,
 } from '../lib/api';
+import { AdModerationQueue } from '../components/AdModerationQueue';
+import { getAdStatusPresentation, AD_STATUS_TONE_CLASSES } from '../lib/adStatus';
 
 // ── Helpers ──
 
@@ -783,6 +785,10 @@ export const SuperAdmin = () => {
             </table>
           </div>
 
+          {/* Moderation queue sits ABOVE the ads table: it is the actionable
+              surface, the table below is the full record. */}
+          <AdModerationQueue ads={finance.ads} onModerated={refresh} />
+
           {/* Ads table */}
           <div className="bg-white dark:bg-noche-lima rounded-2xl shadow-lg border border-oro-inca/20 overflow-x-auto">
             <div className="px-4 py-3 border-b border-oro-inca/20 font-semibold text-noche-lima dark:text-white">
@@ -804,20 +810,23 @@ export const SuperAdmin = () => {
                     <td colSpan={5} className="p-6 text-center text-gray-500 dark:text-gray-400">Nenhum anúncio ainda.</td>
                   </tr>
                 )}
-                {finance.ads.map((ad) => (
+                {finance.ads.map((ad) => {
+                  const presentation = getAdStatusPresentation(ad.status);
+                  const tone = AD_STATUS_TONE_CLASSES[presentation.tone];
+                  return (
                   <tr key={ad.id} className="border-b border-oro-inca/10 hover:bg-gray-50 dark:hover:bg-zinc-800/30 transition-colors">
                     <td className="p-3 font-medium text-noche-lima dark:text-white max-w-[220px] truncate">{ad.title}</td>
                     <td className="p-3 text-gray-600 dark:text-gray-400 hidden md:table-cell max-w-[150px] truncate">{ad.businessName}</td>
                     <td className="p-3">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ring-1 ring-inset ${
-                        ad.status === 'active'
-                          ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-300 dark:ring-emerald-400/20'
-                          : ad.status === 'pending'
-                          ? 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-300 dark:ring-amber-400/20'
-                          : 'bg-zinc-100 text-zinc-600 ring-zinc-500/20 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-400/20'
-                      }`}>
-                        {ad.status === 'active' ? 'Ativo' : ad.status === 'pending' ? 'Pagamento pendente' : ad.status}
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ring-1 ring-inset ${tone.badge}`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${tone.dot}`} />
+                        {presentation.label}
                       </span>
+                      {ad.refundedAt && (
+                        <span className="block mt-1 text-[11px] text-emerald-600 dark:text-emerald-400">
+                          Devolvido em {formatDate(ad.refundedAt)}
+                        </span>
+                      )}
                     </td>
                     <td className="p-3 text-gray-500 dark:text-gray-400 text-xs hidden lg:table-cell">
                       {ad.startsAt && ad.endsAt
@@ -826,7 +835,8 @@ export const SuperAdmin = () => {
                     </td>
                     <td className="p-3 text-gray-500 dark:text-gray-400 text-xs hidden sm:table-cell">{formatDate(ad.createdAt)}</td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -57,6 +57,11 @@ export const handler = async (event: HandlerEvent) => {
             targetUrl: true,
             status: true,
             stripePaymentId: true,
+            // The owner must see WHY an ad was rejected and how many
+            // corrections remain, otherwise the block is unactionable.
+            moderationReason: true,
+            reviewAttempts: true,
+            refundedAt: true,
             startsAt: true,
             endsAt: true,
             createdAt: true,
