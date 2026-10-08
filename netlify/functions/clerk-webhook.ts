@@ -94,6 +94,9 @@ export const handler = async (event: HandlerEvent) => {
 
     // Already gone, or never synced: acknowledge so Svix stops retrying.
     if (!user) {
+      // Log the success too, not just failures: an invocation that leaves no
+      // trace is indistinguishable from one that never arrived.
+      console.log(`[clerk-webhook] user.deleted for ${clerkId}: no local user, nothing to do`);
       return {
         statusCode: 200,
         headers,

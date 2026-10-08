@@ -592,10 +592,13 @@ export async function openStripePortal(
 
 export interface CommunityAd {
   id: string;
-  businessId: string;
+  /** null for a community ad — only business ads link to a listing. */
+  businessId: string | null;
   businessName: string;
-  category: string;
-  rating: number;
+  /** null for a community ad: there is no listing category to show. */
+  category: string | null;
+  /** null for a community ad: an invented rating would mislead readers. */
+  rating: number | null;
   title: string;
   imageUrl: string;
   targetUrl: string | null;

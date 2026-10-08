@@ -4,6 +4,7 @@
 // Ordering: soonest-expiring first → fair rotation, no manual curation.
 import { HandlerEvent } from '@netlify/functions';
 import prisma from './lib/prisma';
+import { resolveAdDisplayIdentity } from './lib/adModeration';
 
 export const handler = async (event: HandlerEvent) => {
   if (event.httpMethod !== 'GET') {
@@ -24,7 +25,13 @@ export const handler = async (event: HandlerEvent) => {
         status: 'active',
         startsAt: { lte: now },
         endsAt: { gt: now },
-        business: { status: 'approved' },
+        // Business ads require an approved listing; community ads have no
+        // business at all. Without the OR, every community ad would be
+        // filtered out by the business constraint.
+        OR: [
+          { business: { status: 'approved' } },
+          { businessId: null },
+        ],
       },
       orderBy: { endsAt: 'asc' },
       take: 6,
@@ -38,21 +45,31 @@ export const handler = async (event: HandlerEvent) => {
             rating: true,
           },
         },
+        user: { select: { name: true } },
       },
     });
 
-    const result = ads.map((ad) => ({
-      id: ad.id,
-      businessId: ad.businessId,
-      businessName: ad.business.name,
-      category: ad.business.category,
-      rating: ad.business.rating || 0,
-      title: ad.title,
-      imageUrl: ad.imageUrl || ad.business.photos?.[0] || '',
-      targetUrl: ad.targetUrl || null,
-      startsAt: ad.startsAt?.toISOString() || null,
-      endsAt: ad.endsAt?.toISOString() || null,
-    }));
+    const result = ads.map((ad) => {
+      const identity = resolveAdDisplayIdentity({
+        business: ad.business,
+        user: ad.user,
+        ad: { imageUrl: ad.imageUrl, targetUrl: ad.targetUrl },
+      });
+      return {
+        id: ad.id,
+        businessId: ad.businessId,
+        businessName: identity.displayName,
+        category: identity.category,
+        // null, not 0: a community advertiser has no rating, and 0 would
+        // render as a real zero-star score.
+        rating: identity.rating,
+        title: ad.title,
+        imageUrl: identity.imageUrl,
+        targetUrl: identity.targetUrl,
+        startsAt: ad.startsAt?.toISOString() || null,
+        endsAt: ad.endsAt?.toISOString() || null,
+      };
+    });
 
     return {
       statusCode: 200,

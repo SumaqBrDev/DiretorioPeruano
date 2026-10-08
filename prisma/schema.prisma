@@ -38,6 +38,7 @@ model User {
   communityPosts     CommunityPost[]  @relation("CommunityPosts")
   communityVotes     CommunityVote[]  @relation("CommunityVotes")
   consentRecords     ConsentRecord[]
+  ads                BusinessAd[]     @relation("UserAds")
   cookiePreferences  CookiePreference[]
 
   createdAt          DateTime         @default(now())
@@ -215,17 +216,38 @@ model CommunityVote {
 
 // ── Paid community ads (anuncios en Comunidad) ───────────────────────────────
 // Opción A (sidebar 300x250) + Opción B (featured card arriba del listado).
-// Solo negocios aprobados CON suscripción activa pueden comprar un anuncio.
+// Solo cuentas confirmadas (email verificado) pueden comprar un anuncio.
+// Los anuncios NO forman parte de la suscripción mensual: son un producto
+// complementario, por lo que el estado de suscripción no se consulta.
 // Pago: PaymentIntent one-time R$30 por 30 días (stripe-checkout pattern).
+// Advertisers can be a business OR a confirmed community user, so `business`
+// is optional and `user` records who bought the ad. Exactly one of the two
+// identities drives public display (see lib/adModeration).
 model BusinessAd {
   id              String           @id @default(dbgenerated("gen_random_uuid()"))
-  business        BusinessProfile  @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  businessId      String
+  business        BusinessProfile? @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  businessId      String?
+  // Purchaser. Always set for new ads; nullable so pre-existing rows survive
+  // the migration, and so an anonymised owner does not delete the ad record.
+  user            User?            @relation("UserAds", fields: [userId], references: [id], onDelete: SetNull)
+  userId          String?
   title           String
   imageUrl        String?          // opcional — si falta, usa photos[0] del negocio
   targetUrl       String?          // opcional — si falta, enlaza a /negocio/:id
-  status          String           @default("pending") // pending, active, expired, cancelled
+  // draft, pending_payment, pending_review, active, inactive_for_review,
+  // rejected_final, disabled_breach, expired
+  status          String           @default("pending")
   stripePaymentId String?          @unique
+  // Moderation trail. The reason is ALWAYS recorded on a rejection: a block
+  // without a stated motive reads as a system error, not a decision.
+  moderationReason String?
+  reviewAttempts   Int             @default(0)
+  reviewedAt       DateTime?
+  reviewedBy       String?
+  // Which version of the publication terms the advertiser accepted, and when.
+  termsVersion     String?
+  termsAcceptedAt  DateTime?
+  refundedAt       DateTime?
   startsAt        DateTime?
   endsAt          DateTime?
   createdAt       DateTime         @default(now())
@@ -234,6 +256,7 @@ model BusinessAd {
   @@index([status])
   @@index([endsAt])
   @@index([businessId])
+  @@index([userId])
 }
 
 // ── LGPD consent governance (append-only evidence + cookie preferences) ─────

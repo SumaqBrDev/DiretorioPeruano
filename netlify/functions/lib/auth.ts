@@ -161,15 +161,19 @@ export async function requireBusinessOwner(
 }
 
 /**
- * Resolve a user's email and name from the Clerk API.
+ * Resolve a user's email, name and email-verification status from the Clerk API.
  *
  * Clerk's default session token contains only `sub`, so callers that need the
  * profile must fetch it. Returns null when it cannot be resolved; callers treat
  * this as best-effort and must not fail because of it.
+ *
+ * `emailVerified` reflects the PRIMARY address only, and is false unless Clerk
+ * explicitly reports `verified`: an authorization gate must never treat an
+ * unknown verification state as verified.
  */
 export async function fetchClerkUserProfile(
   clerkId: string
-): Promise<{ email: string | null; name: string | null } | null> {
+): Promise<{ email: string | null; name: string | null; emailVerified: boolean } | null> {
   if (!clerkId || !CLERK_SECRET_KEY) return null;
   const clerkClient = getClerkClient();
   const user: any = await clerkClient.users.getUser(clerkId);
@@ -179,11 +183,12 @@ export async function fetchClerkUserProfile(
   const addresses: any[] = user.emailAddresses || [];
   const primary = addresses.find((a) => a.id === primaryId) || addresses[0];
   const email = primary?.emailAddress ?? null;
+  const emailVerified = primary?.verification?.status === 'verified';
 
   const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
   const name = fullName || user.username || null;
 
-  return { email, name };
+  return { email, name, emailVerified };
 }
 
 export default {

@@ -284,20 +284,22 @@ export async function handleAdCheckoutCompleted(session: Stripe.Checkout.Session
     console.warn(`BusinessAd ${adId} not found for session ${session.id}`);
     return;
   }
-  if (ad.status === 'active') {
-    console.log(`BusinessAd ${adId} already active, skipping activation`);
+  if (ad.status !== 'pending_payment') {
+    console.log(
+      `BusinessAd ${adId} is '${ad.status}', not 'pending_payment' — skipping (duplicate webhook?)`
+    );
     return;
   }
 
-  const adDays = parseInt(process.env.AD_DAYS || '30', 10);
-  const now = new Date();
-  const endsAt = new Date(now.getTime() + adDays * 24 * 60 * 60 * 1000);
-
+  // Payment does NOT publish the ad: it moves it into the moderation queue.
+  // Publishing on payment would put unreviewed content in front of the public,
+  // which is exactly what ad moderation exists to prevent. `startsAt`/`endsAt`
+  // are set on approval, so the paid 30 days start when the ad goes live.
   await prisma.businessAd.update({
     where: { id: ad.id },
-    data: { status: 'active', startsAt: now, endsAt },
+    data: { status: 'pending_review' },
   });
-  console.log(`BusinessAd ${adId} activated (${adDays} days) via session ${session.id}`);
+  console.log(`BusinessAd ${adId} paid via session ${session.id} — queued for moderation`);
 }
 
 export const handler = async (event: HandlerEvent) => {

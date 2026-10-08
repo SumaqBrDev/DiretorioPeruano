@@ -28,8 +28,10 @@ const UNSPLASH_FALLBACKS: Record<string, string> = {
     'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&q=80&w=800',
 };
 
-const getFallbackImage = (category: string): string =>
-  UNSPLASH_FALLBACKS[category?.toLowerCase().trim()] ||
+// Category is null for community ads (no business listing behind them), so the
+// generic fallback image is used for those.
+const getFallbackImage = (category: string | null): string =>
+  UNSPLASH_FALLBACKS[category?.toLowerCase().trim() ?? ''] ||
   'https://images.unsplash.com/photo-1559329007-40df8a9345d8?auto=format&fit=crop&q=80&w=800';
 
 interface CommunityAdsProps {
@@ -179,7 +181,8 @@ const FeaturedAdCard = ({ ad }: { ad: CommunityAd }) => {
         </h3>
         <div className="flex items-center gap-2 mt-1.5 text-xs text-gray-500 dark:text-gray-400">
           <span className="truncate">{ad.businessName}</span>
-          {ad.rating > 0 && (
+          {/* null rating = community advertiser, who has no score to show. */}
+          {ad.rating !== null && ad.rating > 0 && (
             <span className="inline-flex items-center gap-0.5 shrink-0">
               <Star size={11} weight="fill" className="text-oro-inca" />
               {ad.rating.toFixed(1)}
@@ -236,7 +239,8 @@ const AdCard = ({ ad }: { ad: CommunityAd }) => {
         </h3>
         <div className="flex items-center gap-2 mt-1.5 text-xs text-gray-500 dark:text-gray-400">
           <span className="truncate">{ad.businessName}</span>
-          {ad.rating > 0 && (
+          {/* null rating = community advertiser, who has no score to show. */}
+          {ad.rating !== null && ad.rating > 0 && (
             <span className="inline-flex items-center gap-0.5 shrink-0">
               <Star size={11} weight="fill" className="text-oro-inca" />
               {ad.rating.toFixed(1)}
