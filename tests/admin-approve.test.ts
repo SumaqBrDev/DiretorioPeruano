@@ -212,6 +212,23 @@ describe('admin-approve existing checkout subscription', () => {
     expect(sendApprovalEmailMock).not.toHaveBeenCalled();
   });
 
+  // During the controlled beta the owner is told the listing is free and no
+  // card is required. The approval email must be told so too, otherwise it
+  // quotes "Premium — R$ 59,00/mes" to someone who was promised a free beta.
+  it('forwards betaMode to the approval email so beta owners are not quoted a price', async () => {
+    siteConfigFindMock.mockResolvedValue({ id: 'singleton', betaMode: true } as never);
+    businessFindMock.mockResolvedValue(pendingBusiness as never);
+
+    const res = await handler(postEvent());
+
+    expect(res.statusCode).toBe(200);
+    expect(sendApprovalEmailMock).toHaveBeenCalledTimes(1);
+    // 5th argument is betaMode
+    expect(sendApprovalEmailMock.mock.calls[0][4]).toBe(true);
+    // beta approval must never touch Stripe
+    expect(stripeMocks.subscriptionsCreate).not.toHaveBeenCalled();
+  });
+
   it('keeps the business pending when setup checkout has not saved a default payment method', async () => {
     businessFindMock.mockResolvedValue(pendingBusiness as never);
     stripeMocks.customersRetrieve.mockResolvedValue({

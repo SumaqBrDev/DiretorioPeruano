@@ -251,7 +251,7 @@ export const handler = async (event: HandlerEvent) => {
         : '30 días desde ahora';
 
     if (ownerEmail.trim()) {
-      await sendApprovalEmail(ownerEmail, business.name ?? '', ownerName, formattedTrialEnd);
+      await sendApprovalEmail(ownerEmail, business.name ?? '', ownerName, formattedTrialEnd, betaMode);
     } else {
       console.warn(`Approval email skipped: owner ${business.ownerId} has no stored email address.`);
     }

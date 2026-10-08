@@ -1,4 +1,5 @@
 import { Resend } from 'resend';
+import { buildApprovalEmail } from './emailContent';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 // QA override: Resend's sandbox only delivers from onboarding@resend.dev to
@@ -18,46 +19,33 @@ function getResend(): Resend {
 }
 
 /**
- * Send approval email with trial information
+ * Send approval email.
+ *
+ * `betaMode` must reflect the mode the business was approved under: during the
+ * controlled beta the listing is free, so the email must not quote a price or
+ * a trial countdown the owner was never offered.
  */
 export async function sendApprovalEmail(
   to: string,
   businessName: string,
   ownerName: string,
-  trialEndDate: string
+  trialEndDate: string,
+  betaMode = false
 ): Promise<void> {
   try {
     const resend = getResend();
+    const { subject, html } = buildApprovalEmail({
+      businessName,
+      ownerName,
+      trialEndDate,
+      betaMode,
+      appUrl: APP_URL,
+    });
     await resend.emails.send({
       from: FROM_EMAIL,
       to,
-      subject: `¡Bienvenido a ConectaPerú! — ${businessName} ha sido aprobado`,
-      html: `
-        <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #1a73e8; font-size: 28px; margin: 0;">ConectaPerú</h1>
-            <p style="color: #666; font-size: 14px;">Directorio Peruano</p>
-          </div>
-          <div style="background-color: #f0f9ff; border-radius: 12px; padding: 30px; border: 1px solid #bae6fd;">
-            <h2 style="color: #0369a1; margin-top: 0;">¡Felicidades, ${ownerName}!</h2>
-            <p>Tu negocio <strong>${businessName}</strong> ha sido aprobado y ya está visible en ConectaPerú.</p>
-            <div style="background-color: white; border-radius: 8px; padding: 20px; margin: 20px 0;">
-              <h3 style="color: #059669; margin-top: 0;">Detalles de tu período de prueba</h3>
-              <p><strong>Plan:</strong> Premium — R$ 59,00/mes</p>
-              <p><strong>Período de prueba:</strong> 30 días gratis</p>
-              <p><strong>Fecha de término:</strong> ${trialEndDate}</p>
-              <p>No se realizará ningún cobro durante el período de prueba. Puedes cancelar en cualquier momento.</p>
-            </div>
-            <p>Accede a tu panel de administración para gestionar tu perfil, responder reseñas y más.</p>
-            <a href="${APP_URL}/meu-negocio" style="display: inline-block; background-color: #1a73e8; color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; margin-top: 10px;">
-              Ir al Panel
-            </a>
-          </div>
-          <p style="color: #999; font-size: 12px; text-align: center; margin-top: 30px;">
-            © 2026 ConectaPerú — Directorio de Negocios Peruanos
-          </p>
-        </div>
-      `,
+      subject,
+      html,
     });
     console.log(`Approval email sent to ${to} for ${businessName}`);
   } catch (error) {
