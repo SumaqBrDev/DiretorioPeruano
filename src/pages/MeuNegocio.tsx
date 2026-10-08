@@ -13,6 +13,7 @@ import { AdPublicationTerms } from '../components/AdPublicationTerms';
 import { getAdStatusPresentation, AD_STATUS_TONE_CLASSES } from '../lib/adStatus';
 import { showToast } from '../lib/toast';
 import { formatCnpj, isValidCnpjFormat, onlyCnpjDigits } from '../lib/cnpj';
+import { getBusinessStatusTone } from '../lib/businessStatus';
 
 const CATEGORIES = [
   { value: 'restaurante', label: 'Restaurante' },
@@ -506,25 +507,15 @@ export const MeuNegocio = () => {
       )}
 
       <div className="mb-8 flex items-center gap-3 flex-wrap">
-        <span className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold ring-1 ring-inset ${
-          business.status === 'approved'
-            ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/40 dark:text-emerald-300 dark:ring-emerald-400/20'
-            : business.status === 'pending' || !business.status
-            ? 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-900/40 dark:text-amber-300 dark:ring-amber-400/20'
-            : business.status === 'rejected'
-            ? 'bg-rose-50 text-rose-700 ring-rose-600/20 dark:bg-rose-900/40 dark:text-rose-300 dark:ring-rose-400/20'
-            : business.status === 'disabled'
-            ? 'bg-zinc-100 text-zinc-600 ring-zinc-500/20 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-400/20'
-            : 'bg-zinc-100 text-zinc-600 ring-zinc-500/20 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-400/20'
-        }`}>
-          <span className={`h-2 w-2 rounded-full ${
-            business.status === 'approved' ? 'bg-emerald-500'
-            : business.status === 'pending' || !business.status ? 'bg-amber-500'
-            : business.status === 'rejected' ? 'bg-rose-500'
-            : 'bg-zinc-400'
-          }`} />
-          {business.status === 'approved' ? 'Aprovado' : business.status === 'pending' || !business.status ? 'Pendente de Aprovação' : business.status === 'rejected' ? 'Rejeitado' : business.status === 'disabled' ? 'Desabilitado' : business.status}
-        </span>
+        {(() => {
+          const tone = getBusinessStatusTone(business.status);
+          return (
+            <span className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold ring-1 ring-inset ${tone.badgeClass}`}>
+              <span className={`h-2 w-2 rounded-full ${tone.dotClass}`} />
+              {tone.label}
+            </span>
+          );
+        })()}
         {business.subscriptionStatus === 'trial' && business.trialEndsAt && (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 ring-sky-600/20 dark:bg-sky-900/40 dark:text-sky-300 dark:ring-sky-400/20 ring-1 ring-inset">
             <Flask size={12} weight="fill" />
