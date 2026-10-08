@@ -229,6 +229,35 @@ describe('admin-approve existing checkout subscription', () => {
     expect(stripeMocks.subscriptionsCreate).not.toHaveBeenCalled();
   });
 
+  // While the sending domain is unverified, Resend's sandbox refuses mail to
+  // anyone but the account owner. Approval still succeeds, but the admin must
+  // be told the owner was NOT reached so they follow up manually.
+  it('reports in the response when the approval email was not delivered', async () => {
+    businessFindMock.mockResolvedValue(pendingBusiness as never);
+    sendApprovalEmailMock.mockResolvedValue({
+      delivered: false,
+      error: 'Domain is not verified',
+    } as never);
+
+    const res = await handler(postEvent());
+    const body = JSON.parse(res.body);
+
+    expect(res.statusCode).toBe(200);
+    expect(body.ownerNotified).toBe(false);
+    expect(body.ownerNotificationError).toMatch(/not verified/i);
+  });
+
+  it('reports a delivered approval email as notified', async () => {
+    businessFindMock.mockResolvedValue(pendingBusiness as never);
+    sendApprovalEmailMock.mockResolvedValue({ delivered: true, id: 'msg_1' } as never);
+
+    const res = await handler(postEvent());
+    const body = JSON.parse(res.body);
+
+    expect(body.ownerNotified).toBe(true);
+    expect(body.ownerNotificationError).toBeNull();
+  });
+
   it('keeps the business pending when setup checkout has not saved a default payment method', async () => {
     businessFindMock.mockResolvedValue(pendingBusiness as never);
     stripeMocks.customersRetrieve.mockResolvedValue({

@@ -250,9 +250,27 @@ export const handler = async (event: HandlerEvent) => {
         ? 'No aplica (modo beta)'
         : '30 días desde ahora';
 
+    // Approval must succeed even when the notification does not, but the
+    // operator has to KNOW the owner was not reached: while the sending domain
+    // is unverified, Resend's sandbox silently refuses mail to anyone but the
+    // account owner, so the admin has to follow up manually.
+    let ownerNotified = false;
+    let ownerNotificationError: string | null = null;
+
     if (ownerEmail.trim()) {
-      await sendApprovalEmail(ownerEmail, business.name ?? '', ownerName, formattedTrialEnd, betaMode);
+      const emailResult = await sendApprovalEmail(
+        ownerEmail,
+        business.name ?? '',
+        ownerName,
+        formattedTrialEnd,
+        betaMode
+      );
+      // Treat a malformed/absent result as "not delivered" rather than letting
+      // a property read throw and turn a successful approval into a 500.
+      ownerNotified = emailResult?.delivered === true;
+      ownerNotificationError = ownerNotified ? null : emailResult?.error ?? 'unknown error';
     } else {
+      ownerNotificationError = 'owner has no stored email address';
       console.warn(`Approval email skipped: owner ${business.ownerId} has no stored email address.`);
     }
 
@@ -278,6 +296,8 @@ export const handler = async (event: HandlerEvent) => {
               priceId: STRIPE_PRICE_ID,
             }
           : null,
+        ownerNotified,
+        ownerNotificationError,
       }),
     };
   } catch (error: any) {
