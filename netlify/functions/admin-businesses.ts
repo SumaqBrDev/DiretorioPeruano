@@ -84,6 +84,18 @@ export const handler = async (event: HandlerEvent) => {
       },
     });
 
+    const cnpjValues = businesses.map((b) => b.cnpj).filter((value): value is string => Boolean(value));
+    const duplicateGroups = cnpjValues.length > 0
+      ? await prisma.businessProfile.groupBy({
+          by: ['cnpj'],
+          where: { cnpj: { in: cnpjValues } },
+          _count: { cnpj: true },
+        } as any)
+      : [];
+    const duplicateCountByCnpj = new Map(
+      duplicateGroups.map((g: any) => [g.cnpj, g._count?.cnpj ?? 0])
+    );
+
     const totalPages = Math.ceil(total / limit);
 
     return {
@@ -105,6 +117,7 @@ export const handler = async (event: HandlerEvent) => {
           city: (b.address as any)?.city || '',
           state: (b.address as any)?.state || '',
           cnpj: b.cnpj,
+          duplicateCnpjCount: b.cnpj ? duplicateCountByCnpj.get(b.cnpj) || 0 : 0,
         })),
         total,
         page,

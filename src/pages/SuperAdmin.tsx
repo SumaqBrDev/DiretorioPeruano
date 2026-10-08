@@ -324,6 +324,11 @@ function DetailModal({
             <p className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide mb-0.5">CNPJ</p>
             <p className="text-noche-lima dark:text-white font-medium">
               {business.cnpj ? formatCnpj(business.cnpj) : '—'}
+              {business.duplicateCnpjCount && business.duplicateCnpjCount > 1 ? (
+                <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                  {business.duplicateCnpjCount} registros com este CNPJ
+                </span>
+              ) : null}
             </p>
           </div>
           <div>
@@ -938,6 +943,11 @@ export const SuperAdmin = () => {
                     </td>
                     <td className="p-4 text-gray-600 dark:text-gray-400 hidden lg:table-cell font-mono text-xs">
                       {biz.cnpj ? formatCnpj(biz.cnpj) : '—'}
+                      {biz.duplicateCnpjCount && biz.duplicateCnpjCount > 1 ? (
+                        <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                          {biz.duplicateCnpjCount} registros
+                        </span>
+                      ) : null}
                     </td>
                     <td className="p-4 text-gray-600 dark:text-gray-400 hidden xl:table-cell">
                       {biz.address?.city || '—'}

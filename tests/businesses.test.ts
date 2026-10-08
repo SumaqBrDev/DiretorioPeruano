@@ -50,6 +50,7 @@ describe('POST /api/businesses — KYC wiring', () => {
     authMock.mockResolvedValue({ ok: true, clerkId: 'user_clerk_1', claims: { clerkId: 'user_clerk_1' } } as any);
     userFindMock.mockResolvedValue({ id: 'user-db-id', role: 'business' } as any);
     recordFindManyMock.mockResolvedValue(CURRENT_SERVICE_ROWS as any);
+    validateCnpjMock.mockResolvedValue({ valid: true, formatValid: true } as any);
     createMock.mockImplementation((args) =>
       Promise.resolve({ id: 'b1', createdAt: new Date(), ...args.data }) as any
     );
@@ -96,18 +97,15 @@ describe('POST /api/businesses — KYC wiring', () => {
     expect(createMock).not.toHaveBeenCalled();
   });
 
-  it('creates the business when cnpj is absent, leaving KYC fields null', async () => {
+  it('rejects when cnpj is absent because CNPJ is mandatory for new businesses', async () => {
     const res = await handler({
       httpMethod: 'POST',
       body: JSON.stringify({ name: 'Chifa', description: 'Comida chinesa', ownerId: 'u1' }),
     } as unknown as HandlerEvent);
 
-    expect(res.statusCode).toBe(201);
+    expect(res.statusCode).toBe(400);
     expect(validateCnpjMock).not.toHaveBeenCalled();
-    const data = createMock.mock.calls[0][0].data;
-    expect(data.cnpj).toBeNull();
-    expect(data.ownerFullName).toBeNull();
-    expect(data.ownerBirthCity).toBeNull();
+    expect(createMock).not.toHaveBeenCalled();
   });
 
   it('stamps dataClassification from the authenticated owner', async () => {
@@ -115,7 +113,7 @@ describe('POST /api/businesses — KYC wiring', () => {
 
     const res = await handler({
       httpMethod: 'POST',
-      body: JSON.stringify({ name: 'Chifa', description: 'Comida chinesa', ownerId: 'client-supplied-owner' }),
+      body: JSON.stringify({ name: 'Chifa', description: 'Comida chinesa', ownerId: 'client-supplied-owner', cnpj: '11.222.333/0001-81' }),
     } as unknown as HandlerEvent);
 
     expect(res.statusCode).toBe(201);
@@ -132,6 +130,7 @@ describe('POST /api/businesses — KYC wiring', () => {
         name: 'Chifa',
         description: 'Comida chinesa',
         ownerId: 'client-supplied-owner',
+        cnpj: '11.222.333/0001-81',
         dataClassification: 'test',
       }),
     } as unknown as HandlerEvent);
@@ -155,7 +154,7 @@ describe('POST /api/businesses — KYC wiring', () => {
     const res = await handler({
       httpMethod: 'POST',
       headers: { authorization: 'Bearer t' },
-      body: JSON.stringify({ name: 'Mi Negocio', description: 'Una descripcion valida' }),
+      body: JSON.stringify({ name: 'Mi Negocio', description: 'Una descripcion valida', cnpj: '11.222.333/0001-81' }),
     } as unknown as HandlerEvent);
 
     expect(res.statusCode).toBe(201);
@@ -175,7 +174,7 @@ describe('POST /api/businesses — KYC wiring', () => {
     const res = await handler({
       httpMethod: 'POST',
       headers: { authorization: 'Bearer t' },
-      body: JSON.stringify({ name: 'X', description: 'Otra descripcion valida' }),
+      body: JSON.stringify({ name: 'X', description: 'Otra descripcion valida', cnpj: '11.222.333/0001-81' }),
     } as unknown as HandlerEvent);
 
     expect(res.statusCode).toBe(403);

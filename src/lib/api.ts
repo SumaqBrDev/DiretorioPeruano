@@ -18,6 +18,7 @@ export interface ApiBusiness {
   trialEndsAt?: string | null;
   createdAt: string;
   cnpj?: string | null;
+  duplicateCnpjCount?: number;
   city?: string;
   state?: string;
   owner?: {
@@ -153,8 +154,15 @@ export { ApiError };
 
 // ── "My business" (authenticated owner) ──
 
-export async function getMyBusiness(token: string): Promise<ApiBusiness> {
-  return request<ApiBusiness>('my-business', token, { method: 'GET' });
+export async function getMyBusiness(token: string, businessId?: string): Promise<ApiBusiness> {
+  return request<ApiBusiness>('my-business', token, {
+    method: 'GET',
+    query: businessId ? { businessId } : undefined,
+  });
+}
+
+export async function getMyBusinesses(token: string): Promise<{ businesses: ApiBusiness[] }> {
+  return request<{ businesses: ApiBusiness[] }>('my-businesses', token, { method: 'GET' });
 }
 
 export async function updateMyBusiness(
@@ -177,10 +185,13 @@ export async function updateMyBusiness(
     cnpj?: string;
     ownerFullName?: string;
     ownerBirthCity?: string;
+    businessId?: string;
   }
 ): Promise<ApiBusiness> {
+  const businessId = (updates as { businessId?: string }).businessId;
   return request<ApiBusiness>('my-business', token, {
     method: 'PUT',
+    query: businessId ? { businessId } : undefined,
     body: updates,
   });
 }
@@ -194,6 +205,7 @@ export default {
   adminGetBetaMode,
   adminSetBetaMode,
   getMyBusiness,
+  getMyBusinesses,
   updateMyBusiness,
 };
 
@@ -779,8 +791,11 @@ export interface ApiBusinessWithAds extends ApiBusiness {
 }
 
 /** GET /api/my-business — includes the owner's paid ads. */
-export async function getMyBusinessWithAds(token: string): Promise<ApiBusinessWithAds> {
-  return request<ApiBusinessWithAds>('my-business', token, { method: 'GET' });
+export async function getMyBusinessWithAds(token: string, businessId?: string): Promise<ApiBusinessWithAds> {
+  return request<ApiBusinessWithAds>('my-business', token, {
+    method: 'GET',
+    query: businessId ? { businessId } : undefined,
+  });
 }
 
 // ── Superadmin financial dashboard ──

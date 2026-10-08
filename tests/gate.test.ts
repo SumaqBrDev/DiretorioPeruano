@@ -35,11 +35,13 @@ vi.mock('../netlify/functions/lib/auth', () => ({
 import { handler } from '../netlify/functions/businesses';
 import prisma from '../netlify/functions/lib/prisma';
 import { authenticateRequest } from '../netlify/functions/lib/auth';
+import { validateCnpj } from '../netlify/functions/lib/cnpj';
 
 const authMock = vi.mocked(authenticateRequest);
 const userFindMock = vi.mocked(prisma.user.findUnique);
 const recordFindManyMock = vi.mocked(prisma.consentRecord.findMany);
 const createMock = vi.mocked(prisma.businessProfile.create);
+const validateCnpjMock = vi.mocked(validateCnpj);
 
 // Active mandatory (purpose=service) versions today: privacy_policy v3,
 // terms_of_service v2 (registry src/config/legal.ts).
@@ -67,7 +69,7 @@ const CURRENT_SERVICE_ROWS = [
 ];
 
 function validBody() {
-  return JSON.stringify({ name: 'Chifa', description: 'Comida chinesa', ownerId: 'u1' });
+  return JSON.stringify({ name: 'Chifa', description: 'Comida chinesa', ownerId: 'u1', cnpj: '11.222.333/0001-81' });
 }
 
 describe('POST /api/businesses — LGPD re-consent gate (WU2c)', () => {
@@ -76,6 +78,7 @@ describe('POST /api/businesses — LGPD re-consent gate (WU2c)', () => {
     authMock.mockResolvedValue({ ok: true, clerkId: 'user_clerk_1', claims: { clerkId: 'user_clerk_1' } } as any);
     userFindMock.mockResolvedValue({ id: 'user-db-id', role: 'business' } as any);
     recordFindManyMock.mockResolvedValue(CURRENT_SERVICE_ROWS as any);
+    validateCnpjMock.mockResolvedValue({ valid: true, formatValid: true } as any);
     createMock.mockImplementation((args) =>
       Promise.resolve({ id: 'b1', createdAt: new Date(), ...args.data }) as any
     );

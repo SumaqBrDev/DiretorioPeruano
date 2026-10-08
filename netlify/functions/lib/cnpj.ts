@@ -15,7 +15,7 @@ interface CachedLookup {
 
 const cache = new Map<string, CachedLookup>();
 
-function onlyDigits(value: string): string {
+export function onlyDigits(value: string): string {
   return (value || '').replace(/\D/g, '');
 }
 

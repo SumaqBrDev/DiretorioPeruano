@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { createBusiness, getMyBusiness, getConsentStatus, recordConsent, ApiError, markBusinessIntent, openStripeCheckout, updateMyBusiness } from '../lib/api';
 import { uploadOnboardingPhotos, MAX_PHOTO_BYTES } from '../lib/onboardingPhotos';
 import { validateContactFields, type ContactFields } from '../lib/businessContact';
+import { isValidCnpjFormat, onlyCnpjDigits } from '../lib/cnpj';
 import { ContactFieldsForm } from '../components/ContactFieldsForm';
 import { resolveSubmissionErrorMessage, runBusinessUpgradeSubmission } from '../lib/businessUpgradeFlow';
 import { getOnboardingAccessState } from '../lib/onboardingAccess';
@@ -308,6 +309,8 @@ export const Onboarding = () => {
     if (formData.description.trim().length < 10) {
       newErrors.description = 'A descrição deve ter pelo menos 10 caracteres';
     }
+    if (!formData.cnpj.trim()) newErrors.cnpj = 'O CNPJ é obrigatório';
+    else if (!isValidCnpjFormat(formData.cnpj)) newErrors.cnpj = 'CNPJ inválido';
     if (!formData.ownerFullName.trim()) newErrors.ownerFullName = 'O nome do proprietário é obrigatório';
     if (!formData.ownerBirthCity.trim()) newErrors.ownerBirthCity = 'A cidade de origem é obrigatória';
     setErrors(newErrors);
@@ -405,7 +408,7 @@ export const Onboarding = () => {
     const businessData = {
       name: formData.name.trim(),
       description: formData.description.trim(),
-      cnpj: formData.cnpj.replace(/\D/g, ''),
+      cnpj: onlyCnpjDigits(formData.cnpj),
       ownerFullName: formData.ownerFullName.trim(),
       ownerBirthCity: formData.ownerBirthCity.trim(),
       category: formData.category,

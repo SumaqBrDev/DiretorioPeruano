@@ -4,7 +4,7 @@ import { useUser, useAuth } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Flask, XCircle, Prohibit } from '@phosphor-icons/react';
-import { getMyBusinessWithAds, updateMyBusiness, openStripeCheckout, openStripePortal, createBusinessAdCheckout, uploadAdImage, type ApiBusinessWithAds as Business, type MyBusinessAd } from '../lib/api';
+import { getMyBusinesses, getMyBusinessWithAds, updateMyBusiness, openStripeCheckout, openStripePortal, createBusinessAdCheckout, uploadAdImage, type ApiBusinessWithAds as Business, type MyBusinessAd, type ApiBusiness } from '../lib/api';
 import { validateContactFields, type ContactFields, type ContactErrors } from '../lib/businessContact';
 import { ContactFieldsForm } from '../components/ContactFieldsForm';
 import { runPaymentMethodSetup } from '../lib/businessUpgradeFlow';
@@ -12,6 +12,7 @@ import { BusinessGallery } from '../components/BusinessGallery';
 import { AdPublicationTerms } from '../components/AdPublicationTerms';
 import { getAdStatusPresentation, AD_STATUS_TONE_CLASSES } from '../lib/adStatus';
 import { showToast } from '../lib/toast';
+import { formatCnpj, isValidCnpjFormat, onlyCnpjDigits } from '../lib/cnpj';
 
 const CATEGORIES = [
   { value: 'restaurante', label: 'Restaurante' },
@@ -47,6 +48,8 @@ export const MeuNegocio = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [business, setBusiness] = useState<Business | null>(null);
+  const [ownedBusinesses, setOwnedBusinesses] = useState<ApiBusiness[]>([]);
+  const [selectedBusinessId, setSelectedBusinessId] = useState<string>('');
   const [myAds, setMyAds] = useState<MyBusinessAd[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -124,8 +127,18 @@ export const MeuNegocio = () => {
       return;
     }
     try {
-      const mine = await getMyBusinessWithAds(token);
+      const list = await getMyBusinesses(token);
+      setOwnedBusinesses(list.businesses);
+      const targetBusinessId = selectedBusinessId || list.businesses[0]?.id;
+      if (!targetBusinessId) {
+        setBusiness(null);
+        setMyAds([]);
+        setLoadError(null);
+        return;
+      }
+      const mine = await getMyBusinessWithAds(token, targetBusinessId);
       if (mine) {
+        setSelectedBusinessId(mine.id);
         hydrate(mine);
         setMyAds(mine.ads || []);
         setLoadError(null);
@@ -139,7 +152,7 @@ export const MeuNegocio = () => {
     } finally {
       setLoading(false);
     }
-  }, [isLoaded, getToken, hydrate]);
+  }, [isLoaded, getToken, hydrate, selectedBusinessId]);
 
   useEffect(() => {
     refresh();
@@ -161,7 +174,7 @@ export const MeuNegocio = () => {
     async (_businessId: string, newPhotos: string[]) => {
       const token = await getToken();
       if (!token) throw new Error('Sem sessão');
-      const updated = await updateMyBusiness(token, { photos: newPhotos });
+      const updated = await updateMyBusiness(token, { businessId: _businessId, photos: newPhotos });
       setBusiness(updated);
     },
     [getToken]
@@ -180,6 +193,10 @@ export const MeuNegocio = () => {
     if (Object.keys(errs).length > 0) {
       setContactErrors(errs);
       showToast('Revise os dados de contato antes de salvar.', 'error');
+      return;
+    }
+    if (!cnpj.trim() || !isValidCnpjFormat(cnpj)) {
+      showToast('Informe um CNPJ válido antes de salvar.', 'error');
       return;
     }
     setContactErrors({});
@@ -201,7 +218,8 @@ export const MeuNegocio = () => {
         },
         tags: formData.tags,
         contact,
-        cnpj: cnpj || undefined,
+        businessId: business.id,
+        cnpj: onlyCnpjDigits(cnpj),
         ownerFullName: ownerFullName || undefined,
         ownerBirthCity: ownerBirthCity || undefined,
       });
@@ -410,9 +428,30 @@ export const MeuNegocio = () => {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <h1 className="font-playfair text-3xl md:text-4xl font-bold text-aji-rojo mb-8">
-        Meu Negócio
-      </h1>
+      <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <h1 className="font-playfair text-3xl md:text-4xl font-bold text-aji-rojo">
+          Meu Negócio
+        </h1>
+        {ownedBusinesses.length > 1 && (
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            Gerenciar negócio
+            <select
+              value={selectedBusinessId}
+              onChange={(event) => {
+                setIsEditing(false);
+                setSelectedBusinessId(event.target.value);
+              }}
+              className="mt-1 block min-w-64 rounded-xl border border-oro-inca/30 bg-white p-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-aji-rojo dark:bg-noche-lima dark:text-gray-300"
+            >
+              {ownedBusinesses.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name || 'Negócio sem nome'} — {item.status || 'pending'}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
 
       {/* Status badge — mais visível */}
       {business.status === 'pending' && (
@@ -821,7 +860,7 @@ export const MeuNegocio = () => {
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">CNPJ</h3>
                   <p className="text-gray-700 dark:text-gray-300 font-mono text-sm">
-                    {cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')}
+                    {formatCnpj(cnpj)}
                   </p>
                 </div>
               )}

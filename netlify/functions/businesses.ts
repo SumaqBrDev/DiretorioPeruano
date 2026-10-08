@@ -77,16 +77,15 @@ export const handler = async (event: HandlerEvent) => {
       const body = JSON.parse(event.body || '{}');
       const { name, description, category, address, tags, photos, contact, cnpj, ownerFullName, ownerBirthCity } = body;
 
-      if (!name || !description) {
+      if (!name || !description || !cnpj) {
         return {
           statusCode: 400,
           headers,
-          body: JSON.stringify({ error: 'Campos obrigatórios: name, description, ownerId' }),
+          body: JSON.stringify({ error: 'Campos obrigatórios: name, description, cnpj' }),
         };
       }
 
-      // KYC: when a CNPJ is provided it must be valid; otherwise the KYC
-      // fields stay null (they MAY be null until the business is approved).
+      // KYC: CNPJ is mandatory for new business registrations and must be valid.
       let normalizedCnpj: string | null = null;
       if (cnpj) {
         const result = await validateCnpj(cnpj);
@@ -124,14 +123,6 @@ export const handler = async (event: HandlerEvent) => {
         body: JSON.stringify(business),
       };
     } catch (error: any) {
-      // cnpj is UNIQUE in the schema: duplicate → friendly 409, no leak.
-      if (error?.code === 'P2002') {
-        return {
-          statusCode: 409,
-          headers,
-          body: JSON.stringify({ error: 'CNPJ já cadastrado' }),
-        };
-      }
       console.error('Error creating business:', error);
       return {
         statusCode: 500,
