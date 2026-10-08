@@ -6,6 +6,8 @@ import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
 import { createBusiness, getMyBusiness, getConsentStatus, recordConsent, ApiError, markBusinessIntent, openStripeCheckout, updateMyBusiness } from '../lib/api';
 import { uploadOnboardingPhotos, MAX_PHOTO_BYTES } from '../lib/onboardingPhotos';
+import { validateContactFields, type ContactFields } from '../lib/businessContact';
+import { ContactFieldsForm } from '../components/ContactFieldsForm';
 import { resolveSubmissionErrorMessage, runBusinessUpgradeSubmission } from '../lib/businessUpgradeFlow';
 import { getOnboardingAccessState } from '../lib/onboardingAccess';
 import { ConsentCheckboxes } from '../components/ConsentCheckboxes';
@@ -172,6 +174,7 @@ interface OnboardingFormData {
   };
   tags: string[];
   photos: File[];
+  contact: ContactFields;
 }
 
 // --- Component ---
@@ -195,6 +198,7 @@ export const Onboarding = () => {
     address: { street: '', city: '', state: '', zip: '' },
     tags: [],
     photos: [],
+    contact: { phone: '', whatsapp: '', email: '', website: '', mapsUrl: '' },
   });
   const [errors, setErrors] = useState<Record<string, string | null>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -380,6 +384,15 @@ export const Onboarding = () => {
       return;
     }
 
+    // A bad Maps link must be caught before the business is created: the
+    // "Como chegar" button would otherwise point somewhere wrong.
+    const contactErrors = validateContactFields(formData.contact);
+    if (Object.keys(contactErrors).length > 0) {
+      setErrors((prev) => ({ ...prev, ...contactErrors }));
+      setToast({ message: 'Revise os dados de contato antes de continuar.', type: 'error' });
+      return;
+    }
+
     setSubmitting(true);
     setToast(null);
 
@@ -399,6 +412,7 @@ export const Onboarding = () => {
       address: { ...formData.address, city: formData.address.city.trim() },
       tags: formData.tags,
       photos: [],
+      contact: formData.contact,
       ownerId: user?.id || '',
     };
 
@@ -890,10 +904,40 @@ export const Onboarding = () => {
             </div>
           </div>
         </div>
-        <div className="flex justify-end gap-4 mt-6">
-          <button
-            type="button"
-            onClick={() => setStep(2)}
+
+        {/* Contact details: these back the TELEFONE / WHATSAPP / COMO CHEGAR
+            buttons the public page already renders. */}
+        <div className="mt-8 pt-6 border-t border-oro-inca/20">
+          <ContactFieldsForm
+            value={formData.contact}
+            errors={{
+              phone: errors.phone || undefined,
+              whatsapp: errors.whatsapp || undefined,
+              email: errors.email || undefined,
+              website: errors.website || undefined,
+              mapsUrl: errors.mapsUrl || undefined,
+            }}
+            onChange={(contact) => {
+              setFormData({ ...formData, contact });
+              // Clear the error as soon as the owner edits the field, so a
+              // stale message never contradicts what is on screen.
+              setErrors((prev) => ({
+                ...prev,
+                phone: null,
+                whatsapp: null,
+                email: null,
+                website: null,
+                mapsUrl: null,
+              }));
+            }}
+            disabled={submitting}
+          />
+        </div>
+      </div>
+      <div className="flex justify-end gap-4 mt-6">
+        <button
+          type="button"
+          onClick={() => setStep(2)}
             className="px-6 py-2 rounded-xl border border-oro-inca/30 text-gray-700 dark:text-gray-300 hover:bg-oro-inca/10 transition-colors"
           >
             Voltar
@@ -926,7 +970,6 @@ export const Onboarding = () => {
             )}
           </button>
         </div>
-      </div>
     </div>
   );
 

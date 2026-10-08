@@ -45,6 +45,11 @@ export interface DisplayBusiness {
   whatsapp: string;
   website: string;
   email: string;
+  /**
+   * Owner-provided Google Maps link. Optional: when absent the "Como chegar"
+   * button falls back to searching the address.
+   */
+  mapsUrl?: string;
   latitude: number;
   longitude: number;
   menu: Array<{

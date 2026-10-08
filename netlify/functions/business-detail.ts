@@ -51,6 +51,9 @@ export const handler = async (event: HandlerEvent) => {
       phone: contact.phone || '',
       whatsapp: contact.whatsapp || '',
       website: contact.website || '',
+      // The owner's own Maps link. The email stays out of the public payload
+      // on purpose, so it is not harvested by scrapers.
+      mapsUrl: contact.mapsUrl || '',
     };
 
     const mapped = {
@@ -74,6 +77,7 @@ export const handler = async (event: HandlerEvent) => {
       phone: publicContact.phone,
       whatsapp: publicContact.whatsapp,
       website: publicContact.website,
+      mapsUrl: publicContact.mapsUrl,
       status: business.status,
     };
 

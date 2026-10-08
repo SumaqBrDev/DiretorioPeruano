@@ -34,6 +34,8 @@ interface DetailView {
   phone: string;
   whatsapp: string;
   website: string;
+  /** Owner-provided Google Maps link, used by the "Como chegar" button. */
+  mapsUrl?: string;
   email: string;
   latitude: number;
   longitude: number;
@@ -87,6 +89,9 @@ export const Negocio = () => {
           whatsapp: detail.whatsapp || '',
           website: detail.website || '',
           email: detail.email || '',
+          // Without this the owner's Maps link would be stored but never
+          // reach the "Como chegar" button.
+          mapsUrl: detail.mapsUrl || '',
           latitude: 0,
           longitude: 0,
           menu: [],

@@ -10,6 +10,7 @@
 // Photos now travel as multipart to /api/upload-image, one request per file,
 // AFTER the business exists (that endpoint scopes uploads to a business the
 // caller owns). The returned URLs are then persisted on the business row.
+import { compressImage } from './imageCompression';
 
 /** Netlify's buffered request cap for a synchronous function. */
 export const FUNCTION_PAYLOAD_LIMIT_BYTES = 6 * 1024 * 1024;
@@ -100,7 +101,11 @@ export async function uploadOnboardingPhotos({
 
   for (const file of files) {
     try {
-      const res = await upload({ file, businessId, token });
+      // Shrink before uploading: a 2MB phone photo lands around 250KB with no
+      // visible loss at display size. Compression fails open, returning the
+      // original, so it can never block an upload.
+      const { file: payload } = await compressImage(file);
+      const res = await upload({ file: payload, businessId, token });
       const url = res?.urls?.[0]?.url;
       if (url) {
         urls.push(url);

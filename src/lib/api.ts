@@ -166,7 +166,14 @@ export async function updateMyBusiness(
     tags?: string[];
     photos?: string[];
     address?: Partial<NonNullable<ApiBusiness['address']>>;
-    contact?: Record<string, string>;
+    /** Named keys, so a typo is a compile error rather than a silent no-op. */
+    contact?: {
+      phone?: string;
+      whatsapp?: string;
+      email?: string;
+      website?: string;
+      mapsUrl?: string;
+    };
     cnpj?: string;
     ownerFullName?: string;
     ownerBirthCity?: string;
@@ -324,7 +331,18 @@ export interface CreateBusinessInput {
   address?: Partial<NonNullable<ApiBusiness['address']>>;
   tags?: string[];
   photos?: string[];
-  contact?: Record<string, string>;
+  /**
+   * Contact details backing the public TELEFONE / WHATSAPP / COMO CHEGAR
+   * buttons. Named explicitly rather than Record<string, string> so a typo in
+   * a key is a compile error instead of a field that silently never renders.
+   */
+  contact?: {
+    phone?: string;
+    whatsapp?: string;
+    email?: string;
+    website?: string;
+    mapsUrl?: string;
+  };
   ownerId: string;
 }
 
@@ -391,6 +409,8 @@ export interface BusinessDetail {
   phone: string;
   whatsapp: string;
   website: string;
+  /** Owner-provided Google Maps link; empty when they did not set one. */
+  mapsUrl: string;
 }
 
 /** Get a single approved business by id (GET /api/business-detail?id=). */
@@ -745,6 +765,17 @@ export interface MyBusinessAd {
 
 export interface ApiBusinessWithAds extends ApiBusiness {
   ads?: MyBusinessAd[];
+  /**
+   * Contact details stored as a loose JSON column, so every key is optional
+   * and may be absent on businesses created before the form collected them.
+   */
+  contact?: {
+    phone?: string;
+    whatsapp?: string;
+    email?: string;
+    website?: string;
+    mapsUrl?: string;
+  } | null;
 }
 
 /** GET /api/my-business — includes the owner's paid ads. */

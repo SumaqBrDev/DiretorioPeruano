@@ -1,14 +1,13 @@
 import { Phone, WhatsappLogo, Globe, Envelope, MapPin, Clock, Star } from '@phosphor-icons/react';
 import type { DisplayBusiness } from '../lib/localData';
+import { buildMapsUrl, normalizeWhatsApp } from '../lib/businessContact';
 
 interface SidebarProps {
   business: DisplayBusiness;
 }
 
-const formatPhoneForWhatsApp = (phone: string) => {
-  return phone.replace(/\D/g, '');
-};
-
+// WhatsApp normalisation lives in businessContact so the form and this view
+// agree on what a valid number is. A local copy would drift.
 const formatPhoneForTel = (phone: string) => {
   return phone;
 };
@@ -121,7 +120,7 @@ export const Sidebar = ({ business }: SidebarProps) => {
 
           {/* WhatsApp */}
           <a
-            href={`https://wa.me/${formatPhoneForWhatsApp(business.whatsapp)}`}
+            href={`https://wa.me/${normalizeWhatsApp(business.whatsapp)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="group flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-900/30 transition-all duration-200 active:scale-[0.98]"
@@ -182,7 +181,7 @@ export const Sidebar = ({ business }: SidebarProps) => {
 
           {/* Directions */}
           <a
-            href={`https://maps.google.com/?q=${encodeURIComponent(business.address)}`}
+            href={buildMapsUrl({ mapsUrl: business.mapsUrl, address: business.address })}
             target="_blank"
             rel="noopener noreferrer"
             className="group flex items-center gap-3 px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition-all duration-200 active:scale-[0.98]"

@@ -5,6 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Flask, XCircle, Prohibit } from '@phosphor-icons/react';
 import { getMyBusinessWithAds, updateMyBusiness, openStripeCheckout, openStripePortal, createBusinessAdCheckout, uploadAdImage, type ApiBusinessWithAds as Business, type MyBusinessAd } from '../lib/api';
+import { validateContactFields, type ContactFields, type ContactErrors } from '../lib/businessContact';
+import { ContactFieldsForm } from '../components/ContactFieldsForm';
 import { runPaymentMethodSetup } from '../lib/businessUpgradeFlow';
 import { BusinessGallery } from '../components/BusinessGallery';
 import { AdPublicationTerms } from '../components/AdPublicationTerms';
@@ -74,6 +76,11 @@ export const MeuNegocio = () => {
     zip: '',
     tags: [] as string[],
   });
+  // Contact details backing the public TELEFONE / WHATSAPP / COMO CHEGAR
+  // buttons. Kept in its own state because it is a nested object, not a flat
+  // field like the rest of the form.
+  const [contact, setContact] = useState<ContactFields>({});
+  const [contactErrors, setContactErrors] = useState<ContactErrors>({});
   const [newTag, setNewTag] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
   const [cnpj, setCnpj] = useState('');
@@ -95,6 +102,16 @@ export const MeuNegocio = () => {
       state: (b.address as any)?.state || '',
       zip: (b.address as any)?.zip || '',
       tags: b.tags || [],
+    });
+    // The API stores contact as a loose JSON column, so read each key
+    // defensively rather than trusting the object's shape.
+    const c = (b.contact as Record<string, string> | null) || {};
+    setContact({
+      phone: c.phone || '',
+      whatsapp: c.whatsapp || '',
+      email: c.email || '',
+      website: c.website || '',
+      mapsUrl: c.mapsUrl || '',
     });
   }, []);
 
@@ -157,6 +174,15 @@ export const MeuNegocio = () => {
       setIsEditing(false);
       return;
     }
+    // Validate before saving: an invalid Maps link would make the public
+    // "Como chegar" button point somewhere wrong.
+    const errs = validateContactFields(contact);
+    if (Object.keys(errs).length > 0) {
+      setContactErrors(errs);
+      showToast('Revise os dados de contato antes de salvar.', 'error');
+      return;
+    }
+    setContactErrors({});
     setSaving(true);
 
     try {
@@ -174,6 +200,7 @@ export const MeuNegocio = () => {
           zip: formData.zip,
         },
         tags: formData.tags,
+        contact,
         cnpj: cnpj || undefined,
         ownerFullName: ownerFullName || undefined,
         ownerBirthCity: ownerBirthCity || undefined,
@@ -917,6 +944,21 @@ export const MeuNegocio = () => {
                   </span>
                 ))}
               </div>
+            </div>
+
+            {/* Contact details: these drive the public TELEFONE / WHATSAPP /
+                COMO CHEGAR buttons. */}
+            <div className="pt-4 border-t border-oro-inca/20">
+              <ContactFieldsForm
+                value={contact}
+                errors={contactErrors}
+                onChange={(next) => {
+                  setContact(next);
+                  // Drop the stale error the moment the owner edits a field.
+                  setContactErrors({});
+                }}
+                disabled={saving}
+              />
             </div>
 
             <div className="flex gap-3 pt-4">
