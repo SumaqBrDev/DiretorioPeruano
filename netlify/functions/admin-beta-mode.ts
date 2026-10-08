@@ -2,6 +2,7 @@ import type { HandlerEvent } from '@netlify/functions';
 import prisma from './lib/prisma';
 import { getStripe } from './lib/stripe';
 import { requireSuperAdmin } from './lib/auth';
+import { buildBetaExitSubscriptionParams, resolveBetaExitStatus } from './lib/betaExitBilling';
 
 const headers = {
   'Content-Type': 'application/json',
@@ -11,6 +12,8 @@ const headers = {
 
 const STRIPE_PRICE_ID = process.env.STRIPE_PRICE_ID || 'price_59_brl_monthly';
 const STRIPE_TRIAL_DAYS = parseInt(process.env.STRIPE_TRIAL_DAYS || '30', 10);
+// Early-bird launch offer, granted to businesses that joined during the beta.
+const getEarlyBirdCouponId = () => process.env.EARLY_BIRD_COUPON_ID || '';
 
 export const handler = async (event: HandlerEvent) => {
   try {
@@ -58,12 +61,10 @@ export const handler = async (event: HandlerEvent) => {
         create: { id: 'singleton', betaMode },
       });
 
-      // If disabling beta mode: set trialEndsAt = now + 30d for all approved businesses
-      // that don't already have a subscription
+      // Leaving beta: businesses that joined DURING the beta are early
+      // adopters. They move onto the normal subscription with the early-bird
+      // coupon applied — not onto another free trial (see lib/betaExitBilling).
       if (!betaMode) {
-        const trialEnd = new Date();
-        trialEnd.setDate(trialEnd.getDate() + STRIPE_TRIAL_DAYS);
-
         // Get all approved businesses without Stripe subscription
         const approvedBusinesses = await prisma.businessProfile.findMany({
           where: {
@@ -97,28 +98,29 @@ export const handler = async (event: HandlerEvent) => {
               },
             });
 
-            // Create subscription with trial
-            const subscription = await stripe.subscriptions.create({
-              customer: customer.id,
-              items: [{ price: STRIPE_PRICE_ID }],
-              trial_period_days: STRIPE_TRIAL_DAYS,
-              metadata: {
+            // Beta adopters get the early-bird coupon and start billing now;
+            // they must NOT receive a second free trial (see betaExitBilling).
+            const subscription = await stripe.subscriptions.create(
+              buildBetaExitSubscriptionParams({
+                customerId: customer.id,
                 businessId: biz.id,
-              },
-              payment_behavior: 'default_incomplete',
-              payment_settings: {
-                save_default_payment_method: 'on_subscription',
-              },
-            });
+                priceId: STRIPE_PRICE_ID,
+                couponId: getEarlyBirdCouponId(),
+                trialDays: STRIPE_TRIAL_DAYS,
+              }) as never
+            );
 
-            // Update business with Stripe info and trial end date
+            // Update business with Stripe info. trialEndsAt stays null: this
+            // business is being billed, not trialling.
             await prisma.businessProfile.update({
               where: { id: biz.id },
               data: {
                 stripeCustomerId: customer.id,
                 subscriptionId: subscription.id,
-                subscriptionStatus: 'trial',
-                trialEndsAt: trialEnd,
+                subscriptionStatus: resolveBetaExitStatus({
+                  hasCoupon: Boolean(getEarlyBirdCouponId()),
+                }),
+                trialEndsAt: null,
               },
             });
 

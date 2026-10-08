@@ -142,6 +142,14 @@ export const Navbar = () => {
                       >
                         💬 {t('nav.inbox')}
                       </Link>
+                      {/* Account self-service (name, email, password) — Clerk */}
+                      <Link
+                        to="/perfil"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-aji-rojo/10 hover:text-aji-rojo"
+                      >
+                        👤 {t('nav.profile')}
+                      </Link>
                       {/* LGPD rights hub — every data subject, regardless of role */}
                       <Link
                         to="/preferencias"
@@ -286,6 +294,14 @@ export const Navbar = () => {
                         👑 SuperAdmin
                       </Link>
                     )}
+                    {/* Account self-service (name, email, password) — Clerk */}
+                    <Link
+                      to="/perfil"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="w-full border border-oro-inca/40 text-gray-700 dark:text-gray-300 py-2.5 rounded-lg font-medium text-sm text-center"
+                    >
+                      👤 {t('nav.profile')}
+                    </Link>
                     {/* LGPD rights hub — every data subject, regardless of role */}
                     <Link
                       to="/preferencias"

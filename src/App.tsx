@@ -21,6 +21,7 @@ import { Login } from './pages/Login';
 import { Reconsent } from './pages/Reconsent';
 import { Cookies } from './pages/Cookies';
 import { Preferencias } from './pages/Preferencias';
+import { Perfil } from './pages/Perfil';
 import { Privacidade } from './pages/Privacidade';
 import { Termos } from './pages/Termos';
 import { NotFound } from './pages/NotFound';
@@ -82,6 +83,7 @@ function AppRoutes() {
             <Route path="/reconsent" element={<Reconsent />} />
             <Route path="/cookies" element={<Cookies />} />
             <Route path="/preferencias" element={<Preferencias />} />
+            <Route path="/perfil/*" element={<Perfil />} />
             <Route path="/privacidade" element={<Privacidade />} />
             <Route path="/termos" element={<Termos />} />
             {/* Legacy billing link (older emails/portal return URLs) — the

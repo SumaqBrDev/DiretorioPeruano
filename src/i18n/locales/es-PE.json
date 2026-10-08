@@ -23,7 +23,8 @@
     "community": "Comunidad",
     "communityModeration": "Moderación de la Comunidad",
     "register_business": "Registrar negocio",
-    "business_request_status": "Solicitud del negocio"
+    "business_request_status": "Solicitud del negocio",
+    "profile": "Mi cuenta"
   },
   "hero": {
     "badge": "Conectando Negocios Peruanos en Brasil",
@@ -320,5 +321,13 @@
       "checkoutUnavailable": "Checkout no disponible ahora. Inténtalo de nuevo en unos minutos.",
       "checkoutError": "Error al abrir el checkout de configuración."
     }
+  },
+  "profile": {
+    "title": "Mi cuenta",
+    "description": "Cambia tu nombre, correo, contraseña y sesiones activas. Para consentimientos y exportación de datos, entra a",
+    "loading": "Cargando tu cuenta…",
+    "signed_out_title": "Inicia sesión para ver tu cuenta",
+    "signed_out_description": "Esta página muestra los datos de tu cuenta. Inicia sesión para verlos y editarlos.",
+    "back_home": "Volver al inicio"
   }
 }

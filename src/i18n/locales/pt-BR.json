@@ -23,7 +23,8 @@
     "community": "Comunidade",
     "communityModeration": "Moderação da Comunidade",
     "register_business": "Cadastrar negócio",
-    "business_request_status": "Solicitação do negócio"
+    "business_request_status": "Solicitação do negócio",
+    "profile": "Minha conta"
   },
   "hero": {
     "badge": "Conectando Negócios Peruanos no Brasil",
@@ -320,5 +321,13 @@
       "checkoutUnavailable": "Checkout não disponível agora. Tente novamente em alguns minutos.",
       "checkoutError": "Erro ao abrir o checkout de configuração."
     }
+  },
+  "profile": {
+    "title": "Minha conta",
+    "description": "Altere seu nome, e-mail, senha e sessões ativas. Para consentimentos e exportação de dados, acesse",
+    "loading": "Carregando sua conta…",
+    "signed_out_title": "Entre para ver sua conta",
+    "signed_out_description": "Esta página mostra os dados da sua conta. Faça login para visualizá-los e editá-los.",
+    "back_home": "Voltar ao início"
   }
 }
