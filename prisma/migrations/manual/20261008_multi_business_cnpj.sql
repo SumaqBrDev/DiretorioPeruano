@@ -6,6 +6,7 @@ BEGIN;
 -- ownerId or CNPJ values are written.
 
 ALTER TABLE "BusinessProfile" DROP CONSTRAINT IF EXISTS "BusinessProfile_ownerId_key";
+ALTER TABLE "BusinessProfile" DROP CONSTRAINT IF EXISTS businessprofile_ownerid_key;
 ALTER TABLE "BusinessProfile" DROP CONSTRAINT IF EXISTS "BusinessProfile_cnpj_key";
 DROP INDEX IF EXISTS businessprofile_ownerid_key;
 DROP INDEX IF EXISTS "BusinessProfile_ownerId_key";
