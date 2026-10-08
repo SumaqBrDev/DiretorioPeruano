@@ -13,7 +13,7 @@ const { stripeMocks } = vi.hoisted(() => ({
 vi.mock('../netlify/functions/lib/prisma', () => ({
   default: {
     user: { findUnique: vi.fn(), delete: vi.fn(), update: vi.fn() },
-    businessProfile: { update: vi.fn() },
+    businessProfile: { updateMany: vi.fn() },
     businessAd: { updateMany: vi.fn() },
   },
 }));
@@ -27,7 +27,7 @@ import prisma from '../netlify/functions/lib/prisma';
 const userFind = vi.mocked(prisma.user.findUnique);
 const userDelete = vi.mocked(prisma.user.delete);
 const userUpdate = vi.mocked(prisma.user.update);
-const bizUpdate = vi.mocked(prisma.businessProfile.update);
+const bizUpdate = vi.mocked(prisma.businessProfile.updateMany);
 const adUpdateMany = vi.mocked(prisma.businessAd.updateMany);
 
 function signedEvent(payload: unknown, opts: { secret?: string } = {}): HandlerEvent {
@@ -74,7 +74,7 @@ describe('clerk-webhook user.deleted', () => {
   });
 
   it('hard-deletes a user with no business', async () => {
-    userFind.mockResolvedValue({ id: 'db-1', business: null } as never);
+    userFind.mockResolvedValue({ id: 'db-1', businesses: [] } as never);
 
     const res = await handler(signedEvent({ type: 'user.deleted', data: { id: 'clerk-1' } }));
 
@@ -86,7 +86,7 @@ describe('clerk-webhook user.deleted', () => {
   it('unpublishes the business, cancels its ads and anonymises the owner', async () => {
     userFind.mockResolvedValue({
       id: 'db-2',
-      business: { id: 'biz-2', subscriptionId: 'sub_9' },
+      businesses: [{ id: 'biz-2', subscriptionId: 'sub_9' }],
     } as never);
 
     const res = await handler(signedEvent({ type: 'user.deleted', data: { id: 'clerk-2' } }));
@@ -98,7 +98,7 @@ describe('clerk-webhook user.deleted', () => {
     // listing taken down
     expect(bizUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 'biz-2' },
+        where: { ownerId: 'db-2' },
         data: expect.objectContaining({ status: 'disabled' }),
       })
     );
@@ -120,7 +120,7 @@ describe('clerk-webhook user.deleted', () => {
   it('still cleans up local data when Stripe cancellation fails', async () => {
     userFind.mockResolvedValue({
       id: 'db-3',
-      business: { id: 'biz-3', subscriptionId: 'sub_dead' },
+      businesses: [{ id: 'biz-3', subscriptionId: 'sub_dead' }],
     } as never);
     stripeMocks.subscriptionsCancel.mockRejectedValue(new Error('no such subscription'));
 

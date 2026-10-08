@@ -3,6 +3,7 @@ import { getStore } from '@netlify/blobs';
 import crypto from 'node:crypto';
 import prisma from './lib/prisma';
 import { authenticateRequest } from './lib/auth';
+import { resolveOwnedBusiness } from './lib/ownership';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
@@ -156,7 +157,7 @@ export const handler = async (event: HandlerEvent) => {
 
     const user = await prisma.user.findUnique({
       where: { clerkId: auth.clerkId! },
-      select: { id: true, role: true, business: { select: { id: true } } },
+      select: { id: true, role: true },
     });
 
     if (!user) {
@@ -208,7 +209,7 @@ export const handler = async (event: HandlerEvent) => {
 
     // BUG-032b: enforce the 10-photo cap server-side. Only the business owner
     // may upload to their gallery — superadmin keeps access for moderation.
-    const businessId = fields.businessId || user.business?.id || '';
+    const businessId = fields.businessId || '';
     if (!businessId) {
       return {
         statusCode: 400,
@@ -217,8 +218,8 @@ export const handler = async (event: HandlerEvent) => {
       };
     }
 
-    const ownsBusiness = user.business?.id === businessId || user.role === 'superadmin';
-    if (!ownsBusiness) {
+    const ownedBusiness = user.role === 'superadmin' ? { ok: true } : await resolveOwnedBusiness(user.id, businessId);
+    if (!ownedBusiness.ok) {
       return {
         statusCode: 403,
         headers,

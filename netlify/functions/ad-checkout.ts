@@ -15,6 +15,7 @@ import prisma from './lib/prisma';
 import { getStripe } from './lib/stripe';
 import { authenticateRequest, fetchClerkUserProfile } from './lib/auth';
 import { canUserAdvertise, buildAdPublicationTerms } from './lib/adModeration';
+import { resolveOwnedBusiness } from './lib/ownership';
 import type { HandlerEvent } from '@netlify/functions';
 
 const headers = {
@@ -67,9 +68,7 @@ export const handler = async (event: HandlerEvent) => {
 
     const user = await prisma.user.findUnique({
       where: { clerkId: auth.clerkId },
-      include: {
-        business: { select: { id: true, status: true, stripeCustomerId: true } },
-      },
+      select: { id: true },
     });
 
     if (!user) {
@@ -83,9 +82,14 @@ export const handler = async (event: HandlerEvent) => {
     // Email verification is the eligibility floor. The session token carries
     // only `sub`, so the verification state must come from the Clerk API.
     const profile = await fetchClerkUserProfile(auth.clerkId!);
+    const firstOwnedBusiness = await prisma.businessProfile.findFirst({
+      where: { ownerId: user.id },
+      select: { id: true, status: true, stripeCustomerId: true },
+      orderBy: [{ status: 'asc' }, { createdAt: 'asc' }],
+    });
     const eligibility = canUserAdvertise({
       hasVerifiedEmail: profile?.emailVerified === true,
-      business: user.business,
+      business: firstOwnedBusiness,
     });
 
     if (!eligibility.allowed) {
@@ -103,14 +107,15 @@ export const handler = async (event: HandlerEvent) => {
     // arrives from the client and must never be trusted on its own.
     let ownedBusinessId: string | null = null;
     if (businessId) {
-      if (!user.business || user.business.id !== businessId) {
+      const owned = await resolveOwnedBusiness(user.id, businessId);
+      if (!owned.ok) {
         return {
           statusCode: 403,
           headers,
           body: JSON.stringify({ error: 'Você não é o proprietário deste negócio.' }),
         };
       }
-      ownedBusinessId = user.business.id;
+      ownedBusinessId = owned.business.id;
     }
 
     const adFields = {
@@ -187,8 +192,8 @@ export const handler = async (event: HandlerEvent) => {
 
     const session = await getStripe().checkout.sessions.create({
       mode: 'payment',
-      customer: user.business?.stripeCustomerId || undefined,
-      customer_email: user.business?.stripeCustomerId ? undefined : profile?.email || undefined,
+      customer: firstOwnedBusiness?.stripeCustomerId || undefined,
+      customer_email: firstOwnedBusiness?.stripeCustomerId ? undefined : profile?.email || undefined,
       line_items: [
         {
           quantity: 1,

@@ -12,7 +12,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('../netlify/functions/lib/prisma', () => ({
   default: {
     user: { findUnique: vi.fn() },
-    businessProfile: { findUnique: vi.fn() },
+    businessProfile: { findUnique: vi.fn(), findFirst: vi.fn() },
     businessAd: { create: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
     siteConfig: { findUnique: vi.fn() },
   },
@@ -45,6 +45,7 @@ import { authenticateRequest, fetchClerkUserProfile } from '../netlify/functions
 const authMock = vi.mocked(authenticateRequest);
 const profileMock = vi.mocked(fetchClerkUserProfile);
 const userFindMock = vi.mocked(prisma.user.findUnique);
+const businessFindFirstMock = vi.mocked(prisma.businessProfile.findFirst);
 const adCreateMock = vi.mocked(prisma.businessAd.create);
 const adFindMock = vi.mocked(prisma.businessAd.findUnique);
 const adUpdateMock = vi.mocked(prisma.businessAd.update);
@@ -64,10 +65,8 @@ beforeEach(() => {
     name: 'Owner',
     emailVerified: true,
   } as any);
-  userFindMock.mockResolvedValue({
-    id: 'db-user-1',
-    business: { id: 'biz-1', status: 'approved', stripeCustomerId: 'cus_test' },
-  } as any);
+  userFindMock.mockResolvedValue({ id: 'db-user-1' } as any);
+  businessFindFirstMock.mockResolvedValue({ id: 'biz-1', status: 'approved', stripeCustomerId: 'cus_test' } as any);
   configFindMock.mockResolvedValue({ id: 'singleton', betaMode: true } as any);
 });
 
@@ -108,7 +107,8 @@ describe('ad-checkout eligibility', () => {
 
   // A community member has no business at all.
   it('allows a confirmed community user with no business', async () => {
-    userFindMock.mockResolvedValue({ id: 'db-user-2', business: null } as any);
+    userFindMock.mockResolvedValue({ id: 'db-user-2' } as any);
+    businessFindFirstMock.mockResolvedValue(null as any);
     adCreateMock.mockResolvedValue({ id: 'ad-c1' } as any);
 
     const res = await adCheckoutHandler(
@@ -124,10 +124,8 @@ describe('ad-checkout eligibility', () => {
   });
 
   it('refuses to attach an ad to a business the caller does not own', async () => {
-    userFindMock.mockResolvedValue({
-      id: 'db-user-3',
-      business: { id: 'biz-mine', status: 'approved' },
-    } as any);
+    userFindMock.mockResolvedValue({ id: 'db-user-3' } as any);
+    businessFindFirstMock.mockResolvedValue(null as any);
 
     const res = await adCheckoutHandler(
       postEvent({
@@ -142,10 +140,8 @@ describe('ad-checkout eligibility', () => {
   });
 
   it('blocks an owner whose business was disabled', async () => {
-    userFindMock.mockResolvedValue({
-      id: 'db-user-4',
-      business: { id: 'biz-1', status: 'disabled' },
-    } as any);
+    userFindMock.mockResolvedValue({ id: 'db-user-4' } as any);
+    businessFindFirstMock.mockResolvedValue({ id: 'biz-1', status: 'disabled' } as any);
 
     const res = await adCheckoutHandler(
       postEvent({ title: 'Promo', acceptedTermsVersion: TERMS_VERSION })

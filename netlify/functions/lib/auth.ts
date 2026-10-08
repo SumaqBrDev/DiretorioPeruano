@@ -1,5 +1,6 @@
 import { createClerkClient } from '@clerk/clerk-sdk-node';
 import prisma from './prisma';
+import { resolveOwnedBusiness } from './ownership';
 
 /**
  * Auth helper for ConectaPeru Netlify Functions.
@@ -135,13 +136,10 @@ export async function requireBusinessOwner(
 
   const user = await prisma.user.findUnique({
     where: { clerkId: auth.clerkId! },
-    select: {
-      id: true,
-      business: { select: { id: true } },
-    },
+    select: { id: true },
   });
 
-  if (!user?.business) {
+  if (!user) {
     return {
       ok: false,
       statusCode: 403,
@@ -149,15 +147,12 @@ export async function requireBusinessOwner(
     };
   }
 
-  if (user.business.id !== businessId) {
-    return {
-      ok: false,
-      statusCode: 403,
-      error: 'Acceso denegado — este negocio no pertenece al usuario autenticado.',
-    };
+  const owned = await resolveOwnedBusiness(user.id, businessId);
+  if (!owned.ok) {
+    return { ok: false, statusCode: owned.statusCode, error: owned.error };
   }
 
-  return { ...auth, ownerBusinessId: user.business.id, userId: user.id };
+  return { ...auth, ownerBusinessId: owned.business.id, userId: user.id };
 }
 
 /**

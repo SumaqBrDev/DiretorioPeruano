@@ -89,7 +89,7 @@ export const handler = async (event: HandlerEvent) => {
   try {
     const user = await prisma.user.findUnique({
       where: { clerkId },
-      include: { business: { select: { id: true, subscriptionId: true } } },
+      include: { businesses: { select: { id: true, subscriptionId: true } } },
     });
 
     // Already gone, or never synced: acknowledge so Svix stops retrying.
@@ -105,8 +105,8 @@ export const handler = async (event: HandlerEvent) => {
     }
 
     const plan = resolveAccountDeletionPlan({
-      hasBusiness: Boolean(user.business),
-      subscriptionId: user.business?.subscriptionId ?? null,
+      hasBusiness: user.businesses.length > 0,
+      subscriptionId: user.businesses.find((b) => b.subscriptionId)?.subscriptionId ?? null,
     });
 
     // Cancel billing first: charging an account that asked to be deleted is
@@ -122,9 +122,9 @@ export const handler = async (event: HandlerEvent) => {
       }
     }
 
-    if (plan.unpublishBusiness && user.business) {
-      await prisma.businessProfile.update({
-        where: { id: user.business.id },
+    if (plan.unpublishBusiness && user.businesses.length > 0) {
+      await prisma.businessProfile.updateMany({
+        where: { ownerId: user.id },
         data: {
           status: 'disabled',
           subscriptionStatus: 'canceled',
@@ -137,7 +137,7 @@ export const handler = async (event: HandlerEvent) => {
       // NOTE: BusinessAd.status uses British "cancelled" (see schema), unlike
       // BusinessProfile.subscriptionStatus which uses Stripe's "canceled".
       await prisma.businessAd.updateMany({
-        where: { businessId: user.business.id, status: 'active' },
+        where: { businessId: { in: user.businesses.map((b) => b.id) }, status: 'active' },
         data: { status: 'cancelled' },
       });
     }

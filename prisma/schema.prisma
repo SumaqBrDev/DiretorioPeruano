@@ -32,7 +32,7 @@ model User {
   dataClassification String           @default("real")
   dataClassifiedAt   DateTime         @default(now())
 
-  business           BusinessProfile?
+  businesses         BusinessProfile[]
   reviews            Review[]
   communityTopics    CommunityTopic[] @relation("CommunityTopics")
   communityPosts     CommunityPost[]  @relation("CommunityPosts")
@@ -65,9 +65,9 @@ model BusinessProfile {
   // Owner (KYC + billing)
   dataClassification String           @default("real")
   dataClassifiedAt   DateTime         @default(now())
-  ownerId            String?          @unique
+  ownerId            String?
   owner              User?            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  cnpj               String?          @unique
+  cnpj               String?
   ownerFullName      String?
   ownerBirthCity     String?
   rejectionReason    String?

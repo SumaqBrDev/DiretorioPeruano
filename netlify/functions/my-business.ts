@@ -1,6 +1,8 @@
 import type { HandlerEvent } from '@netlify/functions';
 import prisma from './lib/prisma';
 import { authenticateRequest } from './lib/auth';
+import { resolveOwnedBusiness } from './lib/ownership';
+import { validateCnpj } from './lib/cnpj';
 
 const headers = {
   'Content-Type': 'application/json',
@@ -25,7 +27,7 @@ export const handler = async (event: HandlerEvent) => {
   // Resolve the logged-in user (by verified Clerk id) and their business
   const user = await prisma.user.findUnique({
     where: { clerkId: auth.clerkId! },
-    include: { business: true },
+    select: { id: true },
   });
 
   if (!user) {
@@ -38,37 +40,11 @@ export const handler = async (event: HandlerEvent) => {
 
   // ── GET: return the user's business (or 404 if none) ──
   if (event.httpMethod === 'GET') {
-    if (!user.business) {
-      return {
-        statusCode: 404,
-        headers,
-        body: JSON.stringify({ error: 'El usuario no posee un negocio' }),
-      };
+    const owned = await resolveOwnedBusiness(user.id, event.queryStringParameters?.businessId, { includeAds: true });
+    if (!owned.ok) {
+      return { statusCode: owned.statusCode, headers, body: JSON.stringify({ error: owned.error }) };
     }
-    const business = await prisma.businessProfile.findUnique({
-      where: { id: user.business.id },
-      include: {
-        ads: {
-          orderBy: { createdAt: 'desc' },
-          select: {
-            id: true,
-            title: true,
-            imageUrl: true,
-            targetUrl: true,
-            status: true,
-            stripePaymentId: true,
-            // The owner must see WHY an ad was rejected and how many
-            // corrections remain, otherwise the block is unactionable.
-            moderationReason: true,
-            reviewAttempts: true,
-            refundedAt: true,
-            startsAt: true,
-            endsAt: true,
-            createdAt: true,
-          },
-        },
-      },
-    });
+    const business = owned.business;
     return {
       statusCode: 200,
       headers,
@@ -78,18 +54,17 @@ export const handler = async (event: HandlerEvent) => {
 
   // ── PUT: update the user's own business ──
   if (event.httpMethod === 'PUT' || event.httpMethod === 'PATCH') {
-    if (!user.business) {
-      return {
-        statusCode: 404,
-        headers,
-        body: JSON.stringify({ error: 'El usuario no posee un negocio' }),
-      };
+    const requestedBusinessId = event.queryStringParameters?.businessId;
+    const owned = await resolveOwnedBusiness(user.id, requestedBusinessId);
+    if (!owned.ok) {
+      return { statusCode: owned.statusCode, headers, body: JSON.stringify({ error: owned.error }) };
     }
+    const business = owned.business as any;
 
     // BUG-033 (AC14): a disabled business is read-only — the owner panel shows
     // a read-only banner, so the backend must reject mutations too (the UI-only
     // guard was bypassable via direct API calls).
-    if (user.business.status === 'disabled') {
+    if (business.status === 'disabled') {
       return {
         statusCode: 403,
         headers,
@@ -118,31 +93,41 @@ export const handler = async (event: HandlerEvent) => {
 
     // Address (JSONB in Neon) — merge with existing if partial
     if (body.address !== undefined) {
-      const current = (user.business.address as any) || {};
+      const current = (business.address as any) || {};
       data.address = { ...current, ...body.address };
     }
 
     // Contact (JSONB in Neon)
     if (body.contact !== undefined) {
-      const current = (user.business.contact as any) || {};
+      const current = (business.contact as any) || {};
       data.contact = { ...current, ...body.contact };
     }
 
     // KYC fields
-    if (body.cnpj !== undefined) data.cnpj = body.cnpj;
+    if (body.cnpj !== undefined) {
+      const cnpj = String(body.cnpj || '').replace(/\D/g, '');
+      if (!cnpj) {
+        return { statusCode: 400, headers, body: JSON.stringify({ error: 'CNPJ é obrigatório' }) };
+      }
+      const result = await validateCnpj(cnpj);
+      if (!result.valid) {
+        return { statusCode: 400, headers, body: JSON.stringify({ error: 'CNPJ inválido' }) };
+      }
+      data.cnpj = cnpj;
+    }
     if (body.ownerFullName !== undefined) data.ownerFullName = body.ownerFullName;
     if (body.ownerBirthCity !== undefined) data.ownerBirthCity = body.ownerBirthCity;
     if (body.photos !== undefined) data.photos = body.photos;
 
     // Rejected businesses that are edited resubmit for review (BUG-024: the
     // owner's corrected submission must return to the admin pending queue).
-    if (user.business.status === 'rejected') {
+    if (business.status === 'rejected') {
       data.status = 'pending';
       data.rejectionReason = null;
     }
 
     const updated = await prisma.businessProfile.update({
-      where: { id: user.business.id },
+      where: { id: business.id },
       data,
     });
 

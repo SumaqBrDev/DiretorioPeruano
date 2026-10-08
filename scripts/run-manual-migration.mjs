@@ -37,25 +37,40 @@ const sql = raw
 
 const client = new pg.Client({ connectionString });
 
-/** Column shape of BusinessAd, used to prove what the migration changed. */
-const INSPECT = `
-  SELECT column_name, is_nullable, data_type
+const INSPECT_COLUMNS = `
+  SELECT table_name, column_name, is_nullable, data_type
     FROM information_schema.columns
-   WHERE table_name = 'BusinessAd'
-     AND column_name IN ('businessId','userId','moderationReason','reviewAttempts',
-                         'reviewedAt','reviewedBy','termsVersion','termsAcceptedAt','refundedAt')
-   ORDER BY column_name;
+   WHERE table_name IN ('BusinessAd', 'BusinessProfile')
+     AND (
+       (table_name = 'BusinessAd' AND column_name IN ('businessId','userId','moderationReason','reviewAttempts',
+                         'reviewedAt','reviewedBy','termsVersion','termsAcceptedAt','refundedAt'))
+       OR (table_name = 'BusinessProfile' AND column_name IN ('ownerId','cnpj'))
+     )
+   ORDER BY table_name, column_name;
+`;
+
+const INSPECT_INDEXES = `
+  SELECT tablename, indexname, indexdef
+    FROM pg_indexes
+   WHERE schemaname = 'public'
+     AND tablename IN ('BusinessAd', 'BusinessProfile')
+     AND (indexname ILIKE '%businessprofile_ownerid%'
+       OR indexname ILIKE '%businessprofile_cnpj%'
+       OR indexdef ILIKE '%BusinessAd%')
+   ORDER BY tablename, indexname;
 `;
 
 async function inspect(label) {
-  const { rows } = await client.query(INSPECT);
-  console.log(`\n--- ${label} ---`);
-  if (rows.length === 0) {
-    console.log('(none of the target columns exist)');
+  const { rows: columns } = await client.query(INSPECT_COLUMNS);
+  const { rows: indexes } = await client.query(INSPECT_INDEXES);
+  console.log(`\n--- ${label} columns ---`);
+  if (columns.length === 0) console.log('(none of the target columns exist)');
+  for (const r of columns) {
+    console.log(`  ${r.table_name}.${r.column_name.padEnd(18)} ${r.is_nullable === 'YES' ? 'NULL' : 'NOT NULL'}  ${r.data_type}`);
   }
-  for (const r of rows) {
-    console.log(`  ${r.column_name.padEnd(18)} ${r.is_nullable === 'YES' ? 'NULL' : 'NOT NULL'}  ${r.data_type}`);
-  }
+  console.log(`\n--- ${label} indexes ---`);
+  if (indexes.length === 0) console.log('(none of the target indexes exist)');
+  for (const r of indexes) console.log(`  ${r.tablename}.${r.indexname}: ${r.indexdef}`);
 }
 
 try {

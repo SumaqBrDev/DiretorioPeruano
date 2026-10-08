@@ -1,6 +1,7 @@
 import type { HandlerEvent } from '@netlify/functions';
 import prisma from './lib/prisma';
 import { authenticateRequest } from './lib/auth';
+import { resolveOwnedBusiness } from './lib/ownership';
 
 export const handler = async (event: HandlerEvent) => {
   const headers = {
@@ -28,15 +29,18 @@ export const handler = async (event: HandlerEvent) => {
       body: JSON.stringify({ error: 'Usuário não encontrado' }),
     };
   }
-  const business = await prisma.businessProfile.findUnique({ where: { ownerId: user.id } });
-  if (!business) {
+  const requestedBusinessId = event.queryStringParameters?.businessId || (() => {
+    try { return JSON.parse(event.body || '{}')?.businessId; } catch { return undefined; }
+  })();
+  const owned = await resolveOwnedBusiness(user.id, requestedBusinessId);
+  if (!owned.ok) {
     return {
-      statusCode: 403,
+      statusCode: owned.statusCode,
       headers,
-      body: JSON.stringify({ error: 'Este usuário não possui um negócio' }),
+      body: JSON.stringify({ error: owned.error }),
     };
   }
-  const businessId = business.id;
+  const businessId = owned.business.id;
 
   // POST — Send a new message (fromBusinessId derived from the token)
   if (event.httpMethod === 'POST') {

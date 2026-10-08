@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('../netlify/functions/lib/prisma', () => ({
   default: {
     user: { findUnique: vi.fn() },
-    businessProfile: { findUnique: vi.fn() },
+    businessProfile: { findUnique: vi.fn(), findFirst: vi.fn() },
     businessAd: { create: vi.fn(), update: vi.fn() },
     siteConfig: { findUnique: vi.fn() },
   },
@@ -35,6 +35,7 @@ import { authenticateRequest, fetchClerkUserProfile } from '../netlify/functions
 const authMock = vi.mocked(authenticateRequest);
 const profileMock = vi.mocked(fetchClerkUserProfile);
 const userFindMock = vi.mocked(prisma.user.findUnique);
+const businessFindFirstMock = vi.mocked(prisma.businessProfile.findFirst);
 const adCreateMock = vi.mocked(prisma.businessAd.create);
 const configFindMock = vi.mocked(prisma.siteConfig.findUnique);
 
@@ -48,10 +49,8 @@ beforeEach(() => {
     name: 'A',
     emailVerified: true,
   } as any);
-  userFindMock.mockResolvedValue({
-    id: 'db-1',
-    business: { id: 'biz-1', status: 'approved', stripeCustomerId: 'cus_1' },
-  } as any);
+  userFindMock.mockResolvedValue({ id: 'db-1' } as any);
+  businessFindFirstMock.mockResolvedValue({ id: 'biz-1', status: 'approved', stripeCustomerId: 'cus_1' } as any);
   configFindMock.mockResolvedValue({ id: 'singleton', betaMode: true } as any);
 });
 
@@ -76,7 +75,7 @@ describe('ad-checkout serialization', () => {
     expect(() => JSON.parse(res.body)).not.toThrow();
   });
 
-  it('loads the owning business so Stripe can reuse its customer id', async () => {
+  it('loads the owned business so Stripe can reuse its customer id', async () => {
     adCreateMock.mockResolvedValue({ id: 'ad-1' } as any);
 
     await handler({
@@ -89,13 +88,10 @@ describe('ad-checkout serialization', () => {
       }),
     } as any);
 
-    expect(userFindMock).toHaveBeenCalledWith(
+    expect(businessFindFirstMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        include: expect.objectContaining({
-          business: expect.objectContaining({
-            select: expect.objectContaining({ stripeCustomerId: true }),
-          }),
-        }),
+        where: { ownerId: 'db-1' },
+        select: expect.objectContaining({ stripeCustomerId: true }),
       })
     );
   });

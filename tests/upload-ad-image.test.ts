@@ -8,6 +8,7 @@ import type { HandlerEvent } from '@netlify/functions';
 vi.mock('../netlify/functions/lib/prisma', () => ({
   default: {
     user: { findUnique: vi.fn() },
+    businessProfile: { findFirst: vi.fn() },
   },
 }));
 
@@ -29,6 +30,7 @@ import { authenticateRequest } from '../netlify/functions/lib/auth';
 
 const authMock = vi.mocked(authenticateRequest);
 const userFindMock = vi.mocked(prisma.user.findUnique);
+const businessFindFirstMock = vi.mocked(prisma.businessProfile.findFirst);
 
 // A real 1x1 PNG (magic bytes 89 50 4E 47...)
 const PNG_BYTES = Buffer.from(
@@ -58,6 +60,7 @@ function multipartEvent(fileData: Buffer, overrides: any = {}) {
       'content-type': `multipart/form-data; boundary=${boundary}`,
       ...overrides.headers,
     },
+    queryStringParameters: { businessId: 'biz-1' },
     body: body.toString('base64'),
     isBase64Encoded: true,
     ...overrides,
@@ -67,11 +70,8 @@ function multipartEvent(fileData: Buffer, overrides: any = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   authMock.mockResolvedValue({ ok: true, clerkId: 'user_test' } as any);
-  userFindMock.mockResolvedValue({
-    id: 'user-internal-1',
-    role: 'consumer',
-    business: { id: 'biz-1' },
-  } as any);
+  userFindMock.mockResolvedValue({ id: 'user-internal-1', role: 'consumer' } as any);
+  businessFindFirstMock.mockResolvedValue({ id: 'biz-1' } as any);
 });
 
 describe('upload-ad-image', () => {
@@ -81,14 +81,10 @@ describe('upload-ad-image', () => {
     expect(res.statusCode).toBe(401);
   });
 
-  it('rejects a user with no business (businessId resolves from the authed user only)', async () => {
-    userFindMock.mockResolvedValue({
-      id: 'user-internal-1',
-      role: 'consumer',
-      business: null,
-    } as any);
+  it('rejects cross-owner business image uploads', async () => {
+    businessFindFirstMock.mockResolvedValue(null as any);
     const res = await handler(multipartEvent(PNG_BYTES));
-    expect(res.statusCode).toBe(400);
+    expect(res.statusCode).toBe(403);
   });
 
   it('rejects non-image content (magic bytes mismatch)', async () => {
