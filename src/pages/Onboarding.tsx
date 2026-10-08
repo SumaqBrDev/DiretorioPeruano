@@ -4,7 +4,8 @@ import { useUser, useAuth, useClerk } from '@clerk/clerk-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
-import { createBusiness, getMyBusiness, getConsentStatus, recordConsent, ApiError, markBusinessIntent, openStripeCheckout } from '../lib/api';
+import { createBusiness, getMyBusiness, getConsentStatus, recordConsent, ApiError, markBusinessIntent, openStripeCheckout, updateMyBusiness } from '../lib/api';
+import { uploadOnboardingPhotos, MAX_PHOTO_BYTES } from '../lib/onboardingPhotos';
 import { resolveSubmissionErrorMessage, runBusinessUpgradeSubmission } from '../lib/businessUpgradeFlow';
 import { getOnboardingAccessState } from '../lib/onboardingAccess';
 import { ConsentCheckboxes } from '../components/ConsentCheckboxes';
@@ -197,6 +198,9 @@ export const Onboarding = () => {
   });
   const [errors, setErrors] = useState<Record<string, string | null>>({});
   const [submitting, setSubmitting] = useState(false);
+  // Photo upload runs after the business is created and can take a while on a
+  // slow connection, so it gets its own visible state.
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   // ── Consent evidence step 0 (WU3, design D1/D3) ──
@@ -379,17 +383,12 @@ export const Onboarding = () => {
     setSubmitting(true);
     setToast(null);
 
-    // Convert photos to base64 data URLs for localStorage demo
-    const photoDataUrls = await Promise.all(
-      formData.photos.map(async (file) => {
-        return new Promise<string>((resolve) => {
-          const reader = new FileReader()
-          reader.onload = (e) => resolve(e.target?.result as string)
-          reader.readAsDataURL(file)
-        })
-      })
-    )
+    // Photos travel separately as multipart, not inlined here.
 
+    // Photos are NOT inlined in this payload. Base64 inflates bytes by ~33%
+    // and Netlify caps a buffered request at 6MB, so a few phone photos used
+    // to return 413 and the business was never created. They are uploaded as
+    // multipart right after the business exists (see below).
     const businessData = {
       name: formData.name.trim(),
       description: formData.description.trim(),
@@ -399,7 +398,7 @@ export const Onboarding = () => {
       category: formData.category,
       address: { ...formData.address, city: formData.address.city.trim() },
       tags: formData.tags,
-      photos: photoDataUrls,
+      photos: [],
       ownerId: user?.id || '',
     };
 
@@ -431,10 +430,44 @@ export const Onboarding = () => {
         return;
       }
 
+      // Upload the photos now that the business exists: /api/upload-image
+      // scopes uploads to a business the caller owns, so this cannot run
+      // earlier. It must also run BEFORE the Stripe redirect below, which
+      // leaves the page and would abandon the files.
+      let uploadedPhotoCount = 0;
+      if (formData.photos.length > 0) {
+        setUploadingPhotos(true);
+        const { urls, failed } = await uploadOnboardingPhotos({
+          files: formData.photos,
+          businessId: result.business.id,
+          token,
+        });
+        uploadedPhotoCount = urls.length;
+
+        if (urls.length > 0) {
+          try {
+            await updateMyBusiness(token, { photos: urls });
+          } catch (err) {
+            // The images are stored; only the association failed. The owner
+            // can re-add them from the gallery, so the registration stands.
+            console.error('Erro ao associar fotos ao negócio:', err);
+          }
+        }
+        setUploadingPhotos(false);
+
+        // Name the files that failed instead of silently dropping them.
+        if (failed.length > 0) {
+          setToast({
+            message: `Cadastro concluído, mas ${failed.length} foto(s) não foram enviadas (${failed.join(', ')}). Você pode adicioná-las em "Meu Negócio".`,
+            type: 'error',
+          });
+        }
+      }
+
       analytics.trackBusinessSignupCompleted({
         category: formData.category,
         tagsCount: formData.tags.length,
-        hasPhotos: photoDataUrls.length > 0,
+        hasPhotos: uploadedPhotoCount > 0,
       });
 
       if (result.kind === 'redirect') {
@@ -465,9 +498,25 @@ export const Onboarding = () => {
   };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setFormData(prev => ({ ...prev, photos: Array.from(e.target.files!) }));
+    if (!e.target.files) return;
+
+    const selected = Array.from(e.target.files);
+    // The upload endpoint rejects anything over 5MB per file. Catching it here
+    // tells the user WHICH photo is the problem, instead of letting the upload
+    // fail later with the business already created.
+    const tooBig = selected.filter((f) => f.size > MAX_PHOTO_BYTES);
+    const accepted = selected.filter((f) => f.size <= MAX_PHOTO_BYTES);
+
+    if (tooBig.length > 0) {
+      setToast({
+        message: `${tooBig.length} foto(s) acima de 5MB foram ignoradas: ${tooBig
+          .map((f) => f.name)
+          .join(', ')}.`,
+        type: 'error',
+      });
     }
+
+    setFormData((prev) => ({ ...prev, photos: accepted }));
   };
 
   const goToStep2 = () => {
@@ -858,7 +907,11 @@ export const Onboarding = () => {
               submitting ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                  {t('businessUpgrade.checkout.starting')}
+                  {/* Photo upload is a distinct, slower phase — saying so
+                      stops it from looking like the app froze. */}
+                  {uploadingPhotos
+                    ? `Enviando fotos (${formData.photos.length})...`
+                    : t('businessUpgrade.checkout.starting')}
                 </>
               ) : (
                 t('businessUpgrade.checkout.submit')
@@ -866,7 +919,7 @@ export const Onboarding = () => {
             ) : submitting ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                Salvando...
+                {uploadingPhotos ? `Enviando fotos (${formData.photos.length})...` : 'Salvando...'}
               </>
             ) : (
               'Finalizar Cadastro'
