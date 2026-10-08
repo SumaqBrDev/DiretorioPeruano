@@ -48,12 +48,28 @@ export const handler = async (event: HandlerEvent) => {
         };
       }
 
-      // Hard rule: business accounts cannot publish consumer reviews.
-      if (user.role === 'business') {
+      // Hard rule: a business owner cannot review their OWN business. This is
+      // ownership-derived (BusinessProfile.ownerId), not role-derived: `role`
+      // is only promoted to 'business' via the Stripe webhook or, in beta
+      // mode, by admin-approve — using it here would let a beta owner review
+      // their own business before that promotion runs, and would also block
+      // a business owner from reviewing a DIFFERENT, unrelated business.
+      const reviewedBusiness = await prisma.businessProfile.findUnique({
+        where: { id: body.businessId },
+        select: { ownerId: true },
+      });
+      if (!reviewedBusiness) {
+        return {
+          statusCode: 404,
+          headers,
+          body: JSON.stringify({ error: 'Negócio não encontrado' }),
+        };
+      }
+      if (reviewedBusiness.ownerId === user.id) {
         return {
           statusCode: 403,
           headers,
-          body: JSON.stringify({ error: 'Negócios não podem publicar avaliações' }),
+          body: JSON.stringify({ error: 'Você não pode avaliar o seu próprio negócio' }),
         };
       }
 

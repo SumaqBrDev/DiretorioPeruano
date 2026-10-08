@@ -10,6 +10,7 @@ vi.mock('../netlify/functions/lib/prisma', () => ({
   default: {
     user: { findUnique: vi.fn() },
     review: { create: vi.fn(), findFirst: vi.fn(), findMany: vi.fn() },
+    businessProfile: { findUnique: vi.fn() },
   },
 }));
 
@@ -27,6 +28,7 @@ const userFindMock = vi.mocked(prisma.user.findUnique);
 const reviewCreateMock = vi.mocked(prisma.review.create);
 const reviewFindMock = vi.mocked(prisma.review.findFirst);
 const reviewFindManyMock = vi.mocked(prisma.review.findMany);
+const businessFindMock = vi.mocked(prisma.businessProfile.findUnique);
 
 const headers = {
   'Content-Type': 'application/json',
@@ -83,6 +85,7 @@ describe('reviews handler POST', () => {
     authMock.mockResolvedValue({ ok: true, clerkId: 'user_clerk_1', claims: { clerkId: 'user_clerk_1' } });
     userFindMock.mockResolvedValue({ id: 'user-db-id' } as any);
     reviewFindMock.mockResolvedValue(null);
+    businessFindMock.mockResolvedValue({ id: 'b1', ownerId: 'someone-else' } as any);
     reviewCreateMock.mockImplementation((args) => Promise.resolve({ id: 'r1', ...args.data }) as any);
   });
 
@@ -145,14 +148,38 @@ describe('reviews handler POST', () => {
     expect(reviewCreateMock).not.toHaveBeenCalled();
   });
 
-  it('rejects business accounts with 403 and does not create a review', async () => {
-    userFindMock.mockResolvedValue({ id: 'user-db-id', role: 'business' } as any);
+  it('rejects a self-review: owner reviewing their own business, with 403', async () => {
+    // Ownership-derived, not role-derived: works regardless of beta-mode role
+    // promotion timing (see admin-approve.ts / stripe-webhook.ts).
+    businessFindMock.mockResolvedValue({ id: 'b1', ownerId: 'user-db-id' } as any);
     const res = await handler({
       httpMethod: 'POST',
       headers: { authorization: 'Bearer token' },
-      body: JSON.stringify({ rating: 5, comment: 'review de business', businessId: 'b1' }),
+      body: JSON.stringify({ rating: 5, comment: 'review de mi propio negocio', businessId: 'b1' }),
     } as unknown as HandlerEvent);
     expect(res.statusCode).toBe(403);
+    expect(reviewCreateMock).not.toHaveBeenCalled();
+  });
+
+  it('allows a business owner to review a DIFFERENT business they do not own', async () => {
+    businessFindMock.mockResolvedValue({ id: 'b1', ownerId: 'someone-else' } as any);
+    const res = await handler({
+      httpMethod: 'POST',
+      headers: { authorization: 'Bearer token' },
+      body: JSON.stringify({ rating: 5, comment: 'review de otro negocio', businessId: 'b1' }),
+    } as unknown as HandlerEvent);
+    expect(res.statusCode).toBe(201);
+    expect(reviewCreateMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns 404 when the reviewed business does not exist', async () => {
+    businessFindMock.mockResolvedValue(null);
+    const res = await handler({
+      httpMethod: 'POST',
+      headers: { authorization: 'Bearer token' },
+      body: JSON.stringify({ rating: 5, comment: 'x', businessId: 'nonexistent' }),
+    } as unknown as HandlerEvent);
+    expect(res.statusCode).toBe(404);
     expect(reviewCreateMock).not.toHaveBeenCalled();
   });
 });
