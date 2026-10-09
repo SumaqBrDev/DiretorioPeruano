@@ -18,6 +18,9 @@ ALTER TABLE "Review" ALTER COLUMN status SET DEFAULT 'approved';
 -- Average rating on BusinessProfile (minRating filter)
 ALTER TABLE "BusinessProfile" ADD COLUMN IF NOT EXISTS rating DOUBLE PRECISION;
 
+-- Business hours JSONB (owner-managed weekly schedule)
+ALTER TABLE "BusinessProfile" ADD COLUMN IF NOT EXISTS hours JSONB;
+
 -- WebhookEvent table for Stripe webhook idempotency (no Redis)
 CREATE TABLE IF NOT EXISTS "WebhookEvent" (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),

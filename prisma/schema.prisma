@@ -58,6 +58,7 @@ model BusinessProfile {
   tags               String[]
   photos             String[]
   contact            Json?
+  hours              Json?
 
   status             String           @default("pending") // pending, approved, rejected, disabled
   rating             Float?           // average rating, maintained from approved reviews
