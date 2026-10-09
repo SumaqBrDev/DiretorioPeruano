@@ -2,6 +2,7 @@
 // Public single-business detail by id (approved only). No Clerk auth required (public read).
 import prisma from './lib/prisma';
 import type { HandlerEvent } from '@netlify/functions';
+import { normalizeBusinessHours } from '../../src/lib/businessHours';
 
 export const handler = async (event: HandlerEvent) => {
   const headers = {
@@ -78,6 +79,7 @@ export const handler = async (event: HandlerEvent) => {
       whatsapp: publicContact.whatsapp,
       website: publicContact.website,
       mapsUrl: publicContact.mapsUrl,
+      hours: normalizeBusinessHours(business.hours) ?? null,
       status: business.status,
     };
 

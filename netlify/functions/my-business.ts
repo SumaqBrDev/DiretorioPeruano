@@ -3,6 +3,7 @@ import prisma from './lib/prisma';
 import { authenticateRequest } from './lib/auth';
 import { resolveOwnedBusiness } from './lib/ownership';
 import { validateCnpj } from './lib/cnpj';
+import { normalizeBusinessHours, validateBusinessHours } from '../../src/lib/businessHours';
 
 const headers = {
   'Content-Type': 'application/json',
@@ -118,6 +119,22 @@ export const handler = async (event: HandlerEvent) => {
     if (body.ownerFullName !== undefined) data.ownerFullName = body.ownerFullName;
     if (body.ownerBirthCity !== undefined) data.ownerBirthCity = body.ownerBirthCity;
     if (body.photos !== undefined) data.photos = body.photos;
+
+    if (body.hours !== undefined) {
+      if (body.hours === null) {
+        data.hours = null;
+      } else {
+        const validation = validateBusinessHours(body.hours);
+        if (!validation.valid) {
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ error: 'Horários inválidos', errors: validation.errors }),
+          };
+        }
+        data.hours = normalizeBusinessHours(body.hours);
+      }
+    }
 
     // Rejected businesses that are edited resubmit for review (BUG-024: the
     // owner's corrected submission must return to the admin pending queue).
