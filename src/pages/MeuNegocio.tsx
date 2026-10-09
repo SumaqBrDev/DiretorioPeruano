@@ -15,6 +15,12 @@ import { showToast } from '../lib/toast';
 import { formatCnpj, isValidCnpjFormat, onlyCnpjDigits } from '../lib/cnpj';
 import { getBusinessStatusTone } from '../lib/businessStatus';
 import { BusinessListCard } from '../components/BusinessListCard';
+import {
+  DEFAULT_BUSINESS_HOURS,
+  formatBusinessHoursForDisplay,
+  validateBusinessHours,
+  type BusinessHours,
+} from '../lib/businessHours';
 
 const CATEGORIES = [
   { value: 'restaurante', label: 'Restaurante' },
@@ -43,6 +49,9 @@ const BRAZIL_STATES = [
   { sigla: 'SP', nome: 'São Paulo' }, { sigla: 'SE', nome: 'Sergipe' },
   { sigla: 'TO', nome: 'Tocantins' },
 ];
+
+const defaultBusinessHours = (): BusinessHours =>
+  DEFAULT_BUSINESS_HOURS.map((entry) => ({ ...entry }));
 
 export const MeuNegocio = () => {
   const { user, isLoaded } = useUser();
@@ -92,6 +101,7 @@ export const MeuNegocio = () => {
   // field like the rest of the form.
   const [contact, setContact] = useState<ContactFields>({});
   const [contactErrors, setContactErrors] = useState<ContactErrors>({});
+  const [hours, setHours] = useState<BusinessHours>(defaultBusinessHours);
   const [newTag, setNewTag] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
   const [cnpj, setCnpj] = useState('');
@@ -122,6 +132,7 @@ export const MeuNegocio = () => {
       zip: (b.address as any)?.zip || '',
       tags: b.tags || [],
     });
+    setHours(b.hours ? b.hours.map((entry) => ({ ...entry })) : defaultBusinessHours());
     // The API stores contact as a loose JSON column, so read each key
     // defensively rather than trusting the object's shape.
     const c = (b.contact as Record<string, string> | null) || {};
@@ -246,6 +257,11 @@ export const MeuNegocio = () => {
       showToast('Informe um CNPJ válido antes de salvar.', 'error');
       return;
     }
+    const hoursValidation = validateBusinessHours(hours);
+    if (!hoursValidation.valid) {
+      showToast(`Revise o horário de funcionamento: ${hoursValidation.errors[0]}`, 'error');
+      return;
+    }
     setContactErrors({});
     setSaving(true);
 
@@ -264,6 +280,7 @@ export const MeuNegocio = () => {
           zip: formData.zip,
         },
         tags: formData.tags,
+        hours,
         contact,
         businessId: business.id,
         cnpj: onlyCnpjDigits(cnpj),
@@ -418,6 +435,10 @@ export const MeuNegocio = () => {
     setNewTag('');
   };
 
+  const updateHoursEntry = (index: number, patch: Partial<BusinessHours[number]>) => {
+    setHours((prev) => prev.map((entry, i) => (i === index ? { ...entry, ...patch } : entry)));
+  };
+
   if (!isLoaded || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-creme-andino dark:bg-zinc-950">
@@ -466,6 +487,14 @@ export const MeuNegocio = () => {
   function BusinessDetailPanel({ businessId }: { businessId: string }) {
     const detail = businessDetails[businessId];
     if (!detail) return null; // defensive; the caller already filters this case
+
+    const hoursDisplay = formatBusinessHoursForDisplay(detail.hours);
+    const contactRows = [
+      { label: 'Telefone', value: contact.phone },
+      { label: 'WhatsApp', value: contact.whatsapp },
+      { label: 'Site ou rede social', value: contact.website },
+      { label: 'Google Maps', value: contact.mapsUrl },
+    ];
 
     return (
       <div className="space-y-6">
@@ -892,6 +921,36 @@ export const MeuNegocio = () => {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Horário de funcionamento</h3>
+                  {hoursDisplay.length === 0 ? (
+                    <p className="text-gray-500 dark:text-gray-400">Horário não informado.</p>
+                  ) : (
+                    <dl className="space-y-1 text-sm">
+                      {hoursDisplay.map((entry) => (
+                        <div key={entry.day} className="flex justify-between gap-4 text-gray-700 dark:text-gray-300">
+                          <dt className="font-medium">{entry.day}</dt>
+                          <dd>{entry.hours}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  )}
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Contacto</h3>
+                  <dl className="grid grid-cols-1 gap-2 text-sm">
+                    {contactRows.map((item) => (
+                      <div key={item.label}>
+                        <dt className="font-medium text-gray-600 dark:text-gray-300">{item.label}</dt>
+                        <dd className="text-gray-700 dark:text-gray-300 break-words">{item.value || 'Não informado'}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              </div>
+
               {detail.tags && detail.tags.length > 0 && (
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Tags</h3>
@@ -964,6 +1023,62 @@ export const MeuNegocio = () => {
                     onChange={e => setFormData(prev => ({ ...prev, zip: e.target.value.replace(/\D/g, '').slice(0, 8) }))}
                     placeholder="XXXXX-XXX"
                     className="w-full p-3 rounded-lg border border-oro-inca/30 bg-white dark:bg-noche-lima text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-aji-rojo" />
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-oro-inca/20">
+                <h3 className="font-semibold text-zinc-900 dark:text-white">Horário de funcionamento</h3>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
+                  Informe os horários de abertura e fechamento. Dias fechados aparecem como “Fechado”.
+                </p>
+                <div className="space-y-3">
+                  {hours.map((entry, index) => (
+                    <div
+                      key={entry.day}
+                      className={`grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr_1fr] gap-3 items-center rounded-xl border border-oro-inca/20 p-3 ${entry.isOpen ? 'bg-white dark:bg-zinc-900/30' : 'bg-gray-50 dark:bg-zinc-900/20 opacity-75'}`}
+                    >
+                      <span className="font-medium text-gray-700 dark:text-gray-300">{entry.day}</span>
+                      <label className="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                        <input
+                          type="checkbox"
+                          checked={entry.isOpen}
+                          disabled={saving}
+                          onChange={(e) => {
+                            const isOpen = e.target.checked;
+                            updateHoursEntry(index, {
+                              isOpen,
+                              open: isOpen ? entry.open || DEFAULT_BUSINESS_HOURS[index]?.open || '09:00' : '',
+                              close: isOpen ? entry.close || DEFAULT_BUSINESS_HOURS[index]?.close || '18:00' : '',
+                            });
+                          }}
+                          className="h-4 w-4 rounded border-oro-inca/40 text-aji-rojo focus:ring-aji-rojo"
+                        />
+                        Aberto
+                      </label>
+                      {entry.isOpen ? (
+                        <>
+                          <input
+                            type="time"
+                            value={entry.open}
+                            disabled={saving}
+                            onChange={(e) => updateHoursEntry(index, { open: e.target.value })}
+                            className="w-full p-3 rounded-lg border border-oro-inca/30 bg-white dark:bg-noche-lima text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-aji-rojo disabled:opacity-50"
+                            aria-label={`Abertura ${entry.day}`}
+                          />
+                          <input
+                            type="time"
+                            value={entry.close}
+                            disabled={saving}
+                            onChange={(e) => updateHoursEntry(index, { close: e.target.value })}
+                            className="w-full p-3 rounded-lg border border-oro-inca/30 bg-white dark:bg-noche-lima text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-aji-rojo disabled:opacity-50"
+                            aria-label={`Fechamento ${entry.day}`}
+                          />
+                        </>
+                      ) : (
+                        <p className="sm:col-span-2 text-sm text-gray-500 dark:text-gray-400">Fechado</p>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
 
