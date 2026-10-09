@@ -14,35 +14,7 @@ import { ReviewsSection } from '@/components/ReviewsSection';
 import { Sidebar } from '@/components/Sidebar';
 import { CaretRight } from '@phosphor-icons/react';
 import { analytics } from '@/lib/posthog';
-import { formatBusinessAddress } from '@/lib/businessDisplay';
-
-// Rich shape consumed by the detail section components (matches the former
-// DisplayBusiness contract so PhotoGallery, AboutSection, HoursSection,
-// ContactInfoSection, MenuSection, ReviewsSection and Sidebar keep working).
-interface DetailView {
-  id: number;
-  name: string;
-  category: string;
-  city: string;
-  address: string;
-  rating: number;
-  reviewsCount: number;
-  tags: string[];
-  about: string;
-  images: string[];
-  hours: { day: string; time: string; isOpen: boolean }[];
-  phone: string;
-  whatsapp: string;
-  website: string;
-  /** Owner-provided Google Maps link, used by the "Como chegar" button. */
-  mapsUrl?: string;
-  email: string;
-  latitude: number;
-  longitude: number;
-  menu: { category: string; items: { name: string; price: string; description: string }[] }[];
-  reviews: { id: string | number; author: string; rating: number; date: string; text: string; tags?: string[] }[];
-  localId?: string;
-}
+import { mapApiBusinessDetailToDisplay, type DetailView } from '@/lib/negocioDisplay';
 
 export const Negocio = () => {
   const { t } = useTranslation();
@@ -65,46 +37,7 @@ export const Negocio = () => {
         const detail = await getBusinessDetail(token || '', businessId);
         const reviews = await getReviewsForBusiness(token || '', businessId);
         if (cancelled) return;
-        setBusiness({
-          id: parseInt(detail.id.replace(/\D/g, '').slice(0, 9), 10) || 0,
-          name: detail.name,
-          category: detail.category,
-          city: detail.city ? `${detail.city} - ${detail.state}` : detail.state,
-          address: formatBusinessAddress(detail.address),
-          rating: detail.rating || 0,
-          reviewsCount: detail.reviewsCount || reviews.length,
-          tags: detail.tags || [],
-          about: detail.description || '',
-          images: detail.photos || [],
-          hours: [
-            { day: 'Segunda', time: '08:00 - 18:00', isOpen: true },
-            { day: 'Terça', time: '08:00 - 18:00', isOpen: true },
-            { day: 'Quarta', time: '08:00 - 18:00', isOpen: true },
-            { day: 'Quinta', time: '08:00 - 18:00', isOpen: true },
-            { day: 'Sexta', time: '08:00 - 18:00', isOpen: true },
-            { day: 'Sábado', time: '09:00 - 13:00', isOpen: true },
-            { day: 'Domingo', time: 'Fechado', isOpen: false },
-          ],
-          phone: detail.phone || '',
-          whatsapp: detail.whatsapp || '',
-          website: detail.website || '',
-          email: detail.email || '',
-          // Without this the owner's Maps link would be stored but never
-          // reach the "Como chegar" button.
-          mapsUrl: detail.mapsUrl || '',
-          latitude: 0,
-          longitude: 0,
-          menu: [],
-          reviews: reviews.map((r) => ({
-            id: r.id,
-            author: r.author,
-            rating: r.rating,
-            date: r.date,
-            text: r.comment,
-            tags: [],
-          })),
-          localId: detail.id,
-        });
+        setBusiness(mapApiBusinessDetailToDisplay(detail, reviews));
       } catch (err: any) {
         if (!cancelled) {
           // 404 = not found / not approved
