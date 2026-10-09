@@ -1,5 +1,6 @@
 // src/lib/api.ts
 // API layer for ConectaPeru frontend — Netlify Functions with Clerk auth.
+import type { BusinessHours } from './businessHours';
 //
 // Every protected call receives a Clerk session token (obtained via
 // useAuth().getToken()) and sends it as:  Authorization: Bearer <token>
@@ -39,6 +40,7 @@ export interface ApiBusiness {
   description?: string;
   tags?: string[];
   photos?: string[];
+  hours?: BusinessHours | null;
 }
 
 export interface AdminListResult {
@@ -173,6 +175,7 @@ export async function updateMyBusiness(
     category?: string;
     tags?: string[];
     photos?: string[];
+    hours?: BusinessHours | null;
     address?: Partial<NonNullable<ApiBusiness['address']>>;
     /** Named keys, so a typo is a compile error rather than a silent no-op. */
     contact?: {
@@ -423,6 +426,7 @@ export interface BusinessDetail {
   website: string;
   /** Owner-provided Google Maps link; empty when they did not set one. */
   mapsUrl: string;
+  hours?: BusinessHours | null;
 }
 
 /** Get a single approved business by id (GET /api/business-detail?id=). */
@@ -788,6 +792,7 @@ export interface ApiBusinessWithAds extends ApiBusiness {
     website?: string;
     mapsUrl?: string;
   } | null;
+  hours?: BusinessHours | null;
 }
 
 /** GET /api/my-business — includes the owner's paid ads. */

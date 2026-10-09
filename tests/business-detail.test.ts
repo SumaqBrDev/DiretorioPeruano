@@ -50,4 +50,55 @@ describe('business-detail public projection', () => {
     expect(body.name).toBe('Chifa');
     expect(body.phone).toBe('11999999999');
   });
+
+  it('serializes persisted hours as normalized public data and uses null for legacy hours', async () => {
+    findFirstMock
+      .mockResolvedValueOnce({
+        id: 'biz-hours',
+        name: 'Chifa Hours',
+        category: 'restaurante',
+        description: 'Comida peruana',
+        address: {},
+        contact: {},
+        tags: [],
+        photos: [],
+        rating: 0,
+        status: 'approved',
+        hours: [
+          { day: 'Segunda', isOpen: true, open: '09:00', close: '18:00' },
+          { day: 'Terça', isOpen: true, open: '09:00', close: '18:00' },
+          { day: 'Quarta', isOpen: true, open: '09:00', close: '18:00' },
+          { day: 'Quinta', isOpen: true, open: '09:00', close: '18:00' },
+          { day: 'Sexta', isOpen: true, open: '09:00', close: '18:00' },
+          { day: 'Sábado', isOpen: true, open: '09:00', close: '18:00' },
+          { day: 'Domingo', isOpen: false, open: '25:99', close: '' },
+        ],
+        _count: { reviews: 0 },
+      } as any)
+      .mockResolvedValueOnce({
+        id: 'biz-legacy',
+        name: 'Legacy',
+        category: 'serviços',
+        description: 'Sem horários',
+        address: {},
+        contact: {},
+        tags: [],
+        photos: [],
+        rating: 0,
+        status: 'approved',
+        hours: null,
+        _count: { reviews: 0 },
+      } as any);
+
+    const withHours = await handler({ httpMethod: 'GET', queryStringParameters: { id: 'biz-hours' } } as any);
+    const legacy = await handler({ httpMethod: 'GET', queryStringParameters: { id: 'biz-legacy' } } as any);
+
+    expect(JSON.parse(withHours.body).hours[6]).toEqual({
+      day: 'Domingo',
+      isOpen: false,
+      open: '',
+      close: '',
+    });
+    expect(JSON.parse(legacy.body).hours).toBeNull();
+  });
 });
