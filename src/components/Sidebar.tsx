@@ -27,7 +27,11 @@ const getCategoryColor = (category: string) => {
 };
 
 export const Sidebar = ({ business }: SidebarProps) => {
+  const hasHours = business.hours.length > 0;
+
   const isOpenNow = () => {
+    if (!hasHours) return false;
+
     const now = new Date();
     const dayNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
     const today = dayNames[now.getDay()];
@@ -65,14 +69,21 @@ export const Sidebar = ({ business }: SidebarProps) => {
         </div>
 
         {/* Status Badge */}
-        <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold mx-auto w-fit ${
-          openStatus
-            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-            : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-        }`}>
-          <span className={`w-2 h-2 rounded-full ${openStatus ? 'bg-emerald-500' : 'bg-red-500'} animate-pulse`} />
-          {openStatus ? 'Aberto agora' : 'Fechado no momento'}
-        </div>
+        {hasHours ? (
+          <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold mx-auto w-fit ${
+            openStatus
+              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+              : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+          }`}>
+            <span className={`w-2 h-2 rounded-full ${openStatus ? 'bg-emerald-500' : 'bg-red-500'} animate-pulse`} />
+            {openStatus ? 'Aberto agora' : 'Fechado no momento'}
+          </div>
+        ) : (
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold mx-auto w-fit bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+            <span className="w-2 h-2 rounded-full bg-zinc-400" />
+            Horário não informado
+          </div>
+        )}
 
         {/* Rating Summary */}
         <div className="text-center py-3 border-y border-oro-inca/10">
@@ -208,7 +219,7 @@ export const Sidebar = ({ business }: SidebarProps) => {
             <Clock size={20} weight="fill" className="text-aji-rojo mx-auto mb-1" />
             <p className="text-[10px] font-mono uppercase tracking-[0.1em] text-zinc-500">Horário</p>
             <p className="text-sm font-semibold text-zinc-900 dark:text-white">
-              {openStatus ? 'Aberto' : 'Fechado'}
+              {hasHours ? (openStatus ? 'Aberto' : 'Fechado') : 'Não informado'}
             </p>
           </div>
           <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 text-center">
